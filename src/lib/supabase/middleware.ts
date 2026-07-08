@@ -1,5 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  getSupabasePublishableKey,
+  getSupabaseUrl,
+} from "@/lib/supabase/config";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -11,10 +15,20 @@ const PUBLIC_PATHS = [
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+  const supabaseUrl = getSupabaseUrl();
+  const supabasePublishableKey = getSupabasePublishableKey();
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    console.error("Missing Supabase env vars for proxy", {
+      hasUrl: Boolean(supabaseUrl),
+      hasPublishableKey: Boolean(supabasePublishableKey),
+    });
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabasePublishableKey,
     {
       cookies: {
         getAll() {
