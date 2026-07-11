@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BottomNav, Sidebar } from "@/components/layout/nav";
 import { InstallAppButton } from "@/components/layout/install-app-button";
+import { NotificationsPermissionPrompt } from "@/components/layout/notifications-permission";
 import { UserMenu } from "@/components/layout/user-menu";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { BrandLogo } from "@/components/layout/brand-logo";
@@ -53,6 +54,7 @@ export default async function AppLayout({
         </main>
       </div>
       <BottomNav />
+      <NotificationsPermissionPrompt />
     </div>
   );
 }

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sin conexión · Mis Finanzas</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: #faf9fc;
+        color: #2b2440;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #171321;
+          color: #f1eefb;
+        }
+      }
+      main {
+        text-align: center;
+        padding: 2rem;
+      }
+      img {
+        width: 72px;
+        height: 72px;
+      }
+      h1 {
+        font-size: 1.3rem;
+        margin: 1rem 0 0.25rem;
+      }
+      p {
+        margin: 0;
+        opacity: 0.7;
+        font-size: 0.95rem;
+      }
+      button {
+        margin-top: 1.25rem;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.6rem 1.5rem;
+        background: #7c3aed;
+        color: white;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icon.png?v=2" alt="Mis Finanzas" />
+      <h1>Sin conexión</h1>
+      <p>No hay internet ahora mismo. Tus datos te esperan en cuanto vuelva.</p>
+      <button onclick="location.reload()">Reintentar</button>
+    </main>
+  </body>
+</html>

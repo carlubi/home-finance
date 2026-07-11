@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  getWebPermission,
+  requestWebPermission,
+  showSystemNotification,
+  subscribeWebPermission,
+} from "@/lib/web-notifications";
 import type { AppNotification } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,12 +22,10 @@ import {
 
 export function NotificationsBell() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [webPermission, setWebPermission] = useState<
-    NotificationPermission | "unsupported"
-  >(() =>
-    typeof window !== "undefined" && "Notification" in window
-      ? Notification.permission
-      : "unsupported"
+  const webPermission = useSyncExternalStore(
+    subscribeWebPermission,
+    getWebPermission,
+    () => "unsupported" as const
   );
   const unread = notifications.filter((n) => !n.read_at).length;
 
@@ -44,22 +48,15 @@ export function NotificationsBell() {
           const notification = payload.new as AppNotification;
           setNotifications((current) => [notification, ...current].slice(0, 15));
 
-          if (
-            "Notification" in window &&
-            Notification.permission === "granted" &&
-            document.visibilityState !== "visible"
-          ) {
-            const webNotification = new Notification(notification.title, {
+          if (document.visibilityState !== "visible") {
+            const groupId = notification.data?.group_id;
+            showSystemNotification(notification.title, {
               body: notification.body ?? undefined,
-              icon: "/icon.png",
+              url:
+                typeof groupId === "string"
+                  ? `/compartidos/${groupId}`
+                  : undefined,
             });
-            webNotification.onclick = () => {
-              window.focus();
-              const groupId = notification.data?.group_id;
-              if (typeof groupId === "string") {
-                window.location.href = `/compartidos/${groupId}`;
-              }
-            };
           }
         }
       )
@@ -82,9 +79,7 @@ export function NotificationsBell() {
   }
 
   async function enableWebNotifications() {
-    if (!("Notification" in window)) return;
-    const permission = await Notification.requestPermission();
-    setWebPermission(permission);
+    await requestWebPermission();
   }
 
   return (
