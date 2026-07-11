@@ -5,12 +5,53 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { splitAmount } from "@/lib/finance";
 
+type GroupNotificationInput = {
+  groupId: string;
+  actorUserId: string;
+  type: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+};
+
 async function requireUser() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return { supabase, user };
+}
+
+async function notifyGroupMembers({
+  groupId,
+  actorUserId,
+  type,
+  title,
+  body,
+  data,
+}: GroupNotificationInput) {
+  const admin = createAdminClient();
+  const { data: members } = await admin
+    .from("shared_group_members")
+    .select("user_id")
+    .eq("group_id", groupId)
+    .eq("status", "active")
+    .not("user_id", "is", null)
+    .neq("user_id", actorUserId);
+
+  const rows = (members ?? [])
+    .filter((member) => member.user_id)
+    .map((member) => ({
+      user_id: member.user_id as string,
+      type,
+      title,
+      body,
+      data: { group_id: groupId, ...data },
+    }));
+
+  if (rows.length > 0) {
+    await admin.from("notifications").insert(rows);
+  }
 }
 
 // ── Grupos ──────────────────────────────────────────────────
@@ -183,6 +224,7 @@ export interface SharedExpenseInput {
   category_id: string | null;
   notes: string | null;
   receipt_path: string | null;
+  invoice_url: string | null;
   participant_ids: string[]; // reparto a partes iguales
 }
 
@@ -205,9 +247,11 @@ export async function saveSharedExpense(input: SharedExpenseInput) {
     category_id: input.category_id,
     notes: input.notes,
     receipt_path: input.receipt_path,
+    invoice_url: input.invoice_url?.trim() || null,
   };
 
   let expenseId = input.id;
+  const isNewExpense = !expenseId;
   if (expenseId) {
     const { error } = await supabase
       .from("shared_expenses")
@@ -239,6 +283,30 @@ export async function saveSharedExpense(input: SharedExpenseInput) {
       }))
     );
   if (partError) return { error: "No se pudo guardar el reparto." };
+
+  if (isNewExpense) {
+    try {
+      const admin = createAdminClient();
+      const { data: actor } = await admin
+        .from("shared_group_members")
+        .select("display_name, email")
+        .eq("group_id", input.group_id)
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      await notifyGroupMembers({
+        groupId: input.group_id,
+        actorUserId: user.id,
+        type: "shared_expense_created",
+        title: "Nuevo gasto compartido",
+        body: `${actor?.display_name ?? actor?.email ?? "Un integrante"} ha añadido "${input.name.trim()}" por ${input.total_amount.toFixed(2)} €.`,
+        data: { expense_id: expenseId, occurred_at: input.occurred_at },
+      });
+    } catch {
+      // La notificación no debe bloquear el guardado del gasto.
+    }
+  }
 
   revalidatePath("/compartidos");
   return { ok: true };
@@ -282,7 +350,7 @@ export async function registerDebtPayment(input: {
   });
   if (error) return { error: "No se pudo registrar el pago." };
 
-  // Notificar a los implicados (con datos mínimos)
+  // Notificar al grupo (con datos mínimos)
   try {
     const admin = createAdminClient();
     const { data: members } = await admin
@@ -291,16 +359,14 @@ export async function registerDebtPayment(input: {
       .in("id", [input.from_member, input.to_member]);
     const from = members?.find((m) => m.id === input.from_member);
     const to = members?.find((m) => m.id === input.to_member);
-    const notify = (members ?? [])
-      .filter((m) => m.user_id)
-      .map((m) => ({
-        user_id: m.user_id as string,
-        type: "debt_paid",
-        title: "Pago de deuda registrado",
-        body: `${from?.display_name ?? from?.email ?? "Alguien"} ha pagado ${input.amount.toFixed(2)} € a ${to?.display_name ?? to?.email ?? "otro miembro"}.`,
-        data: { group_id: input.group_id, month: input.month },
-      }));
-    if (notify.length > 0) await admin.from("notifications").insert(notify);
+    await notifyGroupMembers({
+      groupId: input.group_id,
+      actorUserId: user.id,
+      type: isPartial ? "debt_payment_registered" : "debt_paid",
+      title: isPartial ? "Pago parcial registrado" : "Deuda saldada",
+      body: `${from?.display_name ?? from?.email ?? "Un integrante"} ha ${isPartial ? "registrado un pago de" : "saldado"} ${input.amount.toFixed(2)} € con ${to?.display_name ?? to?.email ?? "otro miembro"}.`,
+      data: { month: input.month, from_member: input.from_member, to_member: input.to_member },
+    });
   } catch {
     // la notificación no debe bloquear el pago
   }

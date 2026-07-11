@@ -18,7 +18,14 @@ export async function login(_prev: { error?: string } | null, formData: FormData
   redirect(String(formData.get("next") || "/"));
 }
 
-export async function signup(_prev: { error?: string } | null, formData: FormData) {
+function getSiteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+}
+
+export async function signup(
+  _prev: { error?: string; ok?: boolean; message?: string } | null,
+  formData: FormData
+) {
   const supabase = await createClient();
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
@@ -31,14 +38,29 @@ export async function signup(_prev: { error?: string } | null, formData: FormDat
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: {
+      data: { full_name: fullName },
+      emailRedirectTo: `${getSiteUrl()}/auth/callback?next=/onboarding`,
+    },
   });
   if (error) {
     return { error: "No se pudo crear la cuenta: " + error.message };
   }
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   revalidatePath("/", "layout");
-  redirect("/");
+  if (session) {
+    redirect("/onboarding");
+  }
+
+  return {
+    ok: true,
+    message:
+      "Te hemos enviado un correo para confirmar tu usuario. Cuando lo verifiques podrás continuar con el onboarding.",
+  };
 }
 
 export async function resetPassword(

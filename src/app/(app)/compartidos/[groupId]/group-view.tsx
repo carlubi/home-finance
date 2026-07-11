@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowRight,
   Check,
   Copy,
+  ExternalLink,
   MoreVertical,
   Paperclip,
   Pencil,
@@ -17,15 +18,18 @@ import {
   UserX,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatMonth } from "@/lib/format";
 import type { MemberPosition, Transfer } from "@/lib/finance";
 import type {
   Category,
+  CategoryTotal,
   DebtSettlement,
   GroupMember,
   SharedExpense,
   SharedGroup,
 } from "@/lib/types";
+import { CategoryDonut } from "@/components/charts/category-donut";
+import { ChartCard } from "@/components/charts/chart-card";
 import {
   deleteSharedExpense,
   inviteMember,
@@ -40,6 +44,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -74,6 +79,7 @@ export function GroupView({
   positions,
   transfers,
   categories,
+  allCategoryTotals,
   month,
   currentUserId,
 }: {
@@ -84,6 +90,7 @@ export function GroupView({
   positions: MemberPosition[];
   transfers: Transfer[];
   categories: Category[];
+  allCategoryTotals: CategoryTotal[];
   month: string;
   currentUserId: string;
 }) {
@@ -100,7 +107,13 @@ export function GroupView({
   const [saving, setSaving] = useState(false);
   const [parsingReceipt, setParsingReceipt] = useState(false);
   const [uploadedReceiptPath, setUploadedReceiptPath] = useState<string | null>(null);
-  const expenseFormRef = useRef<HTMLFormElement>(null);
+  const [manualExpenseOpen, setManualExpenseOpen] = useState(false);
+  const [expenseName, setExpenseName] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDate, setExpenseDate] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState<string | undefined>();
+  const [expenseNotes, setExpenseNotes] = useState("");
+  const [invoiceUrl, setInvoiceUrl] = useState("");
 
   // Pago parcial
   const [payTransfer, setPayTransfer] = useState<Transfer | null>(null);
@@ -113,6 +126,28 @@ export function GroupView({
   // Filtros del historial
   const [filterMember, setFilterMember] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+
+  // Gastos del mes agrupados por categoría (para la visión global)
+  const monthCategoryTotals = useMemo(() => {
+    const totals = new Map<string, CategoryTotal>();
+    for (const e of expenses) {
+      const key = e.category_id ?? "none";
+      const existing = totals.get(key);
+      if (existing) {
+        existing.total = Number(existing.total) + Number(e.total_amount);
+      } else {
+        totals.set(key, {
+          user_id: group.id,
+          month,
+          category_id: e.category_id,
+          category_name: e.categories?.name ?? "Sin categoría",
+          category_color: e.categories?.color ?? null,
+          total: Number(e.total_amount),
+        });
+      }
+    }
+    return [...totals.values()];
+  }, [expenses, group.id, month]);
 
   const filteredExpenses = useMemo(
     () =>
@@ -137,6 +172,13 @@ export function GroupView({
     setEditing(null);
     setParticipants(activeMembers.map((m) => m.id));
     setUploadedReceiptPath(null);
+    setManualExpenseOpen(false);
+    setExpenseName("");
+    setExpenseAmount("");
+    setExpenseDate(new Date().toISOString().slice(0, 10));
+    setExpenseCategory(undefined);
+    setExpenseNotes("");
+    setInvoiceUrl("");
     setExpenseOpen(true);
   }
 
@@ -144,40 +186,55 @@ export function GroupView({
     setEditing(e);
     setParticipants((e.shared_expense_participants ?? []).map((p) => p.member_id));
     setUploadedReceiptPath(null);
+    setManualExpenseOpen(true);
+    setExpenseName(e.name);
+    setExpenseAmount(String(e.total_amount));
+    setExpenseDate(e.occurred_at);
+    setExpenseCategory(e.category_id ?? undefined);
+    setExpenseNotes(e.notes ?? "");
+    setInvoiceUrl(e.invoice_url ?? "");
     setExpenseOpen(true);
   }
 
-  /** Sube el ticket, lo lee con IA y prerrellena el formulario */
-  async function onReceiptSelected(file: File) {
+  /** Sube o lee el justificante, y deja que la IA rellene solo los datos base. */
+  async function analyzeReceiptWithAi(form: HTMLFormElement) {
+    const data = new FormData(form);
+    const file = data.get("receipt") as File | null;
+    const currentInvoiceUrl = String(data.get("invoice_url") ?? "").trim();
+
+    if ((!file || file.size === 0) && !currentInvoiceUrl) {
+      toast.error("Sube un ticket/factura o pega un enlace para usar la IA.");
+      return;
+    }
+
     setParsingReceipt(true);
     try {
       const supabase = createClient();
-      const path = `${group.id}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("receipts")
-        .upload(path, file);
-      if (uploadError) throw uploadError;
-      setUploadedReceiptPath(path);
+      let path = uploadedReceiptPath;
+
+      if (!path && file && file.size > 0) {
+        path = `${group.id}/${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("receipts")
+          .upload(path, file);
+        if (uploadError) throw uploadError;
+        setUploadedReceiptPath(path);
+      }
 
       const { data, error } = await supabase.functions.invoke("parse-receipt", {
-        body: { path, group_id: group.id },
+        body: { path, group_id: group.id, invoice_url: currentInvoiceUrl || null },
       });
       if (error || data?.error) throw new Error(data?.error ?? "Fallo al leer");
 
-      const form = expenseFormRef.current;
-      if (form) {
-        const set = (name: string, value: string) => {
-          const el = form.elements.namedItem(name);
-          if (el instanceof HTMLInputElement && value) el.value = value;
-        };
-        if (data.merchant) set("name", data.merchant);
-        if (data.total) set("total_amount", String(data.total));
-        if (data.date) set("occurred_at", data.date);
-      }
-      toast.success("Ticket leído. Revisa los datos antes de guardar.");
+      if (data.merchant) setExpenseName(data.merchant);
+      if (data.total) setExpenseAmount(String(data.total));
+      if (data.date) setExpenseDate(data.date);
+      if (data.category_id) setExpenseCategory(data.category_id);
+      setManualExpenseOpen(true);
+      toast.success("Justificante leído. Revisa los datos antes de guardar.");
     } catch {
       toast.error(
-        "No se pudo leer el ticket con IA. El archivo queda adjunto igualmente."
+        "No se pudo leer el justificante con IA. Puedes completarlo manualmente."
       );
     } finally {
       setParsingReceipt(false);
@@ -213,6 +270,7 @@ export function GroupView({
         category_id: String(form.get("category") ?? "") || null,
         notes: String(form.get("notes") ?? "") || null,
         receipt_path: receiptPath,
+        invoice_url: String(form.get("invoice_url") ?? "") || null,
         participant_ids: participants,
       });
       if (result.error) toast.error(result.error);
@@ -404,10 +462,33 @@ export function GroupView({
       <Tabs defaultValue="gastos">
         <TabsList>
           <TabsTrigger value="gastos">Gastos ({expenses.length})</TabsTrigger>
+          <TabsTrigger value="vision">Visión global</TabsTrigger>
           <TabsTrigger value="miembros">
             Integrantes ({activeMembers.length})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="vision" className="grid gap-4 lg:grid-cols-2">
+          <ChartCard
+            title="Gastos por categoría"
+            description={formatMonth(month)}
+            fileName={`grupo-categorias-${month.slice(0, 7)}`}
+            exportSubtitle={group.name}
+          >
+            <CategoryDonut data={monthCategoryTotals} />
+          </ChartCard>
+          <ChartCard
+            title="Gastos por categoría · histórico"
+            description="Todos los gastos del grupo desde su creación"
+            fileName="grupo-categorias-historico"
+            exportSubtitle={group.name}
+          >
+            <CategoryDonut
+              data={allCategoryTotals}
+              emptyLabel="El grupo aún no tiene gastos."
+            />
+          </ChartCard>
+        </TabsContent>
 
         <TabsContent value="gastos" className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -467,7 +548,7 @@ export function GroupView({
           ) : (
             <ul className="divide-y rounded-md border">
               {filteredExpenses.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 p-3">
+                <li key={e.id} className="row-hover flex items-center gap-3 p-3">
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: e.categories?.color ?? "#898781" }}
@@ -475,7 +556,7 @@ export function GroupView({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
                       {e.name}
-                      {e.receipt_path && (
+                      {(e.receipt_download_url || e.invoice_url) && (
                         <Paperclip className="ml-1 inline size-3 text-muted-foreground" />
                       )}
                     </p>
@@ -484,6 +565,32 @@ export function GroupView({
                       {memberName(members, e.paid_by)} · entre{" "}
                       {(e.shared_expense_participants ?? []).length}
                     </p>
+                    {(e.receipt_download_url || e.invoice_url) && (
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                        {e.receipt_download_url && (
+                          <a
+                            href={e.receipt_download_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            <ExternalLink className="size-3" />
+                            Ver ticket
+                          </a>
+                        )}
+                        {e.invoice_url && (
+                          <a
+                            href={e.invoice_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            <ExternalLink className="size-3" />
+                            Ver factura
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <span className="text-sm font-semibold tabular-nums">
                     {formatMoney(Number(e.total_amount))}
@@ -579,44 +686,48 @@ export function GroupView({
             <DialogTitle>
               {editing ? "Editar gasto compartido" : "Nuevo gasto compartido"}
             </DialogTitle>
+            {!editing && (
+              <DialogDescription>
+                Sube un ticket o factura, pega el enlace donde lo tienes guardado
+                y marca quién pagó y con quién se reparte. La IA rellenará nombre,
+                categoría, importe y fecha de emisión. También puedes hacerlo manual.
+              </DialogDescription>
+            )}
           </DialogHeader>
-          <form ref={expenseFormRef} onSubmit={onSubmitExpense} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="se-name">Nombre</Label>
-              <Input
-                id="se-name"
-                name="name"
-                required
-                defaultValue={editing?.name ?? ""}
-                placeholder="Compra supermercado"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={onSubmitExpense} className="grid gap-4">
+            {!editing && !manualExpenseOpen && (
+              <div className="grid gap-3 rounded-lg border bg-muted/30 p-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="se-receipt">Ticket o factura</Label>
+                  <Input
+                    id="se-receipt"
+                    name="receipt"
+                    type="file"
+                    accept="image/*,.pdf"
+                    disabled={parsingReceipt}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="cursor-pointer text-left text-xs font-semibold text-primary underline-offset-4 hover:text-primary/80 hover:underline"
+                  onClick={() => setManualExpenseOpen(true)}
+                >
+                  Prefiero hacerlo manual
+                </button>
+              </div>
+            )}
+            {editing && (
               <div className="grid gap-2">
-                <Label htmlFor="se-amount">Importe total (€)</Label>
+                <Label htmlFor="se-receipt">Ticket o factura</Label>
                 <Input
-                  id="se-amount"
-                  name="total_amount"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  required
-                  defaultValue={editing?.total_amount ?? ""}
+                  id="se-receipt"
+                  name="receipt"
+                  type="file"
+                  accept="image/*,.pdf"
+                  disabled={parsingReceipt}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="se-date">Fecha real</Label>
-                <Input
-                  id="se-date"
-                  name="occurred_at"
-                  type="date"
-                  required
-                  defaultValue={
-                    editing?.occurred_at ?? new Date().toISOString().slice(0, 10)
-                  }
-                />
-              </div>
-            </div>
+            )}
             <div className="grid gap-2">
               <Label>Pagado por</Label>
               <Select
@@ -665,11 +776,78 @@ export function GroupView({
                 El importe se reparte a partes iguales entre los seleccionados.
               </p>
             </div>
+            {!manualExpenseOpen && (
+              <div className="grid gap-2">
+                <Label htmlFor="se-invoice-url">Enlace del justificante</Label>
+                <Input
+                  id="se-invoice-url"
+                  name="invoice_url"
+                  type="url"
+                  value={invoiceUrl}
+                  onChange={(e) => setInvoiceUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            )}
+            {!manualExpenseOpen && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={parsingReceipt}
+                onClick={(event) => {
+                  const form = event.currentTarget.form;
+                  if (form) analyzeReceiptWithAi(form);
+                }}
+              >
+                <Sparkles className="size-4" />
+                {parsingReceipt ? "Leyendo justificante..." : "Rellenar con IA"}
+              </Button>
+            )}
+            {manualExpenseOpen && (
+              <>
+            <div className="grid gap-2">
+              <Label htmlFor="se-name">Nombre</Label>
+              <Input
+                id="se-name"
+                name="name"
+                required
+                value={expenseName}
+                onChange={(e) => setExpenseName(e.target.value)}
+                placeholder="Compra supermercado"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="se-amount">Importe total (€)</Label>
+                <Input
+                  id="se-amount"
+                  name="total_amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  required
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="se-date">Fecha de emisión</Label>
+                <Input
+                  id="se-date"
+                  name="occurred_at"
+                  type="date"
+                  required
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label>Categoría</Label>
+              <input type="hidden" name="category" value={expenseCategory ?? ""} />
               <Select
-                name="category"
-                defaultValue={editing?.category_id ?? undefined}
+                value={expenseCategory}
+                onValueChange={(value) => setExpenseCategory(String(value))}
                 items={categories.map((c) => ({ value: c.id, label: c.name }))}
               >
                 <SelectTrigger className="w-full">
@@ -685,30 +863,31 @@ export function GroupView({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="se-receipt">Ticket o comprobante (opcional)</Label>
+              <Label htmlFor="se-invoice-url-manual">Enlace del justificante</Label>
               <Input
-                id="se-receipt"
-                name="receipt"
-                type="file"
-                accept="image/*,.pdf"
-                disabled={parsingReceipt}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onReceiptSelected(f);
-                }}
+                id="se-invoice-url-manual"
+                name="invoice_url"
+                type="url"
+                value={invoiceUrl}
+                onChange={(e) => setInvoiceUrl(e.target.value)}
+                placeholder="https://..."
               />
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Sparkles className="size-3" />
-                {parsingReceipt
-                  ? "Leyendo el ticket con IA…"
-                  : "Al subir un ticket, la IA rellenará comercio, fecha e importe."}
-              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="se-notes">Notas (opcional)</Label>
-              <Textarea id="se-notes" name="notes" defaultValue={editing?.notes ?? ""} />
+              <Textarea
+                id="se-notes"
+                name="notes"
+                value={expenseNotes}
+                onChange={(e) => setExpenseNotes(e.target.value)}
+              />
             </div>
-            <Button type="submit" disabled={saving || participants.length === 0}>
+              </>
+            )}
+            <Button
+              type="submit"
+              disabled={saving || participants.length === 0 || !manualExpenseOpen}
+            >
               {saving ? "Guardando…" : "Guardar"}
             </Button>
           </form>

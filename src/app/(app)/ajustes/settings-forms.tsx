@@ -22,10 +22,14 @@ import {
   deleteBudget,
   deleteCategory,
   saveBudget,
-  updateProfile,
+  updateMonthlyIncome,
 } from "./actions";
 
-export function ProfileForm({ fullName }: { fullName: string }) {
+export function MonthlyIncomeForm({
+  monthlyIncome,
+}: {
+  monthlyIncome: number | null;
+}) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -33,19 +37,32 @@ export function ProfileForm({ fullName }: { fullName: string }) {
     <form
       action={(formData) =>
         startTransition(async () => {
-          const r = await updateProfile(formData);
+          const r = await updateMonthlyIncome(formData);
           if (r.error) toast.error(r.error);
           else {
-            toast.success("Perfil actualizado.");
+            toast.success("Ingreso mensual actualizado.");
             router.refresh();
           }
         })
       }
-      className="flex items-end gap-3"
+      className="flex w-full flex-col gap-3 sm:flex-row sm:items-end"
     >
       <div className="grid flex-1 gap-2">
-        <Label htmlFor="full_name">Nombre</Label>
-        <Input id="full_name" name="full_name" defaultValue={fullName} />
+        <Label htmlFor="monthly_income">Ingreso mensual / salario</Label>
+        <Input
+          key={monthlyIncome ?? "empty"}
+          id="monthly_income"
+          name="monthly_income"
+          type="text"
+          inputMode="decimal"
+          defaultValue={monthlyIncome ?? ""}
+          placeholder="Ej. 1.800,50"
+        />
+        <p className="text-xs text-muted-foreground">
+          Puedes escribir decimales con coma o punto: <span className="tabular-nums">1.800,50</span>,{" "}
+          <span className="tabular-nums">1800.50</span> o <span className="tabular-nums">1800</span>.
+          Los puntos de miles se permiten y se normalizan automáticamente.
+        </p>
       </div>
       <Button type="submit" disabled={pending}>
         Guardar
@@ -88,11 +105,11 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
               toast.success("Categoría creada.");
               router.refresh();
             }
-          })
-        }
-        className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]"
+        })
+      }
+        className="grid w-full gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
       >
-        <Input name="name" placeholder="Nombre de la categoría" required />
+        <Input className="w-full" name="name" placeholder="Nombre de la categoría" required />
         <Select name="kind" defaultValue="expense" items={[
           { value: "expense", label: "Gasto" },
           { value: "income", label: "Ingreso" },
@@ -183,9 +200,9 @@ export function BudgetsManager({
               toast.success("Presupuesto guardado.");
               router.refresh();
             }
-          })
-        }
-        className="grid gap-3 sm:grid-cols-[1fr_auto_auto]"
+        })
+      }
+        className="grid w-full gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
       >
         <Select
           name="category_id"
@@ -203,6 +220,7 @@ export function BudgetsManager({
           </SelectContent>
         </Select>
         <Input
+          className="w-full"
           name="monthly_limit"
           type="number"
           min="1"

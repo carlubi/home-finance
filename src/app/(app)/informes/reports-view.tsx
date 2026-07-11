@@ -14,7 +14,7 @@ import {
 } from "docx";
 import { FileDown, Loader2, Printer, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { addMonths, formatMonth, monthStart } from "@/lib/format";
+import { addMonths, formatMonth, formatMonthRange, monthStart } from "@/lib/format";
 import type { MonthlyReport } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,18 +47,39 @@ async function downloadWord(report: MonthlyReport) {
   }
   const doc = new Document({ sections: [{ children: paragraphs }] });
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `informe-${report.month.slice(0, 7)}.docx`);
+  const suffix =
+    report.end_month && report.end_month !== report.month
+      ? `${report.month.slice(0, 7)}_a_${report.end_month.slice(0, 7)}`
+      : report.month.slice(0, 7);
+  saveAs(blob, `informe-${suffix}.docx`);
 }
 
-export function ReportsView({ reports }: { reports: MonthlyReport[] }) {
+function buildMonthOptions(earliestMonth: string | null) {
+  const current = monthStart(new Date());
+  const first = earliestMonth ?? current;
+  const options: string[] = [];
+  let cursor = first;
+  while (cursor <= current) {
+    options.push(cursor);
+    cursor = addMonths(cursor, 1);
+  }
+  return options.reverse();
+}
+
+export function ReportsView({
+  reports,
+  earliestMonth,
+}: {
+  reports: MonthlyReport[];
+  earliestMonth: string | null;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [generating, setGenerating] = useState(false);
 
-  // Meses candidatos: los últimos 12 (incluido el actual)
-  const current = monthStart(new Date());
-  const monthOptions = Array.from({ length: 12 }, (_, i) => addMonths(current, -i));
-  const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]);
+  const monthOptions = buildMonthOptions(earliestMonth);
+  const [selectedStartMonth, setSelectedStartMonth] = useState(monthOptions[0]);
+  const [selectedEndMonth, setSelectedEndMonth] = useState(monthOptions[0]);
   const [openReport, setOpenReport] = useState<MonthlyReport | null>(
     reports[0] ?? null
   );
@@ -68,7 +89,10 @@ export function ReportsView({ reports }: { reports: MonthlyReport[] }) {
     try {
       const supabase = createClient();
       const { data, error } = await supabase.functions.invoke("monthly-report", {
-        body: { month: selectedMonth },
+        body: {
+          start_month: selectedStartMonth,
+          end_month: selectedEndMonth,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -81,7 +105,13 @@ export function ReportsView({ reports }: { reports: MonthlyReport[] }) {
     }
   }
 
-  const existing = new Map(reports.map((r) => [r.month, r]));
+  const existing = new Map(
+    reports.map((r) => [
+      `${r.kind}:${r.month}:${r.end_month ?? r.month}`,
+      r,
+    ])
+  );
+  const selectedKey = `${selectedStartMonth === selectedEndMonth ? "month" : "range"}:${selectedStartMonth}:${selectedEndMonth}`;
 
   return (
     <div className="grid gap-4">
@@ -89,10 +119,15 @@ export function ReportsView({ reports }: { reports: MonthlyReport[] }) {
       <Card>
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Mes</span>
+            <span className="text-xs font-medium text-muted-foreground">Desde</span>
             <Select
-              value={selectedMonth}
-              onValueChange={(v) => setSelectedMonth(String(v))}
+              value={selectedStartMonth}
+              onValueChange={(v) => {
+                setSelectedStartMonth(String(v));
+                if (String(v) > selectedEndMonth) {
+                  setSelectedEndMonth(String(v));
+                }
+              }}
               items={monthOptions.map((m) => ({
                 value: m,
                 label: formatMonth(m),
@@ -111,6 +146,32 @@ export function ReportsView({ reports }: { reports: MonthlyReport[] }) {
               </SelectContent>
             </Select>
           </div>
+          <div className="grid gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Hasta</span>
+            <Select
+              value={selectedEndMonth}
+              onValueChange={(v) => setSelectedEndMonth(String(v))}
+              items={monthOptions
+                .filter((m) => m >= selectedStartMonth)
+                .map((m) => ({
+                  value: m,
+                  label: formatMonth(m),
+                }))}
+            >
+              <SelectTrigger className="min-w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions
+                  .filter((m) => m >= selectedStartMonth)
+                  .map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {formatMonth(m)}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button onClick={generate} disabled={generating}>
             {generating ? (
               <Loader2 className="size-4 animate-spin" />
@@ -119,7 +180,7 @@ export function ReportsView({ reports }: { reports: MonthlyReport[] }) {
             )}
             {generating
               ? "Analizando tus finanzas…"
-              : existing.has(selectedMonth)
+              : existing.has(selectedKey)
                 ? "Regenerar informe"
                 : "Generar informe"}
           </Button>
@@ -147,7 +208,7 @@ export function ReportsView({ reports }: { reports: MonthlyReport[] }) {
         <Card className="print-report">
           <CardHeader className="flex-row items-center justify-between space-y-0 print:hidden">
             <CardTitle className="text-base">
-              Informe de {formatMonth(openReport.month)}
+              Informe de {formatMonthRange(openReport.month, openReport.end_month)}
             </CardTitle>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => window.print()}>

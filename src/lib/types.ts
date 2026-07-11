@@ -39,6 +39,8 @@ export interface Income {
   notes: string | null;
   source: "manual" | "import";
   import_id: string | null;
+  /** true si lo genera el ingreso mensual configurado en Ajustes */
+  auto_salary?: boolean;
   created_at: string;
   categories?: Category | null;
 }
@@ -47,6 +49,7 @@ export interface Profile {
   id: string;
   full_name: string | null;
   currency: string;
+  monthly_income: number | null;
   onboarding_completed: boolean;
 }
 
@@ -106,6 +109,8 @@ export interface MonthlyReport {
   id: string;
   user_id: string;
   month: string;
+  end_month: string | null;
+  kind: "month" | "range";
   content_md: string;
   content_json: Record<string, unknown> | null;
   created_at: string;
@@ -138,11 +143,13 @@ export interface SharedExpense {
   paid_by: string;
   category_id: string | null;
   receipt_path: string | null;
+  invoice_url: string | null;
   notes: string | null;
   created_by: string;
   created_at: string;
   categories?: Category | null;
   shared_expense_participants?: SharedExpenseParticipant[];
+  receipt_download_url?: string | null;
 }
 
 export interface SharedExpenseParticipant {

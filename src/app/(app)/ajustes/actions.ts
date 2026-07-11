@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { parseMoneyInput } from "@/lib/format";
+import { syncSalaryIncome } from "@/lib/salary";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -11,17 +13,53 @@ async function requireUser() {
   return { supabase, user };
 }
 
-export async function updateProfile(formData: FormData) {
+export async function updateMonthlyIncome(formData: FormData) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };
 
-  const fullName = String(formData.get("full_name") ?? "").trim();
+  const monthlyIncomeRaw = String(formData.get("monthly_income") ?? "").trim();
+  const monthlyIncome = parseMoneyInput(monthlyIncomeRaw);
+
+  if (monthlyIncomeRaw && (monthlyIncome === null || monthlyIncome <= 0)) {
+    return { error: "El ingreso mensual debe ser mayor que 0." };
+  }
+
   const { error } = await supabase
+    .from("onboarding_answers")
+    .upsert(
+      {
+        user_id: user.id,
+        fixed_income_amount: monthlyIncome,
+        has_fixed_income: monthlyIncome !== null ? true : null,
+      },
+      { onConflict: "user_id" }
+    );
+  if (error) {
+    console.error("updateMonthlyIncome failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return {
+      error:
+        error.message ||
+        "No se pudo actualizar el ingreso mensual. Revisa la conexión con Supabase.",
+    };
+  }
+
+  // Mantener también la copia en profiles (la usa la migración inicial)
+  await supabase
     .from("profiles")
-    .update({ full_name: fullName })
+    .update({ monthly_income: monthlyIncome })
     .eq("id", user.id);
-  if (error) return { error: "No se pudo actualizar el perfil." };
+
+  // Reflejar el salario en los ingresos de cada mes del año
+  const sync = await syncSalaryIncome(supabase, user.id, monthlyIncome);
+  if (sync.error) return { error: sync.error };
+
   revalidatePath("/", "layout");
+  revalidatePath("/ajustes");
   return { ok: true };
 }
 

@@ -76,7 +76,7 @@ export default async function ImportarPage() {
                 {f.status === "ready" || f.status === "confirmed" ? (
                   <Link
                     href={`/importar/${f.id}`}
-                    className="flex items-center gap-3 p-3 transition-colors hover:bg-accent/50"
+                    className="row-hover flex items-center gap-3 p-3"
                   >
                     {inner}
                     <ChevronRight className="size-4 text-muted-foreground" />

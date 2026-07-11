@@ -43,7 +43,7 @@ export default async function CompartidosPage() {
           <div className="grid gap-2">
             {list.map((g) => (
               <Link key={g.id} href={`/compartidos/${g.id}`}>
-                <Card className="transition-colors hover:bg-accent/50">
+                <Card className="card-lift">
                   <CardContent className="flex items-center gap-3">
                     <Users className="size-5 text-muted-foreground" />
                     <div className="flex-1">

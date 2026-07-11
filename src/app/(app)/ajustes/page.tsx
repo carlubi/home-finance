@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ProfileForm, CategoriesManager, BudgetsManager } from "./settings-forms";
+import { MonthlyIncomeForm, CategoriesManager, BudgetsManager } from "./settings-forms";
 import { ExportData } from "@/components/export/export-data";
 
 export const metadata = { title: "Ajustes" };
@@ -20,9 +20,13 @@ export default async function AjustesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: categories }, { data: budgets }] =
+  const [{ data: onboarding }, { data: categories }, { data: budgets }] =
     await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).single(),
+      supabase
+        .from("onboarding_answers")
+        .select("fixed_income_amount")
+        .eq("user_id", user.id)
+        .single(),
       supabase.from("categories").select("*").order("name"),
       supabase.from("budgets").select("*, categories(*)").eq("user_id", user.id),
     ]);
@@ -30,16 +34,16 @@ export default async function AjustesPage() {
   const cats = (categories ?? []) as Category[];
 
   return (
-    <div className="grid max-w-2xl gap-4">
+    <div className="grid w-full gap-4">
       <h1 className="text-2xl font-semibold">Ajustes</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Perfil</CardTitle>
+          <CardTitle className="text-base">Ingreso mensual</CardTitle>
           <CardDescription>{user.email}</CardDescription>
         </CardHeader>
         <CardContent>
-          <ProfileForm fullName={profile?.full_name ?? ""} />
+          <MonthlyIncomeForm monthlyIncome={onboarding?.fixed_income_amount ?? null} />
         </CardContent>
       </Card>
 

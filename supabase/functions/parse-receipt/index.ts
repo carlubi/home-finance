@@ -10,23 +10,21 @@ const MODEL = "gpt-4.1";
 const RECEIPT_SCHEMA = {
   type: "object",
   properties: {
-    merchant: { type: ["string", "null"], description: "Nombre del comercio" },
+    merchant: {
+      type: ["string", "null"],
+      description: "Nombre del comercio o concepto principal",
+    },
     date: {
       type: ["string", "null"],
-      description: "Fecha del ticket (YYYY-MM-DD)",
+      description: "Fecha de emisión del ticket o factura (YYYY-MM-DD)",
     },
     total: { type: ["number", "null"], description: "Importe total en euros" },
     category: {
       type: ["string", "null"],
       description: "Una categoría de la lista dada",
     },
-    items: {
-      type: "array",
-      items: { type: "string" },
-      description: "Productos o conceptos detectados (máx. 15)",
-    },
   },
-  required: ["merchant", "date", "total", "category", "items"],
+  required: ["merchant", "date", "total", "category"],
   additionalProperties: false,
 } as const;
 
@@ -43,23 +41,42 @@ Deno.serve(async (req) => {
   const { supabase, user } = await requireUser(req);
   if (!user) return json({ error: "No autorizado" }, 401);
 
-  const { path, group_id } = await req.json();
-  if (!path || !group_id) return json({ error: "Faltan parámetros" }, 400);
+  const { path, group_id, invoice_url } = await req.json();
+  if ((!path && !invoice_url) || !group_id) {
+    return json({ error: "Faltan parámetros" }, 400);
+  }
 
   try {
-    const { data: blob, error } = await supabase.storage
-      .from("receipts")
-      .download(path);
-    if (error || !blob) throw new Error("No se pudo descargar el ticket");
+    let blob: Blob | null = null;
+    let filename = "ticket";
+    let sourcePath = String(path ?? "");
+
+    if (path) {
+      const { data, error } = await supabase.storage
+        .from("receipts")
+        .download(path);
+      if (error || !data) throw new Error("No se pudo descargar el ticket");
+      blob = data;
+      filename = String(path).split("/").at(-1) ?? "ticket";
+    } else if (invoice_url) {
+      const response = await fetch(invoice_url);
+      if (!response.ok) throw new Error("No se pudo descargar el enlace");
+      blob = await response.blob();
+      filename = new URL(invoice_url).pathname.split("/").at(-1) || "factura";
+      sourcePath = filename;
+    }
+
+    if (!blob) throw new Error("No se encontró ningún justificante");
 
     const buffer = await blob.arrayBuffer();
-    const lower = String(path).toLowerCase();
+    const lower = sourcePath.toLowerCase();
+    const mime = blob.type || "";
 
-    const fileBlock: ContentPart = lower.endsWith(".pdf")
+    const fileBlock: ContentPart = lower.endsWith(".pdf") || mime.includes("pdf")
       ? {
           type: "file",
           file: {
-            filename: "ticket.pdf",
+            filename,
             file_data: `data:application/pdf;base64,${toBase64(buffer)}`,
           },
         }
@@ -67,11 +84,12 @@ Deno.serve(async (req) => {
           type: "image_url",
           image_url: {
             url: `data:${
-              lower.endsWith(".png")
+              mime ||
+              (lower.endsWith(".png")
                 ? "image/png"
                 : lower.endsWith(".webp")
                   ? "image/webp"
-                  : "image/jpeg"
+                  : "image/jpeg")
             };base64,${toBase64(buffer)}`,
           },
         };
@@ -92,7 +110,7 @@ Deno.serve(async (req) => {
             fileBlock,
             {
               type: "text",
-              text: `Lee este ticket o factura y extrae comercio, fecha real (YYYY-MM-DD), importe total, productos y categoría.
+              text: `Lee este ticket o factura y extrae solo estos campos: nombre o comercio, fecha de emisión (YYYY-MM-DD), importe total y categoría.
 Formato español: fechas DD/MM/YYYY y decimales con coma.
 Categorías posibles: ${(categories ?? []).map((c) => c.name).join(", ")}.`,
             },
@@ -124,7 +142,7 @@ Categorías posibles: ${(categories ?? []).map((c) => c.name).join(", ")}.`,
     await supabase.from("uploaded_receipts").insert({
       group_id,
       uploader_id: user.id,
-      file_path: path,
+      file_path: path ?? invoice_url,
       parsed,
     });
 
@@ -134,7 +152,6 @@ Categorías posibles: ${(categories ?? []).map((c) => c.name).join(", ")}.`,
       date: parsed.date ?? null,
       total: parsed.total ?? null,
       category_id: category?.id ?? null,
-      items: parsed.items ?? [],
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido";

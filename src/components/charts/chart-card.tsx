@@ -16,17 +16,19 @@ export function ChartCard({
   title,
   description,
   fileName,
+  exportSubtitle,
   children,
 }: {
   title: string;
   description?: string;
   fileName: string;
+  exportSubtitle?: string;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <Card>
+    <Card className="card-lift">
       <CardHeader className="flex-row items-start justify-between space-y-0">
         <div>
           <CardTitle className="text-base">{title}</CardTitle>
@@ -37,7 +39,13 @@ export function ChartCard({
           size="icon"
           className="size-8 shrink-0"
           title="Exportar como PNG"
-          onClick={() => ref.current && exportChartAsPng(ref.current, fileName)}
+          onClick={() =>
+            ref.current &&
+            exportChartAsPng(ref.current, fileName, {
+              title: exportSubtitle ? `${title} · ${exportSubtitle}` : title,
+              subtitle: description,
+            })
+          }
         >
           <Download className="size-4" />
         </Button>

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Figtree, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Figtree: humanista y redondeada, la alternativa libre más cercana a Aptos
+const figtree = Figtree({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
   },
   description:
     "Gestión de finanzas personales y gastos compartidos con análisis asistido por IA",
+  themeColor: "#7c3aed",
 };
 
 export default function RootLayout({
@@ -31,7 +33,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${figtree.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

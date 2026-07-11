@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreVertical, Paperclip, Pencil, Plus, Repeat, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  FileUp,
+  MoreVertical,
+  Paperclip,
+  Pencil,
+  Plus,
+  Repeat,
+  Trash2,
+} from "lucide-react";
 import { deleteTransaction } from "@/app/(app)/transactions/actions";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Category, Expense, Income } from "@/lib/types";
@@ -62,17 +71,62 @@ export function TransactionList({
   return (
     <div className="grid gap-2">
       <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setEditing(null);
-            setDialogOpen(true);
-          }}
-        >
-          <Plus className="size-4" />
-          {kind === "expense" ? "Añadir gasto" : "Añadir ingreso"}
-        </Button>
+        {kind === "expense" ? (
+          <div className="inline-flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditing(null);
+                setDialogOpen(true);
+              }}
+            >
+              <Plus className="size-4" />
+              Añadir gasto
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="px-2"
+                    aria-label="Más opciones de gasto"
+                  >
+                    <ChevronDown className="size-4" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setEditing(null);
+                    setDialogOpen(true);
+                  }}
+                >
+                  <Plus />
+                  Nuevo gasto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/importar")}>
+                  <FileUp />
+                  Importar documento
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="size-4" />
+            Añadir ingreso
+          </Button>
+        )}
       </div>
 
       {items.length === 0 ? (
@@ -82,7 +136,7 @@ export function TransactionList({
       ) : (
         <ul className="divide-y rounded-md border">
           {items.map((tx) => (
-            <li key={tx.id} className="flex items-center gap-3 p-3">
+            <li key={tx.id} className="row-hover flex items-center gap-3 p-3">
               <span
                 className="size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: tx.categories?.color ?? "#94a3b8" }}
@@ -105,6 +159,15 @@ export function TransactionList({
                     : ""}
                 </p>
               </div>
+              {"auto_salary" in tx && tx.auto_salary && (
+                <Badge
+                  variant="secondary"
+                  className="hidden sm:inline-flex"
+                  title="Generado por el ingreso mensual configurado en Ajustes"
+                >
+                  Automático
+                </Badge>
+              )}
               {tx.source === "import" && (
                 <Badge variant="outline" className="hidden sm:inline-flex">
                   Importado
@@ -119,33 +182,46 @@ export function TransactionList({
                 {kind === "expense" ? "−" : "+"}
                 {formatMoney(tx.amount)}
               </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button variant="ghost" size="icon" className="size-8">
-                      <MoreVertical className="size-4" />
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setEditing(tx);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    <Pencil />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => setConfirmDelete(tx)}
-                  >
-                    <Trash2 />
-                    Eliminar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {"auto_salary" in tx && tx.auto_salary ? (
+                // El salario automático se gestiona desde Ajustes
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  title="Este ingreso se edita desde Ajustes → Ingreso mensual"
+                  onClick={() => router.push("/ajustes")}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="ghost" size="icon" className="size-8">
+                        <MoreVertical className="size-4" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditing(tx);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <Pencil />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setConfirmDelete(tx)}
+                    >
+                      <Trash2 />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </li>
           ))}
         </ul>

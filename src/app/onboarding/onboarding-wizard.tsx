@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { parseMoneyInput } from "@/lib/format";
 
 const GOALS = [
   ["ahorrar", "Ahorrar más"],
@@ -131,7 +132,6 @@ export function OnboardingWizard({ userId }: { userId: string }) {
   const [goal, setGoal] = useState("");
   const [goalOther, setGoalOther] = useState("");
   const [habits, setHabits] = useState<string[]>([]);
-  const [hasFixedIncome, setHasFixedIncome] = useState<boolean | null>(null);
   const [fixedIncomeAmount, setFixedIncomeAmount] = useState("");
   const [fixedExpenseTypes, setFixedExpenseTypes] = useState<string[]>([]);
   const [invests, setInvests] = useState<boolean | null>(null);
@@ -170,8 +170,8 @@ export function OnboardingWizard({ userId }: { userId: string }) {
       goal,
       goalOther,
       habits,
-      hasFixedIncome,
-      fixedIncomeAmount: fixedIncomeAmount ? Number(fixedIncomeAmount) : null,
+      hasFixedIncome: true,
+      fixedIncomeAmount: parseMoneyInput(fixedIncomeAmount),
       fixedExpenseTypes,
       invests,
       investmentName,
@@ -236,26 +236,27 @@ export function OnboardingWizard({ userId }: { userId: string }) {
       canContinue: true,
     },
     {
-      title: "¿Tienes ingresos fijos mensuales?",
+      title: "¿Cuál es tu ingreso mensual (salario)?",
+      description:
+        "Puedes indicar un salario fijo o un promedio mensual si tus ingresos varían.",
       content: (
-        <div className="grid gap-4">
-          <YesNo value={hasFixedIncome} onChange={setHasFixedIncome} />
-          {hasFixedIncome && (
-            <div className="grid gap-2">
-              <Label htmlFor="income-amount">Importe aproximado (€/mes)</Label>
-              <Input
-                id="income-amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={fixedIncomeAmount}
-                onChange={(e) => setFixedIncomeAmount(e.target.value)}
-              />
-            </div>
-          )}
+        <div className="grid gap-2">
+          <Label htmlFor="income-amount">Importe aproximado (€/mes)</Label>
+          <Input
+            id="income-amount"
+            type="text"
+            inputMode="decimal"
+            value={fixedIncomeAmount}
+            onChange={(e) => setFixedIncomeAmount(e.target.value)}
+            placeholder="Ej. 1.800,50"
+          />
+          <p className="text-xs text-muted-foreground">
+            Puedes usar decimales con coma o punto. También se aceptan puntos como
+            separador de miles, por ejemplo <span className="tabular-nums">1.800,50</span>.
+          </p>
         </div>
       ),
-      canContinue: hasFixedIncome !== null,
+      canContinue: (parseMoneyInput(fixedIncomeAmount) ?? 0) > 0,
     },
     {
       title: "¿Tienes gastos fijos mensuales?",
@@ -398,7 +399,7 @@ export function OnboardingWizard({ userId }: { userId: string }) {
   const isLast = step === TOTAL_STEPS - 1;
 
   return (
-    <Card>
+    <Card className="animate-pop-in">
       <CardHeader>
         <Progress value={((step + 1) / TOTAL_STEPS) * 100} className="mb-4" />
         <CardTitle>{current.title}</CardTitle>

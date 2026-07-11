@@ -50,9 +50,14 @@ export async function saveTransaction(input: TransactionInput) {
         }
       : { ...base, is_recurring: input.is_recurring ?? false };
 
-  const query = input.id
+  let query = input.id
     ? supabase.from(table(input.kind)).update(row).eq("id", input.id).eq("user_id", user.id)
     : supabase.from(table(input.kind)).insert(row);
+
+  // El salario automático se gestiona únicamente desde Ajustes
+  if (input.id && input.kind === "income") {
+    query = query.eq("auto_salary", false);
+  }
 
   const { error } = await query;
   if (error) return { error: "No se pudo guardar: " + error.message };
@@ -68,11 +73,17 @@ export async function deleteTransaction(kind: "expense" | "income", id: string) 
   } = await supabase.auth.getUser();
   if (!user) return { error: "Sesión caducada." };
 
-  const { error } = await supabase
+  let query = supabase
     .from(table(kind))
     .delete()
     .eq("id", id)
     .eq("user_id", user.id);
+  // El salario automático solo se retira cambiándolo en Ajustes
+  if (kind === "income") {
+    query = query.eq("auto_salary", false);
+  }
+
+  const { error } = await query;
   if (error) return { error: "No se pudo eliminar." };
 
   revalidatePath("/", "layout");

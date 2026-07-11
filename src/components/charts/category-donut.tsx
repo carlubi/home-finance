@@ -8,7 +8,13 @@ import { ChartTooltip } from "./chart-tooltip";
 
 const MAX_SEGMENTS = 6;
 
-export function CategoryDonut({ data }: { data: CategoryTotal[] }) {
+export function CategoryDonut({
+  data,
+  emptyLabel = "Sin gastos este mes.",
+}: {
+  data: CategoryTotal[];
+  emptyLabel?: string;
+}) {
   const sorted = [...data].sort((a, b) => b.total - a.total);
   const top = sorted.slice(0, MAX_SEGMENTS - 1);
   const rest = sorted.slice(MAX_SEGMENTS - 1);
@@ -29,7 +35,7 @@ export function CategoryDonut({ data }: { data: CategoryTotal[] }) {
   if (segments.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">
-        Sin gastos este mes.
+        {emptyLabel}
       </p>
     );
   }

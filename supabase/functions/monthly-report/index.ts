@@ -1,6 +1,6 @@
-// Edge Function: genera el informe financiero mensual personalizado con
-// OpenAI, teniendo en cuenta el informe anterior, el objetivo del usuario,
-// sus hábitos, gastos fijos, inversiones y su evolución histórica.
+// Edge Function: genera informes financieros personalizados por mes o rango
+// de meses con OpenAI, teniendo en cuenta el informe anterior, el objetivo del
+// usuario, sus hábitos, gastos fijos, inversiones y su evolución histórica.
 
 import OpenAI from "npm:openai";
 import { corsHeaders, json, requireUser } from "../_shared/utils.ts";
@@ -46,10 +46,10 @@ interface Report {
   conclusion: string;
 }
 
-function toMarkdown(month: string, r: Report): string {
+function toMarkdown(periodLabel: string, r: Report): string {
   const list = (items: string[]) =>
     items.length ? items.map((i) => `- ${i}`).join("\n") : "_Nada destacable._";
-  return `# Informe financiero · ${month.slice(0, 7)}
+  return `# Informe financiero · ${periodLabel}
 
 ## Resumen ejecutivo
 ${r.resumen_ejecutivo}
@@ -88,52 +88,84 @@ Deno.serve(async (req) => {
   const { supabase, user } = await requireUser(req);
   if (!user) return json({ error: "No autorizado" }, 401);
 
-  const { month } = await req.json();
-  if (!/^\d{4}-\d{2}-01$/.test(month ?? "")) {
-    return json({ error: "Mes no válido (YYYY-MM-01)" }, 400);
+  const payload = await req.json();
+  const month = typeof payload?.month === "string" ? payload.month : null;
+  const startMonth =
+    typeof payload?.start_month === "string" ? payload.start_month : month;
+  const endMonth =
+    typeof payload?.end_month === "string" ? payload.end_month : month;
+
+  if (!/^\d{4}-\d{2}-01$/.test(startMonth ?? "")) {
+    return json({ error: "Mes inicial no válido (YYYY-MM-01)" }, 400);
+  }
+  if (!/^\d{4}-\d{2}-01$/.test(endMonth ?? "")) {
+    return json({ error: "Mes final no válido (YYYY-MM-01)" }, 400);
   }
 
   try {
-    const [y, m] = month.split("-").map(Number);
-    const nextMonth = `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
-    const prevReportMonth = `${m === 1 ? y - 1 : y}-${String(m === 1 ? 12 : m - 1).padStart(2, "0")}-01`;
+    const [startY, startM] = startMonth.split("-").map(Number);
+    const [endY, endM] = endMonth.split("-").map(Number);
+    const startDate = new Date(startY, startM - 1, 1);
+    const endDate = new Date(endY, endM - 1, 1);
+    if (startDate > endDate) {
+      return json({ error: "El mes inicial no puede ser posterior al final." }, 400);
+    }
 
-    const [expenses, income, summaries, onboarding, fixed, investments, prevReport] =
+    const nextAfterEnd = `${endM === 12 ? endY + 1 : endY}-${String(
+      endM === 12 ? 1 : endM + 1
+    ).padStart(2, "0")}-01`;
+
+    const [expenses, income, summaries, onboarding, fixed, investments, prevMonthly, prevRange] =
       await Promise.all([
         supabase
           .from("expenses")
           .select("name, amount, occurred_at, payment_method, categories(name)")
-          .gte("occurred_at", month)
-          .lt("occurred_at", nextMonth)
+          .gte("occurred_at", startMonth)
+          .lt("occurred_at", nextAfterEnd)
           .order("occurred_at"),
         supabase
           .from("income")
           .select("name, amount, occurred_at, is_recurring, categories(name)")
-          .gte("occurred_at", month)
-          .lt("occurred_at", nextMonth),
+          .gte("occurred_at", startMonth)
+          .lt("occurred_at", nextAfterEnd),
         supabase
           .from("monthly_summary")
           .select("*")
           .eq("user_id", user.id)
+          .gte("month", startMonth)
+          .lte("month", endMonth)
           .order("month", { ascending: false })
-          .limit(13),
+          .limit(24),
         supabase.from("onboarding_answers").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("fixed_expenses").select("name, amount").eq("user_id", user.id),
         supabase.from("investments").select("name, monthly_amount, accumulated_capital"),
         supabase
           .from("monthly_reports")
-          .select("content_md")
+          .select("content_md, month, created_at")
           .eq("user_id", user.id)
-          .eq("month", prevReportMonth)
+          .lt("month", startMonth)
+          .order("month", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("range_reports")
+          .select("content_md, start_month, end_month, created_at")
+          .eq("user_id", user.id)
+          .lt("end_month", startMonth)
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle(),
       ]);
 
     if ((expenses.data ?? []).length === 0 && (income.data ?? []).length === 0) {
-      return json({ error: "No hay movimientos en ese mes." }, 400);
+      return json({ error: "No hay movimientos en ese periodo." }, 400);
     }
 
     const context = {
-      mes: month,
+      periodo: {
+        inicio: startMonth,
+        fin: endMonth,
+      },
       objetivo_financiero: onboarding.data?.financial_goal ?? null,
       habitos_declarados: onboarding.data?.consumption_habits ?? [],
       gastos_fijos_declarados: fixed.data ?? [],
@@ -141,7 +173,12 @@ Deno.serve(async (req) => {
       gastos_del_mes: expenses.data ?? [],
       ingresos_del_mes: income.data ?? [],
       resumen_ultimos_meses: summaries.data ?? [],
-      informe_anterior: prevReport.data?.content_md ?? null,
+      informe_anterior:
+        (prevMonthly.data?.created_at &&
+          prevRange.data?.created_at &&
+          prevMonthly.data.created_at > prevRange.data.created_at)
+          ? prevMonthly.data?.content_md ?? null
+          : prevRange.data?.content_md ?? prevMonthly.data?.content_md ?? null,
     };
 
     const openai = new OpenAI({ apiKey: Deno.env.get("OPEN_AI_API_KEY")! });
@@ -158,7 +195,7 @@ No inventes datos que no estén en el contexto.`,
         },
         {
           role: "user",
-          content: `Datos financieros del usuario (JSON):\n${JSON.stringify(context)}\n\nGenera el informe del mes ${month.slice(0, 7)}.`,
+          content: `Datos financieros del usuario (JSON):\n${JSON.stringify(context)}\n\nGenera el informe del periodo ${startMonth.slice(0, 7)} a ${endMonth.slice(0, 7)}.`,
         },
       ],
       response_format: {
@@ -177,22 +214,41 @@ No inventes datos que no estén en el contexto.`,
     }
 
     const report: Report = JSON.parse(choice.message.content);
-    const markdown = toMarkdown(month, report);
+    const periodLabel =
+      startMonth === endMonth
+        ? startMonth.slice(0, 7)
+        : `${startMonth.slice(0, 7)} - ${endMonth.slice(0, 7)}`;
+    const markdown = toMarkdown(periodLabel, report);
+
+    const targetTable =
+      startMonth === endMonth ? "monthly_reports" : "range_reports";
+    const payload =
+      startMonth === endMonth
+        ? {
+            user_id: user.id,
+            month: startMonth,
+            content_md: markdown,
+            content_json: report,
+          }
+        : {
+            user_id: user.id,
+            start_month: startMonth,
+            end_month: endMonth,
+            content_md: markdown,
+            content_json: report,
+          };
 
     const { error: upsertError } = await supabase
-      .from("monthly_reports")
-      .upsert(
-        {
-          user_id: user.id,
-          month,
-          content_md: markdown,
-          content_json: report,
-        },
-        { onConflict: "user_id,month" }
-      );
+      .from(targetTable)
+      .upsert(payload as never, {
+        onConflict:
+          startMonth === endMonth
+            ? "user_id,month"
+            : "user_id,start_month,end_month",
+      });
     if (upsertError) throw new Error(upsertError.message);
 
-    return json({ ok: true, markdown });
+    return json({ ok: true, markdown, kind: startMonth === endMonth ? "month" : "range" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido";
     return json({ error: message }, 500);

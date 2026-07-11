@@ -5,6 +5,7 @@ import { addMonths, monthStart } from "@/lib/format";
 import { computePositions, pendingTransfers } from "@/lib/finance";
 import type {
   Category,
+  CategoryTotal,
   DebtSettlement,
   GroupMember,
   SharedExpense,
@@ -32,7 +33,7 @@ export default async function GroupPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [groupRes, membersRes, expensesRes, paymentsRes, categoriesRes] =
+  const [groupRes, membersRes, expensesRes, paymentsRes, categoriesRes, allExpensesRes] =
     await Promise.all([
       supabase.from("shared_groups").select("*").eq("id", groupId).single(),
       supabase
@@ -54,12 +55,55 @@ export default async function GroupPage({
         .eq("month", month)
         .order("paid_at", { ascending: false }),
       supabase.from("categories").select("*").eq("kind", "expense").order("name"),
+      // Histórico completo del grupo para la visión global por categoría
+      supabase
+        .from("shared_expenses")
+        .select("total_amount, category_id, categories(name, color)")
+        .eq("group_id", groupId),
     ]);
 
   if (!groupRes.data) notFound();
 
+  // Agregado histórico de gastos del grupo por categoría
+  const totalsByCategory = new Map<string, CategoryTotal>();
+  for (const row of (allExpensesRes.data ?? []) as unknown as {
+    total_amount: number;
+    category_id: string | null;
+    categories: { name: string; color: string | null } | null;
+  }[]) {
+    const key = row.category_id ?? "none";
+    const existing = totalsByCategory.get(key);
+    if (existing) {
+      existing.total = Number(existing.total) + Number(row.total_amount);
+      existing.num_expenses = (existing.num_expenses ?? 0) + 1;
+    } else {
+      totalsByCategory.set(key, {
+        user_id: groupId,
+        month: "",
+        category_id: row.category_id,
+        category_name: row.categories?.name ?? "Sin categoría",
+        category_color: row.categories?.color ?? null,
+        total: Number(row.total_amount),
+        num_expenses: 1,
+      });
+    }
+  }
+  const allCategoryTotals = [...totalsByCategory.values()];
+
   const members = (membersRes.data ?? []) as GroupMember[];
-  const expenses = (expensesRes.data ?? []) as SharedExpense[];
+  const expensesWithSignedUrls = await Promise.all(
+    ((expensesRes.data ?? []) as SharedExpense[]).map(async (expense) => {
+      if (!expense.receipt_path) return expense;
+      const { data } = await supabase.storage
+        .from("receipts")
+        .createSignedUrl(expense.receipt_path, 60 * 60);
+      return {
+        ...expense,
+        receipt_download_url: data?.signedUrl ?? null,
+      };
+    })
+  );
+  const expenses = expensesWithSignedUrls;
   const payments = (paymentsRes.data ?? []) as DebtSettlement[];
   const activeMembers = members.filter((m) => m.status === "active");
 
@@ -97,6 +141,7 @@ export default async function GroupPage({
         positions={positions}
         transfers={transfers}
         categories={(categoriesRes.data ?? []) as Category[]}
+        allCategoryTotals={allCategoryTotals}
         month={month}
         currentUserId={user.id}
       />

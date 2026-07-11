@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 
 export function UploadZone({ userId }: { userId: string }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
 
   async function onFile(file: File) {
@@ -52,11 +53,39 @@ export function UploadZone({ userId }: { userId: string }) {
     }
   }
 
+  function handleFiles(files: FileList | null) {
+    const file = files?.[0];
+    if (!file || busy) return;
+    void onFile(file);
+  }
+
   return (
-    <>
+    <div className="grid gap-3">
       <Label
         htmlFor="import-file"
-        className="flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center transition-colors hover:bg-accent/40"
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!busy) setIsDragging(true);
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          if (!busy) setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          if (!busy && e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            return;
+          }
+          setIsDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+        className={`flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center transition-colors ${
+          isDragging ? "border-primary bg-accent/50" : "hover:bg-accent/40"
+        } ${busy ? "cursor-not-allowed opacity-80" : ""}`}
       >
         {busy ? (
           <>
@@ -82,11 +111,13 @@ export function UploadZone({ userId }: { userId: string }) {
         disabled={busy !== null}
         accept=".csv,.xls,.xlsx,.pdf,.doc,.docx,.txt,image/*"
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onFile(f);
+          handleFiles(e.target.files);
           e.target.value = "";
         }}
       />
-    </>
+      <p className="text-center text-xs text-muted-foreground">
+        Arrastra y suelta un archivo aquí o pulsa para seleccionarlo.
+      </p>
+    </div>
   );
 }

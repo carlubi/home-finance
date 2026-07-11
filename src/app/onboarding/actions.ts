@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { syncSalaryIncome } from "@/lib/salary";
 
 export interface OnboardingData {
   goal: string;
@@ -54,6 +55,9 @@ export async function completeOnboarding(data: OnboardingData) {
   if (answersError) {
     return { error: "No se pudieron guardar las respuestas." };
   }
+
+  // Reflejar el salario declarado en los ingresos de cada mes del año
+  await syncSalaryIncome(supabase, user.id, data.fixedIncomeAmount);
 
   if (data.invests && (data.investmentName || data.investmentMonthly)) {
     await supabase.from("investments").insert({

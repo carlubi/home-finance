@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMonthData } from "@/lib/data";
-import { monthStart } from "@/lib/format";
+import { formatMonth, monthStart } from "@/lib/format";
 import { pctChange, roundCents } from "@/lib/finance";
 import { formatMoney } from "@/lib/format";
 import { CategoryDonut } from "@/components/charts/category-donut";
@@ -76,6 +76,7 @@ export default async function DashboardPage({
         <ChartCard
           title="Gastos por categoría"
           fileName={`gastos-categoria-${month.slice(0, 7)}`}
+          exportSubtitle={formatMonth(month)}
         >
           <CategoryDonut data={data.byCategory} />
         </ChartCard>
@@ -84,6 +85,7 @@ export default async function DashboardPage({
           title="Ingresos vs gastos"
           description="Comparación con el mes anterior"
           fileName={`ingresos-gastos-${month.slice(0, 7)}`}
+          exportSubtitle={formatMonth(month)}
         >
           <IncomeExpenseBars
             data={[
