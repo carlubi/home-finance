@@ -17,6 +17,10 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+type NavigatorWithStandalone = Navigator & {
+  standalone?: boolean;
+};
+
 function isIos() {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -28,7 +32,11 @@ function isIos() {
 }
 
 function isStandalone() {
-  return window.matchMedia("(display-mode: standalone)").matches;
+  const nav = navigator as NavigatorWithStandalone;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    nav.standalone === true
+  );
 }
 
 const noopSubscribe = () => () => {};
@@ -56,12 +64,6 @@ export function InstallAppButton() {
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onAppInstalled);
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
-        // Sin SW el navegador puede no ofrecer instalación, pero no rompemos la UI.
-      });
-    }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);

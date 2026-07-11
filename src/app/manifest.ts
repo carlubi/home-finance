@@ -8,9 +8,11 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Gestiona tus finanzas personales y compartidas desde el ordenador o el móvil.",
     lang: "es",
+    dir: "ltr",
     start_url: "/",
     scope: "/",
     display: "standalone",
+    display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
     background_color: "#fafafa",
     theme_color: "#7c3aed",
     categories: ["finance", "productivity"],
@@ -21,8 +23,8 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/x-icon",
       },
       {
-        src: "/icon.png?v=2",
-        sizes: "512x512",
+        src: "/icon-192.png",
+        sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },

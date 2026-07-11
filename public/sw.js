@@ -1,5 +1,12 @@
-const CACHE = "mis-finanzas-v2";
-const PRECACHE = ["/offline.html", "/icon.png?v=2"];
+const CACHE = "mis-finanzas-v3";
+const PRECACHE = [
+  "/offline.html",
+  "/icon-192.png",
+  "/icon.png?v=2",
+  "/icon-512.png?v=2",
+  "/icon-maskable-192.png",
+  "/icon-maskable-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -51,11 +58,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Estáticos precacheados: caché primero
+  // Estáticos de la app: caché primero y actualización en segundo plano.
   const url = new URL(request.url);
-  if (url.origin === location.origin && PRECACHE.includes(url.pathname + url.search)) {
+  const isSameOrigin = url.origin === location.origin;
+  const isStaticAsset =
+    isSameOrigin &&
+    (PRECACHE.includes(url.pathname + url.search) ||
+      url.pathname.startsWith("/_next/static/") ||
+      /\.(?:css|js|png|svg|ico|webp|woff2?)$/.test(url.pathname));
+
+  if (isStaticAsset) {
     event.respondWith(
-      caches.match(request).then((cached) => cached ?? fetch(request))
+      caches.match(request).then((cached) => {
+        const fetched = fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE).then((cache) => cache.put(request, copy));
+            }
+            return response;
+          })
+          .catch(() => cached);
+
+        if (cached) return cached;
+        return fetched.then((response) => response ?? Response.error());
+      })
     );
   }
 });
