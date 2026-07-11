@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 import { FileDown, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Category } from "@/lib/types";
@@ -20,11 +18,15 @@ import {
 
 type Row = Record<string, string | number | null>;
 
-function download(rows: Row[], name: string, format: "csv" | "xlsx") {
+async function download(rows: Row[], name: string, format: "csv" | "xlsx") {
   if (rows.length === 0) {
     toast.info("No hay datos con esos filtros.");
     return;
   }
+  const [XLSX, { saveAs }] = await Promise.all([
+    import("xlsx"),
+    import("file-saver"),
+  ]);
   const sheet = XLSX.utils.json_to_sheet(rows);
   if (format === "csv") {
     const csv = XLSX.utils.sheet_to_csv(sheet);
@@ -113,7 +115,7 @@ export function ExportData({ categories }: { categories: Category[] }) {
         }
       }
 
-      download(rows, `movimientos${period ? "-" + period : ""}`, format);
+      await download(rows, `movimientos${period ? "-" + period : ""}`, format);
     } catch {
       toast.error("No se pudo exportar.");
     } finally {
@@ -137,7 +139,7 @@ export function ExportData({ categories }: { categories: Category[] }) {
         Ahorro: Number(m.savings),
         "% ahorro": m.savings_pct === null ? "" : Number(m.savings_pct),
       }));
-      download(rows, "resumen-mensual", "xlsx");
+      await download(rows, "resumen-mensual", "xlsx");
     } catch {
       toast.error("No se pudo exportar el resumen.");
     } finally {

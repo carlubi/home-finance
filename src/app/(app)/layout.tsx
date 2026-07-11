@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getAppProfile, getCurrentUser } from "@/lib/auth";
 import { BottomNav, Sidebar } from "@/components/layout/nav";
 import { InstallAppButton } from "@/components/layout/install-app-button";
 import { NotificationsPermissionPrompt } from "@/components/layout/notifications-permission";
@@ -12,20 +12,13 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, onboarding_completed")
-    .eq("id", user.id)
-    .single();
+  const profile = await getAppProfile(user.id);
 
   if (profile && !profile.onboarding_completed) {
     redirect("/onboarding");

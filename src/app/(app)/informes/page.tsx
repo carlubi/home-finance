@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { MonthlyReport } from "@/lib/types";
 import { ReportsView } from "./reports-view";
@@ -7,9 +8,7 @@ export const metadata = { title: "Informes IA" };
 
 export default async function InformesPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const [{ data: monthlyReports }, { data: rangeReports }, { data: summaries }] =

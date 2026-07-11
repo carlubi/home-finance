@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import { getAppProfile, getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, SharedGroup } from "@/lib/types";
+import type { SharedGroup } from "@/lib/types";
 import { ProfileClient } from "./profile-client";
 
 export const metadata = { title: "Perfil" };
@@ -16,14 +17,12 @@ type GroupAssociation = {
 
 export default async function ProfilePage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: onboarding }, { data: ownedGroups }, { data: memberships }] =
+  const [profile, { data: onboarding }, { data: ownedGroups }, { data: memberships }] =
     await Promise.all([
-      supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+      getAppProfile(user.id),
       supabase
         .from("onboarding_answers")
         .select("fixed_income_amount")
@@ -82,7 +81,7 @@ export default async function ProfilePage() {
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-4 p-4 pb-20 md:p-6 md:pb-6">
       <ProfileClient
-        fullName={(profile as Profile | null)?.full_name ?? ""}
+        fullName={profile?.full_name ?? ""}
         email={user.email ?? ""}
         monthlyIncome={(onboarding as { fixed_income_amount?: number | null } | null)?.fixed_income_amount ?? null}
         groups={groups}

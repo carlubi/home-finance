@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { addMonths, monthStart } from "@/lib/format";
 import { computePositions, pendingTransfers } from "@/lib/finance";
@@ -28,9 +29,7 @@ export default async function GroupPage({
   const nextMonth = addMonths(month, 1);
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const [groupRes, membersRes, expensesRes, paymentsRes, categoriesRes, allExpensesRes] =
@@ -91,19 +90,25 @@ export default async function GroupPage({
   const allCategoryTotals = [...totalsByCategory.values()];
 
   const members = (membersRes.data ?? []) as GroupMember[];
-  const expensesWithSignedUrls = await Promise.all(
-    ((expensesRes.data ?? []) as SharedExpense[]).map(async (expense) => {
-      if (!expense.receipt_path) return expense;
-      const { data } = await supabase.storage
-        .from("receipts")
-        .createSignedUrl(expense.receipt_path, 60 * 60);
-      return {
-        ...expense,
-        receipt_download_url: data?.signedUrl ?? null,
-      };
-    })
+  const rawExpenses = (expensesRes.data ?? []) as SharedExpense[];
+  const receiptPaths = rawExpenses
+    .map((expense) => expense.receipt_path)
+    .filter((path): path is string => Boolean(path));
+  const signedUrls =
+    receiptPaths.length > 0
+      ? await supabase.storage
+          .from("receipts")
+          .createSignedUrls(receiptPaths, 60 * 60)
+      : { data: [] };
+  const urlsByPath = new Map(
+    (signedUrls.data ?? []).map((item) => [item.path, item.signedUrl])
   );
-  const expenses = expensesWithSignedUrls;
+  const expenses = rawExpenses.map((expense) => ({
+    ...expense,
+    receipt_download_url: expense.receipt_path
+      ? urlsByPath.get(expense.receipt_path) ?? null
+      : null,
+  }));
   const payments = (paymentsRes.data ?? []) as DebtSettlement[];
   const activeMembers = members.filter((m) => m.status === "active");
 

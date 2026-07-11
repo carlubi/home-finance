@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getMonthData } from "@/lib/data";
 import { formatMonth, monthStart } from "@/lib/format";
 import { pctChange, roundCents } from "@/lib/finance";
@@ -27,10 +27,7 @@ export default async function DashboardPage({
     ? `${mes}-01`
     : monthStart(new Date());
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const data = await getMonthData(user.id, month);

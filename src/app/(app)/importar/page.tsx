@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight, FileText } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import type { ImportedFile } from "@/lib/types";
@@ -19,9 +20,7 @@ const STATUS_LABEL: Record<ImportedFile["status"], string> = {
 
 export default async function ImportarPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { data: files } = await supabase

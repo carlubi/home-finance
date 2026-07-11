@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getAllMonthlySummaries } from "@/lib/data";
 import { formatMoney, formatMonth } from "@/lib/format";
@@ -22,9 +23,7 @@ function shortMonth(month: string) {
 
 export default async function GlobalPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const [summaries, { data: categoryRows }] = await Promise.all([

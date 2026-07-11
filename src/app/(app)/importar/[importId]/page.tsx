@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Category, ExtractedTransaction, ImportedFile } from "@/lib/types";
 import { ReviewTable } from "./review-table";
@@ -12,9 +13,7 @@ export default async function RevisarImportacionPage({
 }) {
   const { importId } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const [fileRes, rowsRes, categoriesRes] = await Promise.all([
