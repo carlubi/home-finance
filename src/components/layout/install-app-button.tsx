@@ -53,7 +53,6 @@ export function InstallAppButton() {
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
 
@@ -82,12 +81,16 @@ export function InstallAppButton() {
     }
     const prompt = deferredPrompt!;
     setDeferredPrompt(null);
-    await prompt.prompt();
-    const choice = await prompt.userChoice;
-    if (choice.outcome === "accepted") {
-      toast.success("Aplicación instalada.");
-    } else {
-      toast.message("Instalación cancelada.");
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      if (choice.outcome === "accepted") {
+        toast.success("Aplicación instalada.");
+      } else {
+        toast.message("Instalación cancelada.");
+      }
+    } catch {
+      toast.message("Usa la opción Instalar del navegador para añadir la app.");
     }
   }
 

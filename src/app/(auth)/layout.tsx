@@ -1,4 +1,5 @@
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { InstallAppButton } from "@/components/layout/install-app-button";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         className="auth-blob pointer-events-none absolute -right-20 -bottom-24 size-80 rounded-full bg-[oklch(0.62_0.2_330/0.14)] blur-3xl [animation-delay:-4s]"
       />
 
+      <div className="absolute top-4 right-4 z-10">
+        <InstallAppButton />
+      </div>
       <div className="hover-wiggle z-10 flex items-center">
         <BrandLogo className="h-16" />
       </div>
