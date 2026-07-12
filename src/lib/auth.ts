@@ -1,5 +1,4 @@
 import { cache } from "react";
-import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 export type AppProfile = {
@@ -7,12 +6,25 @@ export type AppProfile = {
   onboarding_completed: boolean | null;
 };
 
-export const getCurrentUser = cache(async (): Promise<User | null> => {
+export type AppUser = {
+  id: string;
+  email: string | null;
+};
+
+/**
+ * Usuario actual a partir del JWT validado localmente (getClaims + JWKS en
+ * caché): evita un viaje de red a Supabase en cada renderizado de página.
+ * Las mutaciones sensibles siguen validándose con RLS en la base de datos.
+ */
+export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) return null;
+  return {
+    id: claims.sub,
+    email: typeof claims.email === "string" ? claims.email : null,
+  };
 });
 
 export const getAppProfile = cache(

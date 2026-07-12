@@ -47,10 +47,11 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // No ejecutar lógica entre createServerClient y getUser(): riesgo de sesión inconsistente.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() valida el JWT localmente (JWKS en caché) en lugar de llamar
+  // a Supabase en cada petición: ahorra un viaje de red por navegación.
+  // Además refresca la sesión si el token está caducado, igual que getUser().
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
