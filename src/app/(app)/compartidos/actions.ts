@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSiteUrl } from "@/lib/supabase/config";
 import { splitAmount } from "@/lib/finance";
 
 type GroupNotificationInput = {
@@ -129,8 +130,7 @@ export async function inviteMember(groupId: string, emailRaw: string) {
     };
   }
 
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const inviteUrl = `${origin}/invitacion/${member.invite_token}`;
+  const inviteUrl = `${getSiteUrl()}/invitacion/${member.invite_token}`;
 
   // Intento de email vía Supabase (si el usuario no existe aún). Si falla,
   // el enlace copiable sigue funcionando.

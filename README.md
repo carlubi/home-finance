@@ -32,7 +32,7 @@ Variables en `.env.local` (ya configuradas para el proyecto `dsnvugbgpmzhwpivydi
 NEXT_PUBLIC_SUPABASE_URL=…
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=…
 SUPABASE_SECRET_KEY=…            # solo servidor (invitaciones, notificaciones)
-NEXT_PUBLIC_SITE_URL=…           # URL pública para enlaces de invitación (opcional en local)
+NEXT_PUBLIC_SITE_URL=…           # URL pública para enlaces de auth/invitación
 ```
 
 ## Despliegue del backend (pendiente de credenciales)
