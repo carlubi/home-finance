@@ -15,6 +15,22 @@ type GroupNotificationInput = {
   data?: Record<string, unknown>;
 };
 
+function getInviteUrl(inviteToken: string) {
+  return `${getSiteUrl()}/invitacion/${inviteToken}`;
+}
+
+async function sendInviteEmail(email: string, inviteUrl: string) {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: inviteUrl,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 async function requireUser() {
   const supabase = await createClient();
   const {
@@ -130,19 +146,50 @@ export async function inviteMember(groupId: string, emailRaw: string) {
     };
   }
 
-  const inviteUrl = `${getSiteUrl()}/invitacion/${member.invite_token}`;
+  const inviteUrl = getInviteUrl(member.invite_token);
 
   // Intento de email vía Supabase (si el usuario no existe aún). Si falla,
   // el enlace copiable sigue funcionando.
-  try {
-    const admin = createAdminClient();
-    await admin.auth.admin.inviteUserByEmail(email, { redirectTo: inviteUrl });
-  } catch {
-    // usuario ya registrado u otro fallo de envío: el enlace manual basta
-  }
+  const emailSent = await sendInviteEmail(email, inviteUrl);
 
   revalidatePath("/compartidos");
-  return { ok: true, inviteUrl };
+  return { ok: true, inviteUrl, emailSent };
+}
+
+export async function resendInvitation(groupId: string, memberId: string) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const { data: group } = await supabase
+    .from("shared_groups")
+    .select("owner_id")
+    .eq("id", groupId)
+    .single();
+
+  if (group?.owner_id !== user.id) {
+    return { error: "Solo el propietario puede reenviar invitaciones." };
+  }
+
+  const { data: member, error } = await supabase
+    .from("shared_group_members")
+    .select("email, invite_token, status")
+    .eq("id", memberId)
+    .eq("group_id", groupId)
+    .single();
+
+  if (error || !member) {
+    return { error: "No se encontró la invitación." };
+  }
+
+  if (member.status !== "invited") {
+    return { error: "Solo se pueden reenviar invitaciones pendientes." };
+  }
+
+  const inviteUrl = getInviteUrl(member.invite_token);
+  const emailSent = await sendInviteEmail(member.email, inviteUrl);
+
+  revalidatePath(`/compartidos/${groupId}`);
+  return { ok: true, inviteUrl, emailSent };
 }
 
 export async function removeMember(groupId: string, memberId: string) {

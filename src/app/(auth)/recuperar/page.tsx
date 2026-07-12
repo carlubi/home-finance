@@ -28,7 +28,8 @@ export default function RecuperarPage() {
       <CardContent>
         {state?.ok ? (
           <p className="text-sm">
-            Si el email existe, recibirás un enlace de recuperación en unos minutos.
+            Si el email existe, recibirás un enlace para crear una contraseña nueva
+            en unos minutos.
           </p>
         ) : (
           <form action={formAction} className="grid gap-4">

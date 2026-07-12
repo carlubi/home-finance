@@ -15,6 +15,11 @@ type AuthState = {
   email?: string;
 };
 
+type PasswordState = {
+  error?: string;
+  ok?: boolean;
+};
+
 function getInvitationToken(path: string) {
   try {
     const { pathname } = new URL(path, "https://home-finance.local");
@@ -228,10 +233,46 @@ export async function resetPassword(
   const supabase = await createClient();
   const email = String(formData.get("email") ?? "").trim();
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${getSiteUrl()}/auth/callback?next=/actualizar-password`,
+  });
   if (error) {
     return { error: "No se pudo enviar el email de recuperación." };
   }
+  return { ok: true };
+}
+
+export async function updatePassword(
+  _prev: PasswordState | null,
+  formData: FormData
+) {
+  const supabase = await createClient();
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+  if (password.length < 8) {
+    return { error: "La contraseña debe tener al menos 8 caracteres." };
+  }
+
+  if (password !== confirmPassword) {
+    return { error: "Las contraseñas no coinciden." };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "El enlace ha caducado. Solicita uno nuevo." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    return { error: "No se pudo actualizar la contraseña." };
+  }
+
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 

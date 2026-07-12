@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/registro",
   "/recuperar",
+  "/actualizar-password",
   "/auth",
   "/invitacion",
 ];

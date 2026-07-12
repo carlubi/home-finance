@@ -8,6 +8,7 @@ import {
   Check,
   Copy,
   ExternalLink,
+  Mail,
   MoreVertical,
   Paperclip,
   Pencil,
@@ -35,6 +36,7 @@ import {
   inviteMember,
   registerDebtPayment,
   removeMember,
+  resendInvitation,
   saveSharedExpense,
 } from "../actions";
 import { Badge } from "@/components/ui/badge";
@@ -657,21 +659,55 @@ export function GroupView({
                         : "Integrante"}
                   </Badge>
                   {isOwner && m.role !== "owner" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      disabled={pending}
-                      onClick={() =>
-                        startTransition(async () => {
-                          const r = await removeMember(group.id, m.id);
-                          if (r.error) toast.error(r.error);
-                          else router.refresh();
-                        })
-                      }
-                    >
-                      <UserX className="size-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {m.status === "invited" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          disabled={pending}
+                          aria-label={`Reenviar invitación a ${m.email}`}
+                          onClick={() =>
+                            startTransition(async () => {
+                              const r = await resendInvitation(group.id, m.id);
+                              if (r.error) {
+                                toast.error(r.error);
+                                return;
+                              }
+
+                              if (r.emailSent) {
+                                toast.success("Invitación reenviada.");
+                              } else {
+                                setInviteUrl(r.inviteUrl ?? null);
+                                setInviteOpen(true);
+                                toast.warning(
+                                  "No se pudo enviar el email. Copia el enlace manualmente."
+                                );
+                              }
+                              router.refresh();
+                            })
+                          }
+                        >
+                          <Mail className="size-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        disabled={pending}
+                        aria-label={`Eliminar a ${m.email}`}
+                        onClick={() =>
+                          startTransition(async () => {
+                            const r = await removeMember(group.id, m.id);
+                            if (r.error) toast.error(r.error);
+                            else router.refresh();
+                          })
+                        }
+                      >
+                        <UserX className="size-4" />
+                      </Button>
+                    </div>
                   )}
                 </li>
               ))}
