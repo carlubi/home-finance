@@ -18,10 +18,16 @@ import { Label } from "@/components/ui/label";
 
 function RegistroForm() {
   const [state, formAction, pending] = useActionState(signup, null);
-  const success = state?.ok;
+  const success = state && "ok" in state && state.ok;
   const searchParams = useSearchParams();
-  const next = state?.next ?? getSafeNextPath(searchParams.get("next"), "/onboarding");
-  const email = state?.email ?? searchParams.get("email") ?? "";
+  const next =
+    state && "next" in state && state.next
+      ? state.next
+      : getSafeNextPath(searchParams.get("next"), "/onboarding");
+  const email =
+    state && "email" in state && state.email
+      ? state.email
+      : searchParams.get("email") ?? "";
 
   return (
     <Card>

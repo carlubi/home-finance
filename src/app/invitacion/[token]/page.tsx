@@ -15,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { acceptInvitation } from "@/app/(app)/compartidos/actions";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { InvitationAuthSync } from "./invitation-auth-sync";
 
 export const metadata = { title: "Invitación" };
 
@@ -131,7 +132,8 @@ export default async function InvitacionPage({
             <div className="flex gap-3 rounded-xl border bg-muted/40 p-3">
               <CheckCircle className="mt-0.5 size-4 text-primary" />
               <p className="text-muted-foreground">
-                Si creas una cuenta, te devolveremos aquí tras confirmar tu email.
+                Si llegaste desde el correo de invitación, prepararemos la sesión
+                automáticamente.
               </p>
             </div>
           </div>
@@ -144,13 +146,20 @@ export default async function InvitacionPage({
           )}
 
           <div className="mt-6 grid gap-3">
+            <InvitationAuthSync />
             {member.status === "active" ? (
               <>
                 <p className="rounded-xl border bg-muted/40 p-3 text-sm text-muted-foreground">
                   Esta invitación ya fue aceptada.
                 </p>
                 <Button
-                  render={<Link href={member.group_id ? `/compartidos/${member.group_id}` : "/compartidos"} />}
+                  render={
+                    <Link
+                      href={
+                        member.group_id ? `/compartidos/${member.group_id}` : "/compartidos"
+                      }
+                    />
+                  }
                   className="w-full"
                 >
                   Ver compartidos
