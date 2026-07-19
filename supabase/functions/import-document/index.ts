@@ -2,12 +2,18 @@
 // imagen) con OpenAI y guarda las transacciones extraídas en la tabla de
 // staging ai_extracted_transactions. Nunca escribe en expenses/income:
 // el usuario revisa y confirma en la vista previa.
+//
+// Los archivos tabulares (CSV/Excel/TXT) se trocean en bloques de filas y se
+// extraen en paralelo: con el archivo entero en un solo prompt el modelo
+// tiende a resumir y omite transacciones en listados largos.
 
 import OpenAI from "npm:openai";
 import * as XLSX from "npm:xlsx@0.18.5";
 import { corsHeaders, json, requireUser, toBase64 } from "../_shared/utils.ts";
 
 const MODEL = "gpt-4.1";
+const ROWS_PER_CHUNK = 40;
+const PARALLEL_CALLS = 4;
 
 const EXTRACTION_SCHEMA = {
   type: "object",
@@ -51,22 +57,86 @@ const EXTRACTION_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-type Extracted = {
-  transactions: {
-    kind: "expense" | "income";
-    name: string;
-    amount: number;
-    occurred_at: string;
-    category: string;
-    is_recurring: boolean;
-    notes: string | null;
-  }[];
+type Transaction = {
+  kind: "expense" | "income";
+  name: string;
+  amount: number;
+  occurred_at: string;
+  category: string;
+  is_recurring: boolean;
+  notes: string | null;
 };
 
 type ContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } }
   | { type: "file"; file: { filename: string; file_data: string } };
+
+function systemPrompt() {
+  return `Eres un asistente financiero que extrae transacciones de documentos bancarios españoles.
+Reglas:
+- Devuelve UNA transacción por CADA fila u operación del documento. No resumas, no agrupes y no omitas ninguna: si hay 40 filas de datos, devuelve ~40 transacciones (menos solo las filas no transaccionales o anuladas).
+- Omite filas con estado REVERTED, FAILED, DECLINED o PENDING, y líneas de saldo/totales/cabeceras.
+- occurred_at es la FECHA REAL de la operación (si hay fecha de inicio y de liquidación, usa la de inicio). Las fechas pueden venir como YYYY-MM-DD o DD/MM/YYYY; devuélvelas siempre como YYYY-MM-DD.
+- Importes: 1.234,56 en formato español significa 1234.56. Devuelve siempre números positivos; el signo lo determina "kind".
+- Cargos, pagos, compras, recibos y transferencias/Bizum enviados son kind=expense. Abonos, nóminas, recargas, devoluciones (refunds) y transferencias/Bizum recibidos son kind=income (las devoluciones, con categoría "Reembolsos").
+- category debe ser EXACTAMENTE una de las listas dadas (según kind). Si dudas, usa "Otros".
+- Marca is_recurring=true en suscripciones, domiciliaciones, nóminas y cargos que se repiten cada mes.
+- No inventes transacciones que no estén en el documento.`;
+}
+
+/** Divide un archivo tabular en bloques de filas, repitiendo la cabecera. */
+function chunkTextRows(text: string, rowsPerChunk: number): string[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+  if (lines.length <= rowsPerChunk + 1) return [lines.join("\n")];
+  const header = lines[0];
+  const chunks: string[] = [];
+  for (let i = 1; i < lines.length; i += rowsPerChunk) {
+    chunks.push([header, ...lines.slice(i, i + rowsPerChunk)].join("\n"));
+  }
+  return chunks;
+}
+
+async function extractFromContent(
+  openai: OpenAI,
+  content: ContentPart[],
+  categoriesText: string
+): Promise<Transaction[]> {
+  const completion = await openai.chat.completions.create({
+    model: MODEL,
+    max_completion_tokens: 16000,
+    messages: [
+      { role: "system", content: systemPrompt() },
+      {
+        role: "user",
+        content: [
+          ...content,
+          { type: "text", text: categoriesText },
+        ] as ContentPart[],
+      },
+    ] as OpenAI.Chat.ChatCompletionMessageParam[],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "transacciones_extraidas",
+        strict: true,
+        schema: EXTRACTION_SCHEMA,
+      },
+    },
+  });
+
+  const choice = completion.choices[0];
+  if (choice.finish_reason === "content_filter" || !choice.message.content) {
+    throw new Error("La IA no pudo procesar este documento.");
+  }
+  if (choice.finish_reason === "length") {
+    throw new Error(
+      "El documento tiene demasiadas operaciones para un solo análisis. Divide el archivo e inténtalo de nuevo."
+    );
+  }
+  return (JSON.parse(choice.message.content) as { transactions: Transaction[] })
+    .transactions;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -100,10 +170,12 @@ Deno.serve(async (req) => {
     const buffer = await blob.arrayBuffer();
     const name: string = (file.file_name ?? "").toLowerCase();
 
-    // Construir el bloque de contenido según el tipo de archivo
-    let fileBlock: ContentPart;
+    // Contenido textual (CSV/Excel/TXT) o binario (PDF/imagen)
+    let textContent: string | null = null;
+    let binaryBlock: ContentPart | null = null;
+
     if (name.endsWith(".pdf")) {
-      fileBlock = {
+      binaryBlock = {
         type: "file",
         file: {
           filename: file.file_name,
@@ -118,20 +190,18 @@ Deno.serve(async (req) => {
           : name.endsWith(".gif")
             ? "image/gif"
             : "image/jpeg";
-      fileBlock = {
+      binaryBlock = {
         type: "image_url",
         image_url: { url: `data:${mediaType};base64,${toBase64(buffer)}` },
       };
     } else if (/\.(xlsx?|xls)$/.test(name)) {
       const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
-      const csv = workbook.SheetNames.map((sheet: string) =>
+      textContent = workbook.SheetNames.map((sheet: string) =>
         XLSX.utils.sheet_to_csv(workbook.Sheets[sheet])
       ).join("\n\n");
-      fileBlock = { type: "text", text: `Contenido del Excel (CSV):\n${csv}` };
     } else {
       // CSV, TXT y resto de formatos basados en texto
-      const text = new TextDecoder().decode(buffer);
-      fileBlock = { type: "text", text: `Contenido del archivo:\n${text}` };
+      textContent = new TextDecoder().decode(buffer);
     }
 
     const { data: categories } = await supabase
@@ -139,58 +209,43 @@ Deno.serve(async (req) => {
       .select("id, name, kind");
     const expenseCats = (categories ?? []).filter((c) => c.kind === "expense");
     const incomeCats = (categories ?? []).filter((c) => c.kind === "income");
+    const categoriesText = `Extrae todas las transacciones.
+Categorías de gasto: ${expenseCats.map((c) => c.name).join(", ")}
+Categorías de ingreso: ${incomeCats.map((c) => c.name).join(", ")}`;
 
     const openai = new OpenAI({ apiKey: Deno.env.get("OPEN_AI_API_KEY")! });
 
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `Eres un asistente financiero que extrae transacciones de documentos bancarios españoles.
-Reglas:
-- La fecha occurred_at es la FECHA REAL de la operación que aparece en el documento, nunca la de hoy. Las fechas españolas son DD/MM/YYYY; devuélvelas como YYYY-MM-DD.
-- Importes en formato español: 1.234,56 significa 1234.56. Devuelve siempre números positivos; el signo lo determina "kind".
-- Cargos, pagos, recibos y compras son kind=expense; abonos, nóminas y transferencias recibidas son kind=income.
-- category debe ser EXACTAMENTE una de las listas dadas (según kind). Si dudas, usa "Otros".
-- Marca is_recurring=true en recibos domiciliados, suscripciones, nóminas y cargos que se repiten.
-- Ignora líneas de saldo, totales e información no transaccional. No inventes transacciones.`,
-        },
-        {
-          role: "user",
-          content: [
-            fileBlock,
-            {
-              type: "text",
-              text: `Extrae todas las transacciones del documento.
-Categorías de gasto: ${expenseCats.map((c) => c.name).join(", ")}
-Categorías de ingreso: ${incomeCats.map((c) => c.name).join(", ")}`,
-            },
-          ] as ContentPart[],
-        },
-      ] as OpenAI.Chat.ChatCompletionMessageParam[],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "transacciones_extraidas",
-          strict: true,
-          schema: EXTRACTION_SCHEMA,
-        },
-      },
-    });
-
-    const choice = completion.choices[0];
-    if (choice.finish_reason === "content_filter" || !choice.message.content) {
-      throw new Error("La IA no pudo procesar este documento.");
+    let transactions: Transaction[] = [];
+    if (textContent !== null) {
+      // Tabular: extraer por bloques de filas, en tandas paralelas
+      const chunks = chunkTextRows(textContent, ROWS_PER_CHUNK);
+      for (let i = 0; i < chunks.length; i += PARALLEL_CALLS) {
+        const batch = chunks.slice(i, i + PARALLEL_CALLS);
+        const results = await Promise.all(
+          batch.map((chunk) =>
+            extractFromContent(
+              openai,
+              [
+                {
+                  type: "text",
+                  text: `Fragmento de un archivo tabular (la primera línea es la cabecera):\n${chunk}`,
+                },
+              ],
+              categoriesText
+            )
+          )
+        );
+        transactions = transactions.concat(...results);
+      }
+    } else if (binaryBlock !== null) {
+      transactions = await extractFromContent(openai, [binaryBlock], categoriesText);
     }
-
-    const parsed: Extracted = JSON.parse(choice.message.content);
 
     const byName = new Map(
       (categories ?? []).map((c) => [`${c.kind}:${c.name.toLowerCase()}`, c.id])
     );
 
-    const rows = parsed.transactions
+    const rows = transactions
       .filter((t) => t.amount > 0 && t.name && t.occurred_at)
       .map((t) => ({
         import_id,
