@@ -12,12 +12,17 @@ import {
   Plus,
   Repeat,
   Trash2,
+  X,
 } from "lucide-react";
-import { deleteTransaction } from "@/app/(app)/transactions/actions";
+import {
+  deleteTransaction,
+  deleteTransactions,
+} from "@/app/(app)/transactions/actions";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Category, Expense, Income } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +60,24 @@ export function TransactionList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Tx | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Tx | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const allSelected = items.length > 0 && selected.size === items.length;
+
+  function toggleOne(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(items.map((t) => t.id)));
+  }
 
   async function onDelete() {
     if (!confirmDelete) return;
@@ -68,9 +91,66 @@ export function TransactionList({
     setConfirmDelete(null);
   }
 
+  async function onBulkDelete() {
+    setDeleting(true);
+    try {
+      const result = await deleteTransactions(kind, [...selected]);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(
+          result.count === 1
+            ? "1 movimiento eliminado."
+            : `${result.count} movimientos eliminados.`
+        );
+        setSelected(new Set());
+        router.refresh();
+      }
+    } finally {
+      setDeleting(false);
+      setConfirmBulk(false);
+    }
+  }
+
   return (
     <div className="grid gap-2">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* Selección múltiple */}
+        {items.length > 0 ? (
+          selected.size > 0 ? (
+            <div className="animate-pop-in flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {selected.size} seleccionado{selected.size === 1 ? "" : "s"}
+              </span>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={deleting}
+                onClick={() => setConfirmBulk(true)}
+              >
+                <Trash2 className="size-4" />
+                Eliminar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={deleting}
+                onClick={() => setSelected(new Set())}
+              >
+                <X className="size-4" />
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+              Seleccionar todo
+            </label>
+          )
+        ) : (
+          <span />
+        )}
+
         {kind === "expense" ? (
           <div className="inline-flex items-center gap-1">
             <Button
@@ -136,7 +216,18 @@ export function TransactionList({
       ) : (
         <ul className="divide-y rounded-md border">
           {items.map((tx) => (
-            <li key={tx.id} className="row-hover flex items-center gap-3 p-3">
+            <li
+              key={tx.id}
+              className={
+                "row-hover flex items-center gap-3 p-3 " +
+                (selected.has(tx.id) ? "bg-primary/5" : "")
+              }
+            >
+              <Checkbox
+                checked={selected.has(tx.id)}
+                onCheckedChange={() => toggleOne(tx.id)}
+                aria-label={`Seleccionar ${tx.name}`}
+              />
               <span
                 className="size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: tx.categories?.color ?? "#94a3b8" }}
@@ -239,6 +330,31 @@ export function TransactionList({
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={onDelete}>
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmBulk} onOpenChange={setConfirmBulk}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ¿Eliminar {selected.size} movimiento{selected.size === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán de forma permanente los{" "}
+              {kind === "expense" ? "gastos" : "ingresos"} seleccionados. Esta
+              acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={onBulkDelete}
+            >
+              {deleting ? "Eliminando…" : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

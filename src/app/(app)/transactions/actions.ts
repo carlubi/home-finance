@@ -68,6 +68,28 @@ export async function saveTransaction(input: TransactionInput) {
   return { ok: true };
 }
 
+export async function deleteTransactions(
+  kind: "expense" | "income",
+  ids: string[]
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sesión caducada." };
+  if (ids.length === 0) return { error: "No hay movimientos seleccionados." };
+
+  const { error, count } = await supabase
+    .from(table(kind))
+    .delete({ count: "exact" })
+    .in("id", ids)
+    .eq("user_id", user.id);
+  if (error) return { error: "No se pudieron eliminar los movimientos." };
+
+  revalidatePath("/", "layout");
+  return { ok: true, count: count ?? ids.length };
+}
+
 export async function deleteTransaction(kind: "expense" | "income", id: string) {
   const supabase = await createClient();
   const {
