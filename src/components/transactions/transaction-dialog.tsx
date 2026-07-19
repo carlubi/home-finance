@@ -214,6 +214,13 @@ export function TransactionDialog({
             <Label htmlFor="notes">Notas (opcional)</Label>
             <Textarea id="notes" name="notes" defaultValue={initial?.notes ?? ""} />
           </div>
+          {!isExpense && initialIncome?.auto_salary && (
+            <p className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+              Este ingreso viene del ingreso mensual de Ajustes. Al guardar,
+              <strong> este mes queda personalizado</strong>: futuros cambios en
+              Ajustes ya no lo modificarán. Los demás meses no se ven afectados.
+            </p>
+          )}
           <Button type="submit" disabled={saving}>
             {saving ? "Guardando…" : "Guardar"}
           </Button>

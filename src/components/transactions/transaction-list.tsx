@@ -163,7 +163,7 @@ export function TransactionList({
                 <Badge
                   variant="secondary"
                   className="hidden sm:inline-flex"
-                  title="Generado por el ingreso mensual configurado en Ajustes"
+                  title="Generado por el ingreso mensual de Ajustes. Si lo editas, este mes se personaliza y deja de sincronizarse."
                 >
                   Automático
                 </Badge>
@@ -182,46 +182,33 @@ export function TransactionList({
                 {kind === "expense" ? "−" : "+"}
                 {formatMoney(tx.amount)}
               </span>
-              {"auto_salary" in tx && tx.auto_salary ? (
-                // El salario automático se gestiona desde Ajustes
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  title="Este ingreso se edita desde Ajustes → Ingreso mensual"
-                  onClick={() => router.push("/ajustes")}
-                >
-                  <Pencil className="size-4" />
-                </Button>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button variant="ghost" size="icon" className="size-8">
-                        <MoreVertical className="size-4" />
-                      </Button>
-                    }
-                  />
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setEditing(tx);
-                        setDialogOpen(true);
-                      }}
-                    >
-                      <Pencil />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => setConfirmDelete(tx)}
-                    >
-                      <Trash2 />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="icon" className="size-8">
+                      <MoreVertical className="size-4" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditing(tx);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    <Pencil />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setConfirmDelete(tx)}
+                  >
+                    <Trash2 />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </li>
           ))}
         </ul>
