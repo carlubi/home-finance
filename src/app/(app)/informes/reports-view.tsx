@@ -12,7 +12,8 @@ import {
   Packer,
   Paragraph,
 } from "docx";
-import { FileDown, Loader2, Printer, Sparkles } from "lucide-react";
+import { FileDown, FileText, Loader2, Sparkles } from "lucide-react";
+import { downloadReportPdf } from "@/lib/report-pdf";
 import { createClient } from "@/lib/supabase/client";
 import { addMonths, formatMonth, formatMonthRange, monthStart } from "@/lib/format";
 import type { MonthlyReport } from "@/lib/types";
@@ -211,8 +212,12 @@ export function ReportsView({
               Informe de {formatMonthRange(openReport.month, openReport.end_month)}
             </CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
-                <Printer className="size-4" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadReportPdf(openReport)}
+              >
+                <FileText className="size-4" />
                 PDF
               </Button>
               <Button
