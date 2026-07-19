@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Users } from "lucide-react";
+import { ChevronRight, PartyPopper, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { claimPendingInvitations } from "@/lib/invitations";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateGroupForm } from "./create-group-form";
@@ -12,6 +13,10 @@ export default async function CompartidosPage() {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  // Vincular invitaciones pendientes dirigidas al email de este usuario:
+  // el grupo aparece aunque el correo de invitación no llegara.
+  const joinedGroups = await claimPendingInvitations(user);
 
   const { data: groups } = await supabase
     .from("shared_groups")
@@ -27,6 +32,16 @@ export default async function CompartidosPage() {
   return (
     <div className="grid max-w-2xl gap-4">
       <h1 className="text-2xl font-semibold">Gastos compartidos</h1>
+
+      {joinedGroups.length > 0 && (
+        <div className="animate-pop-in flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+          <PartyPopper className="size-5 shrink-0 text-primary" />
+          <p>
+            Te habían invitado por email y ya formas parte de{" "}
+            <strong>{joinedGroups.join(", ")}</strong>.
+          </p>
+        </div>
+      )}
 
       {list.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center">
