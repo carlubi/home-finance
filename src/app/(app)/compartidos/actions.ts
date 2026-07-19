@@ -238,6 +238,23 @@ export async function acceptInvitation(token: string) {
   if (!member) return { error: "Invitación no encontrada." };
   if (member.status === "active") return { ok: true, groupId: member.group_id };
 
+  // Guard: si quien abre el enlace ya es miembro del grupo (p. ej. el
+  // propietario probando su propia invitación), no vincularle la invitación:
+  // quedaría "aceptada" apuntando a la cuenta equivocada y la persona
+  // invitada nunca vería el grupo.
+  const { data: alreadyMember } = await admin
+    .from("shared_group_members")
+    .select("id")
+    .eq("group_id", member.group_id)
+    .eq("user_id", user.id)
+    .neq("id", member.id)
+    .maybeSingle();
+  if (alreadyMember) {
+    return {
+      error: `Ya formas parte de este grupo. Esta invitación es para ${member.email}: compártele el enlace para que la acepte con su propia cuenta.`,
+    };
+  }
+
   const { data: profile } = await admin
     .from("profiles")
     .select("full_name")
