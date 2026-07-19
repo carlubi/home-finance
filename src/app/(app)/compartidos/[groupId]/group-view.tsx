@@ -113,7 +113,7 @@ export function GroupView({
   const [expenseName, setExpenseName] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState("");
-  const [expenseCategory, setExpenseCategory] = useState<string | undefined>();
+  const [expenseCategory, setExpenseCategory] = useState<string | null>(null);
   const [expenseNotes, setExpenseNotes] = useState("");
   const [invoiceUrl, setInvoiceUrl] = useState("");
 
@@ -178,7 +178,7 @@ export function GroupView({
     setExpenseName("");
     setExpenseAmount("");
     setExpenseDate(new Date().toISOString().slice(0, 10));
-    setExpenseCategory(undefined);
+    setExpenseCategory(null);
     setExpenseNotes("");
     setInvoiceUrl("");
     setExpenseOpen(true);
@@ -192,7 +192,7 @@ export function GroupView({
     setExpenseName(e.name);
     setExpenseAmount(String(e.total_amount));
     setExpenseDate(e.occurred_at);
-    setExpenseCategory(e.category_id ?? undefined);
+    setExpenseCategory(e.category_id ?? null);
     setExpenseNotes(e.notes ?? "");
     setInvoiceUrl(e.invoice_url ?? "");
     setExpenseOpen(true);
@@ -883,7 +883,7 @@ export function GroupView({
               <input type="hidden" name="category" value={expenseCategory ?? ""} />
               <Select
                 value={expenseCategory}
-                onValueChange={(value) => setExpenseCategory(String(value))}
+                onValueChange={(value) => setExpenseCategory(value == null ? null : String(value))}
                 items={categories.map((c) => ({ value: c.id, label: c.name }))}
               >
                 <SelectTrigger className="w-full">
