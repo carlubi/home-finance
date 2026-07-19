@@ -70,7 +70,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 function memberName(members: GroupMember[], id: string) {
   const m = members.find((x) => x.id === id);
-  return m?.display_name || m?.email || "Miembro";
+  return m?.display_name || "Sin nombre";
 }
 
 export function GroupView({
@@ -501,7 +501,7 @@ export function GroupView({
                 { value: "all", label: "Todos los integrantes" },
                 ...activeMembers.map((m) => ({
                   value: m.id,
-                  label: m.display_name || m.email,
+                  label: m.display_name || "Sin nombre",
                 })),
               ]}
             >
@@ -512,7 +512,7 @@ export function GroupView({
                 <SelectItem value="all">Todos los integrantes</SelectItem>
                 {activeMembers.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
-                    {m.display_name || m.email}
+                    {m.display_name || "Sin nombre"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -648,7 +648,7 @@ export function GroupView({
               .map((m) => (
                 <li key={m.id} className="flex items-center gap-3 p-3 text-sm">
                   <div className="flex-1">
-                    <p className="font-medium">{m.display_name || m.email}</p>
+                    <p className="font-medium">{m.display_name || "Sin nombre"}</p>
                     <p className="text-xs text-muted-foreground">{m.email}</p>
                   </div>
                   <Badge variant={m.status === "active" ? "secondary" : "outline"}>
@@ -771,7 +771,7 @@ export function GroupView({
                 defaultValue={editing?.paid_by ?? myMember?.id}
                 items={activeMembers.map((m) => ({
                   value: m.id,
-                  label: m.display_name || m.email,
+                  label: m.display_name || "Sin nombre",
                 }))}
               >
                 <SelectTrigger className="w-full">
@@ -780,7 +780,7 @@ export function GroupView({
                 <SelectContent>
                   {activeMembers.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
-                      {m.display_name || m.email}
+                      {m.display_name || "Sin nombre"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -804,7 +804,7 @@ export function GroupView({
                         )
                       }
                     />
-                    {m.display_name || m.email}
+                    {m.display_name || "Sin nombre"}
                   </Label>
                 ))}
               </div>
