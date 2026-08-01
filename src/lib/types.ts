@@ -154,6 +154,21 @@ export interface MonthlyReport {
   created_at: string;
 }
 
+export interface ReportGenerationUsage {
+  id: string;
+  user_id: string;
+  quota_month: string;
+  requested_start_month: string;
+  requested_end_month: string;
+  report_kind: "month" | "range";
+  status: "generating" | "completed" | "failed";
+  report_table: "monthly_reports" | "range_reports" | null;
+  report_id: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SharedGroup {
   id: string;
   name: string;

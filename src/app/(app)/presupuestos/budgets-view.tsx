@@ -279,13 +279,6 @@ function YearBudgetOverview({
 
   return (
     <section className="grid gap-4">
-      <div>
-        <h2 className="text-xl font-semibold">Vista global {year}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Presupuesto previsto por mes y comparación con el gasto real.
-        </p>
-      </div>
-
       <div className="grid gap-4">
         <ChartCard
           title="Evolución del gasto"
@@ -531,14 +524,16 @@ export function BudgetsView({
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        {!showYearOverview && (
-          <div className="grid gap-1">
-            <h1 className="text-2xl font-semibold">Presupuestos mensuales</h1>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Meses previstos, gastos reales y cierre.
-            </p>
-          </div>
-        )}
+        <div className="grid min-w-0 gap-1">
+          <h1 className="text-2xl font-semibold">
+            {showYearOverview ? `Vista global ${year}` : "Presupuestos mensuales"}
+          </h1>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {showYearOverview
+              ? "Presupuesto previsto por mes y comparación con el gasto real."
+              : "Meses previstos, gastos reales y cierre."}
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"

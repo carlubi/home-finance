@@ -1,16 +1,28 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { Category, MonthlyReport } from "@/lib/types";
+import type { Category, MonthlyReport, ReportGenerationUsage } from "@/lib/types";
 import { ExportPanel } from "./export-panel";
 import { ReportsView } from "./reports-view";
 
 export const metadata = { title: "Informes y exportación" };
 
+function currentQuotaMonth() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return `${year}-${month}-01`;
+}
+
 export default async function InformesPage() {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const quotaMonth = currentQuotaMonth();
 
   const [
     { data: monthlyReports },
@@ -18,6 +30,7 @@ export default async function InformesPage() {
     { data: summaries },
     { data: budgetPlans },
     { data: categories },
+    { data: reportUsage },
   ] = await Promise.all([
       supabase.from("monthly_reports").select("*").order("month", { ascending: false }),
       supabase
@@ -30,6 +43,12 @@ export default async function InformesPage() {
         .select("month")
         .order("month", { ascending: true }),
       supabase.from("categories").select("*").order("name"),
+      supabase
+        .from("report_generation_usage")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("quota_month", quotaMonth)
+        .maybeSingle(),
     ]);
 
   const earliestMonth = [summaries?.[0]?.month, budgetPlans?.[0]?.month]
@@ -72,7 +91,12 @@ export default async function InformesPage() {
 
       <ExportPanel categories={(categories ?? []) as Category[]} />
 
-      <ReportsView reports={reports} earliestMonth={earliestMonth} />
+      <ReportsView
+        reports={reports}
+        earliestMonth={earliestMonth}
+        quotaMonth={quotaMonth}
+        reportUsage={reportUsage as ReportGenerationUsage | null}
+      />
     </div>
   );
 }

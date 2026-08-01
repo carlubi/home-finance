@@ -7,6 +7,7 @@ import { KeyRound, LogOut, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { logout } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
+import { LanguageSegmentedControl } from "@/components/layout/language-switcher";
 import {
   Card,
   CardContent,
@@ -113,6 +114,10 @@ export function ProfileClient({
           <div className="grid gap-1 rounded-xl border bg-muted/30 p-4 text-sm">
             <span className="text-muted-foreground">Correo asociado</span>
             <span className="font-medium">{email}</span>
+          </div>
+
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <LanguageSegmentedControl />
           </div>
 
           <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm">

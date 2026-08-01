@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Figtree, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { LanguageProvider } from "@/components/layout/language-provider";
 import { PwaRegistration } from "@/components/layout/pwa-registration";
 import { Toaster } from "@/components/ui/sonner";
+import { LANGUAGE_COOKIE, normalizeLanguage } from "@/lib/language";
 import "./globals.css";
 
 // Figtree: humanista y redondeada, la alternativa libre más cercana a Aptos
@@ -46,22 +49,27 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const language = normalizeLanguage(cookieStore.get(LANGUAGE_COOKIE)?.value);
+
   return (
     <html
-      lang="es"
+      lang={language}
       className={`${figtree.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <PwaRegistration />
-          {children}
-          <Toaster richColors position="top-center" />
+          <LanguageProvider initialLanguage={language}>
+            <PwaRegistration />
+            {children}
+            <Toaster richColors position="top-center" />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

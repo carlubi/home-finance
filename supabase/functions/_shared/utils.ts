@@ -28,6 +28,17 @@ export function userClient(req: Request) {
   );
 }
 
+/** Cliente servidor para operaciones internas de Edge Functions (bypassea RLS) */
+export function adminClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+    }
+  );
+}
+
 export async function requireUser(req: Request) {
   const supabase = userClient(req);
   const {

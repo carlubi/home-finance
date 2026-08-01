@@ -12,11 +12,20 @@ import {
   Packer,
   Paragraph,
 } from "docx";
-import { FileDown, FileText, LineChart, Loader2, Sparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  FileDown,
+  FileText,
+  LineChart,
+  Loader2,
+  LockKeyhole,
+  Sparkles,
+} from "lucide-react";
 import { downloadReportPdf } from "@/lib/report-pdf";
 import { createClient } from "@/lib/supabase/client";
 import { addMonths, formatMonth, formatMonthRange, monthStart } from "@/lib/format";
-import type { MonthlyReport } from "@/lib/types";
+import type { MonthlyReport, ReportGenerationUsage } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -70,9 +79,13 @@ function buildMonthOptions(earliestMonth: string | null) {
 export function ReportsView({
   reports,
   earliestMonth,
+  quotaMonth,
+  reportUsage,
 }: {
   reports: MonthlyReport[];
   earliestMonth: string | null;
+  quotaMonth: string;
+  reportUsage: ReportGenerationUsage | null;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -106,6 +119,7 @@ export function ReportsView({
     }
   }
 
+  const canGenerate = reportUsage === null;
   const existing = new Map(
     reports.map((r) => [
       `${r.kind}:${r.month}:${r.end_month ?? r.month}`,
@@ -113,84 +127,141 @@ export function ReportsView({
     ])
   );
   const selectedKey = `${selectedStartMonth === selectedEndMonth ? "month" : "range"}:${selectedStartMonth}:${selectedEndMonth}`;
+  const selectedReportExists = existing.has(selectedKey);
+  const generationAllowed = canGenerate && !selectedReportExists;
+  const quotaLabel = canGenerate
+    ? "Puedes generar 1 informe IA este mes."
+    : "Ya has utilizado el informe IA de este mes.";
+  const quotaDetail = canGenerate
+    ? "Para controlar el coste de IA, la app permite solo un informe por mes natural y no permite repetir informes ya creados."
+    : `Próxima generación disponible el mes siguiente. Último intento: ${formatMonth(reportUsage.quota_month)}.`;
 
   return (
     <div className="grid gap-4">
       {/* Generador */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <LineChart className="size-4" />
-            Generar informes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-end gap-3">
-          <div className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Desde</span>
-            <Select
-              value={selectedStartMonth}
-              onValueChange={(v) => {
-                setSelectedStartMonth(String(v));
-                if (String(v) > selectedEndMonth) {
-                  setSelectedEndMonth(String(v));
-                }
-              }}
-              items={monthOptions.map((m) => ({
-                value: m,
-                label: formatMonth(m),
-              }))}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <LineChart className="size-4" />
+                Generar informes
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Solo se puede generar un informe con IA por mes.
+              </p>
+            </div>
+            <div
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium",
+                canGenerate
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                  : "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              )}
             >
-              <SelectTrigger className="min-w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {formatMonth(m)}
-                    {existing.has(m) ? " ✓" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {canGenerate ? (
+                <CheckCircle2 className="size-4" />
+              ) : (
+                <LockKeyhole className="size-4" />
+              )}
+              {canGenerate ? "Disponible" : "Usado"}
+            </div>
           </div>
-          <div className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Hasta</span>
-            <Select
-              value={selectedEndMonth}
-              onValueChange={(v) => setSelectedEndMonth(String(v))}
-              items={monthOptions
-                .filter((m) => m >= selectedStartMonth)
-                .map((m) => ({
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="rounded-md border bg-muted/30 p-3">
+            <p className="text-sm font-medium">{quotaLabel}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {quotaDetail} Mes de cuota: {formatMonth(quotaMonth)}.
+            </p>
+            {selectedReportExists && (
+              <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+                Ya existe un informe para el periodo seleccionado. Puedes verlo en
+                el historial, pero no volver a generarlo.
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Desde</span>
+              <Select
+                value={selectedStartMonth}
+                onValueChange={(v) => {
+                  setSelectedStartMonth(String(v));
+                  if (String(v) > selectedEndMonth) {
+                    setSelectedEndMonth(String(v));
+                  }
+                }}
+                items={monthOptions.map((m) => ({
                   value: m,
                   label: formatMonth(m),
                 }))}
-            >
-              <SelectTrigger className="min-w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions
-                  .filter((m) => m >= selectedStartMonth)
-                  .map((m) => (
+              >
+                <SelectTrigger className="min-w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((m) => (
                     <SelectItem key={m} value={m}>
                       {formatMonth(m)}
                     </SelectItem>
                   ))}
-              </SelectContent>
-            </Select>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Hasta</span>
+              <Select
+                value={selectedEndMonth}
+                onValueChange={(v) => setSelectedEndMonth(String(v))}
+                items={monthOptions
+                  .filter((m) => m >= selectedStartMonth)
+                  .map((m) => ({
+                    value: m,
+                    label: formatMonth(m),
+                  }))}
+              >
+                <SelectTrigger className="min-w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions
+                    .filter((m) => m >= selectedStartMonth)
+                    .map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {formatMonth(m)}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={generate}
+              disabled={generating || !generationAllowed}
+              title={
+                generationAllowed
+                  ? "Generar informe"
+                  : selectedReportExists
+                    ? "Ya existe un informe para este periodo."
+                    : "Ya has generado el informe IA permitido este mes."
+              }
+            >
+              {generating ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : generationAllowed ? (
+                <Sparkles className="size-4" />
+              ) : (
+                <LockKeyhole className="size-4" />
+              )}
+              {generating
+                ? "Analizando tus finanzas…"
+                : generationAllowed
+                  ? "Generar informe"
+                  : selectedReportExists
+                    ? "Informe ya creado"
+                    : "Informe mensual usado"}
+            </Button>
           </div>
-          <Button onClick={generate} disabled={generating}>
-            {generating ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Sparkles className="size-4" />
-            )}
-            {generating
-              ? "Analizando tus finanzas…"
-              : existing.has(selectedKey)
-                ? "Regenerar informe"
-                : "Generar informe"}
-          </Button>
         </CardContent>
       </Card>
 

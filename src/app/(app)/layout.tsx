@@ -6,6 +6,7 @@ import { NotificationsPermissionPrompt } from "@/components/layout/notifications
 import { UserMenu } from "@/components/layout/user-menu";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { LanguageMenuButton } from "@/components/layout/language-switcher";
 
 export default async function AppLayout({
   children,
@@ -36,6 +37,7 @@ export default async function AppLayout({
           <div className="flex items-center gap-1">
             <InstallAppButton />
             <NotificationsBell />
+            <LanguageMenuButton />
             <UserMenu
               name={profile?.full_name ?? ""}
               email={user.email ?? ""}

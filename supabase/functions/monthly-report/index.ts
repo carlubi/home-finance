@@ -3,7 +3,7 @@
 // usuario, sus hábitos, gastos fijos, inversiones y su evolución histórica.
 
 import OpenAI from "npm:openai";
-import { corsHeaders, json, requireUser } from "../_shared/utils.ts";
+import { adminClient, corsHeaders, json, requireUser } from "../_shared/utils.ts";
 
 const MODEL = "gpt-4.1";
 
@@ -92,6 +92,17 @@ ${r.conclusion}
 `;
 }
 
+function currentQuotaMonth() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return `${year}-${month}-01`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -99,6 +110,7 @@ Deno.serve(async (req) => {
 
   const { supabase, user } = await requireUser(req);
   if (!user) return json({ error: "No autorizado" }, 401);
+  const admin = adminClient();
 
   const payload = await req.json();
   const month = typeof payload?.month === "string" ? payload.month : null;
@@ -114,6 +126,8 @@ Deno.serve(async (req) => {
     return json({ error: "Mes final no válido (YYYY-MM-01)" }, 400);
   }
 
+  let usageId: string | null = null;
+
   try {
     const [startY, startM] = startMonth.split("-").map(Number);
     const [endY, endM] = endMonth.split("-").map(Number);
@@ -121,6 +135,33 @@ Deno.serve(async (req) => {
     const endDate = new Date(endY, endM - 1, 1);
     if (startDate > endDate) {
       return json({ error: "El mes inicial no puede ser posterior al final." }, 400);
+    }
+
+    const existingReport =
+      startMonth === endMonth
+        ? await supabase
+            .from("monthly_reports")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("month", startMonth)
+            .maybeSingle()
+        : await supabase
+            .from("range_reports")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("start_month", startMonth)
+            .eq("end_month", endMonth)
+            .maybeSingle();
+
+    if (existingReport.error) throw new Error(existingReport.error.message);
+    if (existingReport.data) {
+      return json(
+        {
+          error:
+            "Ya existe un informe para ese periodo. Para controlar el coste de IA, no se puede volver a generar.",
+        },
+        409
+      );
     }
 
     const nextAfterEnd = `${endM === 12 ? endY + 1 : endY}-${String(
@@ -198,6 +239,36 @@ Deno.serve(async (req) => {
         400
       );
     }
+
+    const quotaMonth = currentQuotaMonth();
+    const reportKind = startMonth === endMonth ? "month" : "range";
+    const { data: usage, error: usageError } = await admin
+      .from("report_generation_usage")
+      .insert({
+        user_id: user.id,
+        quota_month: quotaMonth,
+        requested_start_month: startMonth,
+        requested_end_month: endMonth,
+        report_kind: reportKind,
+        status: "generating",
+      })
+      .select("id")
+      .single();
+
+    if (usageError) {
+      if (usageError.code === "23505") {
+        return json(
+          {
+            error:
+              "Ya has generado un informe este mes. Para controlar el coste de IA, solo se permite un informe por mes.",
+          },
+          429
+        );
+      }
+      throw new Error(usageError.message);
+    }
+    if (!usage) throw new Error("No se pudo reservar la generación del informe.");
+    usageId = usage.id;
 
     const context = {
       periodo: {
@@ -278,19 +349,40 @@ No inventes datos que no estén en el contexto.`,
             content_json: report,
           };
 
-    const { error: upsertError } = await supabase
+    const { data: savedReport, error: upsertError } = await supabase
       .from(targetTable)
       .upsert(payload as never, {
         onConflict:
           startMonth === endMonth
             ? "user_id,month"
             : "user_id,start_month,end_month",
-      });
+      })
+      .select("id")
+      .single();
     if (upsertError) throw new Error(upsertError.message);
+    if (!savedReport) throw new Error("No se pudo guardar el informe.");
 
-    return json({ ok: true, markdown, kind: startMonth === endMonth ? "month" : "range" });
+    await admin
+      .from("report_generation_usage")
+      .update({
+        status: "completed",
+        report_table: targetTable,
+        report_id: savedReport.id,
+      })
+      .eq("id", usageId);
+
+    return json({ ok: true, markdown, kind: reportKind });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido";
+    if (usageId) {
+      await admin
+        .from("report_generation_usage")
+        .update({
+          status: "failed",
+          error_message: message,
+        })
+        .eq("id", usageId);
+    }
     return json({ error: message }, 500);
   }
 });
