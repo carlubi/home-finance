@@ -12,6 +12,8 @@ const REPORT_SCHEMA = {
   properties: {
     resumen_ejecutivo: { type: "string" },
     diagnostico: { type: "string" },
+    presupuesto_planificado: { type: "string" },
+    desviaciones_presupuesto: { type: "array", items: { type: "string" } },
     gastos_evitables: { type: "array", items: { type: "string" } },
     gastos_impulsivos: { type: "array", items: { type: "string" } },
     patrones: { type: "array", items: { type: "string" } },
@@ -23,6 +25,8 @@ const REPORT_SCHEMA = {
   required: [
     "resumen_ejecutivo",
     "diagnostico",
+    "presupuesto_planificado",
+    "desviaciones_presupuesto",
     "gastos_evitables",
     "gastos_impulsivos",
     "patrones",
@@ -37,6 +41,8 @@ const REPORT_SCHEMA = {
 interface Report {
   resumen_ejecutivo: string;
   diagnostico: string;
+  presupuesto_planificado: string;
+  desviaciones_presupuesto: string[];
   gastos_evitables: string[];
   gastos_impulsivos: string[];
   patrones: string[];
@@ -56,6 +62,12 @@ ${r.resumen_ejecutivo}
 
 ## Diagnóstico financiero
 ${r.diagnostico}
+
+## Presupuesto planificado vs gasto real
+${r.presupuesto_planificado}
+
+## Desviaciones del presupuesto
+${list(r.desviaciones_presupuesto)}
 
 ## Gastos evitables
 ${list(r.gastos_evitables)}
@@ -115,7 +127,17 @@ Deno.serve(async (req) => {
       endM === 12 ? 1 : endM + 1
     ).padStart(2, "0")}-01`;
 
-    const [expenses, income, summaries, onboarding, fixed, investments, prevMonthly, prevRange] =
+    const [
+      expenses,
+      income,
+      summaries,
+      budgetPlans,
+      onboarding,
+      fixed,
+      investments,
+      prevMonthly,
+      prevRange,
+    ] =
       await Promise.all([
         supabase
           .from("expenses")
@@ -136,6 +158,15 @@ Deno.serve(async (req) => {
           .lte("month", endMonth)
           .order("month", { ascending: false })
           .limit(24),
+        supabase
+          .from("monthly_budget_plans")
+          .select(
+            "month, outcome, notes, monthly_budget_items(name, planned_amount, categories(name))"
+          )
+          .eq("user_id", user.id)
+          .gte("month", startMonth)
+          .lte("month", endMonth)
+          .order("month", { ascending: true }),
         supabase.from("onboarding_answers").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("fixed_expenses").select("name, amount").eq("user_id", user.id),
         supabase.from("investments").select("name, monthly_amount, accumulated_capital"),
@@ -157,8 +188,15 @@ Deno.serve(async (req) => {
           .maybeSingle(),
       ]);
 
-    if ((expenses.data ?? []).length === 0 && (income.data ?? []).length === 0) {
-      return json({ error: "No hay movimientos en ese periodo." }, 400);
+    if (
+      (expenses.data ?? []).length === 0 &&
+      (income.data ?? []).length === 0 &&
+      (budgetPlans.data ?? []).length === 0
+    ) {
+      return json(
+        { error: "No hay movimientos ni presupuesto en ese periodo." },
+        400
+      );
     }
 
     const context = {
@@ -173,6 +211,7 @@ Deno.serve(async (req) => {
       gastos_del_mes: expenses.data ?? [],
       ingresos_del_mes: income.data ?? [],
       resumen_ultimos_meses: summaries.data ?? [],
+      presupuesto_planificado: budgetPlans.data ?? [],
       informe_anterior:
         (prevMonthly.data?.created_at &&
           prevRange.data?.created_at &&
@@ -190,7 +229,8 @@ Deno.serve(async (req) => {
           role: "system",
           content: `Eres un asesor financiero personal cercano y práctico. Escribes en español, en segunda persona, con cifras concretas en euros.
 Analiza los datos del usuario y genera su informe mensual. Sé específico: cita nombres de gastos e importes reales de los datos. Evita generalidades.
-Ten en cuenta su objetivo financiero declarado y compara con meses anteriores y con el informe anterior si existe.
+Ten en cuenta su objetivo financiero declarado, su presupuesto planificado, el resultado de cierre del presupuesto si existe, y compara con meses anteriores y con el informe anterior si existe.
+Cuando haya presupuesto planificado, compara cada mes con el gasto real y señala desviaciones por categoría o partida prevista.
 No inventes datos que no estén en el contexto.`,
         },
         {

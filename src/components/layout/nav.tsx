@@ -7,6 +7,7 @@ import {
   FileText,
   Home,
   Import,
+  PiggyBank,
   Settings,
   Users,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { BrandLogo } from "./brand-logo";
 const items = [
   { href: "/", label: "Resumen", icon: Home },
   { href: "/global", label: "Visión global", icon: ChartPie },
+  { href: "/presupuestos", label: "Presupuestos", icon: PiggyBank },
   { href: "/compartidos", label: "Compartidos", icon: Users },
   { href: "/importar", label: "Importar", icon: Import },
   { href: "/informes", label: "Informes", icon: FileText },
@@ -62,7 +64,11 @@ export function Sidebar() {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const mobileItems = items.slice(0, 5);
+  const mobileItems = items.filter((item) =>
+    ["/", "/global", "/presupuestos", "/importar", "/informes"].includes(
+      item.href
+    )
+  );
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background/95 backdrop-blur md:hidden">
       {mobileItems.map(({ href, label, icon: Icon }) => {

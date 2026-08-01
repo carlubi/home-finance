@@ -80,6 +80,33 @@ export interface Budget {
   categories?: Category | null;
 }
 
+export type MonthlyBudgetOutcome = "met" | "under" | "over";
+
+export interface MonthlyBudgetItem {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  category_id: string | null;
+  name: string;
+  planned_amount: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  categories?: Category | null;
+}
+
+export interface MonthlyBudgetPlan {
+  id: string;
+  user_id: string;
+  month: string;
+  outcome: MonthlyBudgetOutcome | null;
+  notes: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  monthly_budget_items?: MonthlyBudgetItem[];
+}
+
 export interface ImportedFile {
   id: string;
   user_id: string;

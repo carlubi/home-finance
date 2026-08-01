@@ -11,17 +11,27 @@ export default async function InformesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [{ data: monthlyReports }, { data: rangeReports }, { data: summaries }] =
-    await Promise.all([
+  const [
+    { data: monthlyReports },
+    { data: rangeReports },
+    { data: summaries },
+    { data: budgetPlans },
+  ] = await Promise.all([
       supabase.from("monthly_reports").select("*").order("month", { ascending: false }),
       supabase
         .from("range_reports")
         .select("*")
         .order("start_month", { ascending: false }),
       supabase.from("monthly_summary").select("month").order("month", { ascending: true }),
+      supabase
+        .from("monthly_budget_plans")
+        .select("month")
+        .order("month", { ascending: true }),
     ]);
 
-  const earliestMonth = summaries?.[0]?.month ?? null;
+  const earliestMonth = [summaries?.[0]?.month, budgetPlans?.[0]?.month]
+    .filter(Boolean)
+    .sort()[0] ?? null;
   const reports = [
     ...((monthlyReports ?? []) as MonthlyReport[]).map((r) => ({
       ...r,
