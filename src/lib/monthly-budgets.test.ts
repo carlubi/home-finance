@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBudgetCategoryTotals,
   buildBudgetMonths,
-  buildYearExpenseOverview,
+  buildYearBudgetOverview,
   getBudgetIntensity,
   getSuggestedOutcome,
   normalizeBudgetMonth,
 } from "./monthly-budgets";
-import type { Expense } from "./types";
+import type { MonthlyBudgetPlan } from "./types";
 
 describe("monthly budget helpers", () => {
   it("builds the full current-year map from January to December", () => {
@@ -43,23 +44,44 @@ describe("monthly budget helpers", () => {
     expect(getSuggestedOutcome(1000, 1100)).toBe("over");
   });
 
-  it("builds a monthly expense overview with top expenses by amount", () => {
-    const overview = buildYearExpenseOverview({
+  it("builds a monthly planned budget overview with top items by amount", () => {
+    const plans = [
+      {
+        month: "2026-01-01",
+        monthly_budget_items: [
+          { id: "1", name: "Cafe", planned_amount: 4, category_id: null },
+          {
+            id: "2",
+            name: "Alquiler",
+            planned_amount: 900,
+            category_id: "home",
+            categories: { name: "Vivienda", color: "#2a78d6" },
+          },
+          { id: "3", name: "Compra", planned_amount: 80, category_id: "food" },
+          { id: "4", name: "Seguro", planned_amount: 240, category_id: "car" },
+        ],
+      },
+    ] as MonthlyBudgetPlan[];
+    const actualTotals = new Map([["2026-01-01", 1100]]);
+    const overview = buildYearBudgetOverview({
       months: ["2026-01-01", "2026-02-01"],
-      expenses: [
-        { id: "1", name: "Cafe", amount: 4, occurred_at: "2026-01-10" },
-        { id: "2", name: "Alquiler", amount: 900, occurred_at: "2026-01-01" },
-        { id: "3", name: "Compra", amount: 80, occurred_at: "2026-01-08" },
-        { id: "4", name: "Seguro", amount: 240, occurred_at: "2026-01-05" },
-      ] as Expense[],
+      plans,
+      actualTotals,
     });
 
     expect(overview[0].total).toBe(1224);
-    expect(overview[0].topExpenses.map((expense) => expense.name)).toEqual([
+    expect(overview[0].actualTotal).toBe(1100);
+    expect(overview[0].topItems.map((item) => item.name)).toEqual([
       "Alquiler",
       "Seguro",
       "Compra",
     ]);
-    expect(overview[1].expenses).toEqual([]);
+    expect(overview[1].items).toEqual([]);
+
+    expect(buildBudgetCategoryTotals({ userId: "user", months: overview })[0]).toMatchObject({
+      category_id: "home",
+      category_name: "Vivienda",
+      total: 900,
+    });
   });
 });

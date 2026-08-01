@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { Budget, Category } from "@/lib/types";
+import type { Budget, Category, FixedExpense } from "@/lib/types";
 import {
   Card,
   CardContent,
@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MonthlyIncomeForm, CategoriesManager, BudgetsManager } from "./settings-forms";
-import { ExportData } from "@/components/export/export-data";
+import { FixedExpensesManager } from "./settings-forms";
 
 export const metadata = { title: "Ajustes" };
 
@@ -19,18 +19,56 @@ export default async function AjustesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [{ data: onboarding }, { data: categories }, { data: budgets }] =
+  const [
+    { data: onboarding },
+    { data: categories },
+    { data: budgets },
+    { data: fixedExpenses },
+  ] =
     await Promise.all([
       supabase
         .from("onboarding_answers")
-        .select("fixed_income_amount")
+        .select("fixed_income_amount, fixed_expense_types")
         .eq("user_id", user.id)
         .single(),
       supabase.from("categories").select("*").order("name"),
       supabase.from("budgets").select("*, categories(*)").eq("user_id", user.id),
+      supabase
+        .from("fixed_expenses")
+        .select("*, categories(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
     ]);
 
   const cats = (categories ?? []) as Category[];
+  let fixed = (fixedExpenses ?? []) as FixedExpense[];
+  const onboardingFixedTypes = (onboarding?.fixed_expense_types ?? []) as string[];
+  const existingNames = new Set(fixed.map((expense) => expense.name.toLowerCase()));
+  const expenseCategories = cats.filter((category) => category.kind === "expense");
+
+  const missingOnboardingFixed = onboardingFixedTypes.filter(
+    (name) => !existingNames.has(name.toLowerCase())
+  );
+
+  if (missingOnboardingFixed.length > 0) {
+    const categoryByName = new Map(
+      expenseCategories.map((category) => [category.name.toLowerCase(), category.id])
+    );
+    const { data: inserted } = await supabase
+      .from("fixed_expenses")
+      .insert(
+        missingOnboardingFixed.map((name) => ({
+          user_id: user.id,
+          name,
+          category_id: categoryByName.get(name.toLowerCase()) ?? null,
+          amount: null,
+          active: true,
+        }))
+      )
+      .select("*, categories(*)");
+
+    fixed = [...fixed, ...((inserted ?? []) as FixedExpense[])];
+  }
 
   return (
     <div className="grid w-full gap-4">
@@ -48,6 +86,21 @@ export default async function AjustesPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Gastos mensuales fijos</CardTitle>
+          <CardDescription>
+            Añade, edita o elimina pagos recurrentes como alquiler, seguros o suministros.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FixedExpensesManager
+            fixedExpenses={fixed}
+            categories={expenseCategories}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Presupuestos por categoría</CardTitle>
           <CardDescription>
             Recibirás una alerta visual en el resumen cuando superes el límite mensual.
@@ -56,20 +109,8 @@ export default async function AjustesPage() {
         <CardContent>
           <BudgetsManager
             budgets={(budgets ?? []) as Budget[]}
-            categories={cats.filter((c) => c.kind === "expense")}
+            categories={expenseCategories}
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Exportación de datos</CardTitle>
-          <CardDescription>
-            Descarga tus movimientos y resúmenes en CSV o Excel.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ExportData categories={cats} />
         </CardContent>
       </Card>
 

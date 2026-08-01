@@ -5,6 +5,18 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   CalendarRange,
   CheckCircle2,
   ChevronLeft,
@@ -17,17 +29,22 @@ import {
   Trash2,
   TrendingUp,
 } from "lucide-react";
+import { SERIES } from "@/lib/chart-colors";
 import { cn } from "@/lib/utils";
 import { formatMoney, formatMonth } from "@/lib/format";
 import type {
   MonthlyBudgetView,
-  YearExpenseMonthView,
+  YearBudgetMonthView,
 } from "@/lib/monthly-budgets";
+import { buildBudgetCategoryTotals as getBudgetCategoryTotals } from "@/lib/monthly-budgets";
 import type {
   Category,
-  Expense,
+  MonthlyBudgetItem,
   MonthlyBudgetOutcome,
 } from "@/lib/types";
+import { CategoryDonut } from "@/components/charts/category-donut";
+import { ChartCard } from "@/components/charts/chart-card";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,6 +55,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -123,8 +147,13 @@ function OutcomeBadge({ outcome }: { outcome: MonthlyBudgetOutcome | null }) {
   );
 }
 
-function expenseColor(expense: Expense) {
-  return expense.categories?.color ?? "var(--viz-muted)";
+const compact = new Intl.NumberFormat("es-ES", {
+  notation: "compact",
+  maximumFractionDigits: 0,
+});
+
+function budgetItemColor(item: MonthlyBudgetItem) {
+  return item.categories?.color ?? "var(--viz-muted)";
 }
 
 function shortMonthName(month: string) {
@@ -134,24 +163,158 @@ function shortMonthName(month: string) {
   return label.charAt(0).toUpperCase() + label.slice(1).replace(".", "");
 }
 
-function YearExpensesOverview({
+function BudgetExpenseLine({
+  data,
+}: {
+  data: Array<{ label: string; Previsto: number }>;
+}) {
+  return (
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke={SERIES.grid} strokeWidth={1} vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
+            axisLine={{ stroke: SERIES.axis }}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
+            axisLine={false}
+            tickLine={false}
+            width={44}
+            tickFormatter={(value: number) => compact.format(value)}
+          />
+          <Tooltip content={<ChartTooltip />} cursor={{ stroke: SERIES.axis }} />
+          <Area
+            type="monotone"
+            dataKey="Previsto"
+            stroke={SERIES.expense}
+            strokeWidth={2}
+            fill={SERIES.expense}
+            fillOpacity={0.1}
+            dot={{
+              r: 4,
+              fill: SERIES.expense,
+              stroke: "var(--background)",
+              strokeWidth: 2,
+            }}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function BudgetVsActualBars({
+  data,
+}: {
+  data: Array<{ label: string; Previsto: number; Real: number }>;
+}) {
+  return (
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} barGap={2} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke={SERIES.grid} strokeWidth={1} vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
+            axisLine={{ stroke: SERIES.axis }}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
+            axisLine={false}
+            tickLine={false}
+            width={44}
+            tickFormatter={(value: number) => compact.format(value)}
+          />
+          <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--viz-grid)", opacity: 0.4 }} />
+          <Legend
+            iconType="circle"
+            iconSize={8}
+            formatter={(value: string) => (
+              <span className="text-xs text-muted-foreground">{value}</span>
+            )}
+          />
+          <Bar
+            dataKey="Previsto"
+            fill={SERIES.expense}
+            maxBarSize={24}
+            radius={[4, 4, 0, 0]}
+            isAnimationActive={false}
+          />
+          <Bar
+            dataKey="Real"
+            fill={SERIES.savings}
+            maxBarSize={24}
+            radius={[4, 4, 0, 0]}
+            isAnimationActive={false}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function YearBudgetOverview({
+  userId,
   year,
   months,
 }: {
+  userId: string;
   year: number;
-  months: YearExpenseMonthView[];
+  months: YearBudgetMonthView[];
 }) {
+  const [openMonth, setOpenMonth] = useState<YearBudgetMonthView | null>(null);
   const maxTotal = Math.max(0, ...months.map((month) => month.total));
+  const monthlyChartData = months.map((month) => ({
+    label: shortMonthName(month.month),
+    Previsto: month.total,
+    Real: month.actualTotal,
+  }));
+  const categoryTotals = getBudgetCategoryTotals({ userId, months });
 
   return (
-    <Card className="overflow-visible">
-      <CardHeader>
-        <CardTitle>Vista global {year}</CardTitle>
-        <CardDescription>
-          Total mensual, gastos principales y detalle completo al pasar el cursor.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <section className="grid gap-4">
+      <div>
+        <h2 className="text-xl font-semibold">Vista global {year}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Presupuesto previsto por mes y comparación con el gasto real.
+        </p>
+      </div>
+
+      <div className="grid gap-4">
+        <ChartCard
+          title="Evolución del gasto"
+          description="Gasto previsto por mes"
+          fileName={`evolucion-gasto-previsto-${year}`}
+        >
+          <BudgetExpenseLine data={monthlyChartData} />
+        </ChartCard>
+      </div>
+
+      <ChartCard
+        title="Dónde más gastas"
+        description="Acumulado anual previsto por categoría"
+        fileName={`categorias-presupuesto-${year}`}
+      >
+        <CategoryDonut
+          data={categoryTotals}
+          emptyLabel="Aún no hay gastos previstos para este año."
+        />
+      </ChartCard>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Meses previstos</CardTitle>
+          <CardDescription>
+            Top 3 partidas previstas por mes. Haz click para abrir el detalle.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {months.map((month) => {
             const ratio = maxTotal > 0 ? month.total / maxTotal : 0;
@@ -165,33 +328,36 @@ function YearExpensesOverview({
                     : "bg-card";
 
             return (
-              <div
+              <button
                 key={month.month}
-                tabIndex={0}
+                type="button"
+                onClick={() => setOpenMonth(month)}
                 className={cn(
-                  "group/month relative grid min-h-44 gap-3 rounded-lg border p-3 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/40",
+                  "grid min-h-44 min-w-0 cursor-pointer gap-3 overflow-hidden rounded-lg border p-3 text-left outline-none transition-colors hover:bg-muted/30 focus-visible:ring-3 focus-visible:ring-ring/40",
                   heatClass
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{shortMonthName(month.month)}</p>
-                    <p className="text-xs text-muted-foreground">
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {shortMonthName(month.month)}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
                       {formatMonth(month.month)}
                     </p>
                   </div>
-                  <p className="text-right font-semibold tabular-nums">
+                  <p className="max-w-28 shrink-0 truncate text-right font-semibold tabular-nums">
                     {formatMoney(month.total)}
                   </p>
                 </div>
 
                 <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
-                  {month.topExpenses.length > 0 ? (
-                    month.topExpenses.map((expense) => (
+                  {month.topItems.length > 0 ? (
+                    month.topItems.map((item) => (
                       <span
-                        key={expense.id}
+                        key={item.id}
                         className="h-full flex-1"
-                        style={{ backgroundColor: expenseColor(expense) }}
+                        style={{ backgroundColor: budgetItemColor(item) }}
                       />
                     ))
                   ) : (
@@ -199,80 +365,125 @@ function YearExpensesOverview({
                   )}
                 </div>
 
-                <div className="grid gap-2">
-                  {month.topExpenses.length > 0 ? (
-                    month.topExpenses.map((expense) => (
+                <div className="grid min-w-0 gap-2">
+                  {month.topItems.length > 0 ? (
+                    month.topItems.map((item) => (
                       <div
-                        key={expense.id}
-                        className="flex items-center gap-2 text-sm"
+                        key={item.id}
+                        className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-sm"
                       >
                         <span
                           className="size-2 rounded-full"
-                          style={{ backgroundColor: expenseColor(expense) }}
+                          style={{ backgroundColor: budgetItemColor(item) }}
                         />
                         <span className="min-w-0 flex-1 truncate">
-                          {expense.name}
+                          {item.name}
                         </span>
-                        <span className="tabular-nums text-muted-foreground">
-                          {formatMoney(Number(expense.amount))}
+                        <span className="max-w-24 truncate text-right tabular-nums text-muted-foreground">
+                          {formatMoney(Number(item.planned_amount))}
                         </span>
                       </div>
                     ))
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Sin gastos registrados.
+                      Sin gastos previstos.
                     </p>
                   )}
                 </div>
+              </button>
+            );
+          })}
+        </div>
+        </CardContent>
+      </Card>
 
-                <div className="pointer-events-none absolute left-0 top-[calc(100%+0.5rem)] z-50 hidden w-[min(22rem,calc(100vw-2rem))] rounded-lg bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-foreground/10 group-hover/month:block group-focus-within/month:block">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="font-medium">{formatMonth(month.month)}</p>
-                    <p className="text-sm font-semibold tabular-nums">
-                      {formatMoney(month.total)}
-                    </p>
+      <Dialog
+        open={openMonth !== null}
+        onOpenChange={(open) => {
+          if (!open) setOpenMonth(null);
+        }}
+      >
+        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
+          {openMonth && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{formatMonth(openMonth.month)}</DialogTitle>
+                <DialogDescription>
+                  Gastos previstos y comparación con el gasto real del mes.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                <div className="grid gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/25 p-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Previsto
+                      </p>
+                      <p className="mt-1 text-2xl font-semibold tabular-nums">
+                        {formatMoney(openMonth.total)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/25 p-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Real
+                      </p>
+                      <p className="mt-1 text-2xl font-semibold tabular-nums">
+                        {formatMoney(openMonth.actualTotal)}
+                      </p>
+                    </div>
                   </div>
-                  {month.expenses.length > 0 ? (
-                    <div className="pointer-events-auto max-h-72 overflow-y-auto pr-1">
+
+                  <BudgetVsActualBars
+                    data={[
+                      {
+                        label: shortMonthName(openMonth.month),
+                        Previsto: openMonth.total,
+                        Real: openMonth.actualTotal,
+                      },
+                    ]}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <p className="text-sm font-medium">Gastos previstos</p>
+                  {openMonth.items.length > 0 ? (
+                    <div className="max-h-80 overflow-y-auto pr-1">
                       <div className="grid gap-2">
-                        {month.expenses.map((expense) => (
+                        {openMonth.items.map((item) => (
                           <div
-                            key={expense.id}
-                            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-sm"
+                            key={item.id}
+                            className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border bg-muted/20 p-2 text-sm"
                           >
                             <span
                               className="size-2 rounded-full"
-                              style={{ backgroundColor: expenseColor(expense) }}
+                              style={{ backgroundColor: budgetItemColor(item) }}
                             />
                             <div className="min-w-0">
-                              <p className="truncate font-medium">
-                                {expense.name}
-                              </p>
+                              <p className="truncate font-medium">{item.name}</p>
                               <p className="truncate text-xs text-muted-foreground">
-                                {expense.categories?.name ?? "Sin categoría"} ·{" "}
-                                {expense.occurred_at.slice(8, 10)}/
-                                {expense.occurred_at.slice(5, 7)}
+                                {item.categories?.name ?? "Sin categoría"}
                               </p>
                             </div>
-                            <p className="tabular-nums">
-                              {formatMoney(Number(expense.amount))}
+                            <p className="max-w-24 truncate text-right tabular-nums">
+                              {formatMoney(Number(item.planned_amount))}
                             </p>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No hay gastos en este mes.
+                    <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      No hay gastos previstos en este mes.
                     </p>
                   )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }
 
@@ -280,14 +491,16 @@ export function BudgetsView({
   categories,
   views,
   selected,
+  userId,
   year,
-  yearExpenses,
+  yearBudget,
 }: {
   categories: Category[];
   views: MonthlyBudgetView[];
   selected: MonthlyBudgetView;
+  userId: string;
   year: number;
-  yearExpenses: YearExpenseMonthView[];
+  yearBudget: YearBudgetMonthView[];
 }) {
   const [pending, startTransition] = useTransition();
   const [showYearOverview, setShowYearOverview] = useState(false);
@@ -318,12 +531,14 @@ export function BudgetsView({
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">Presupuestos mensuales</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Meses previstos, gastos reales y cierre.
-          </p>
-        </div>
+        {!showYearOverview && (
+          <div className="grid gap-1">
+            <h1 className="text-2xl font-semibold">Presupuestos mensuales</h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Meses previstos, gastos reales y cierre.
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -344,53 +559,59 @@ export function BudgetsView({
       </div>
 
       {showYearOverview && (
-        <YearExpensesOverview year={year} months={yearExpenses} />
+        <YearBudgetOverview
+          userId={userId}
+          year={year}
+          months={yearBudget}
+        />
       )}
 
-      <section
-        className="grid gap-3 overflow-x-auto"
-        style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(18rem, 1fr)" }}
-      >
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>{monthLabel}</CardTitle>
-              <CardDescription>
-                Previsto, real y diferencia.
-              </CardDescription>
-            </div>
-            <CardAction className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={!previousMonth}
-                aria-label="Mes anterior"
-                onClick={() => {
-                  if (previousMonth) {
-                    router.push(`/presupuestos?mes=${monthParam(previousMonth)}`);
-                  }
-                }}
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={!nextMonth}
-                aria-label="Mes siguiente"
-                onClick={() => {
-                  if (nextMonth) {
-                    router.push(`/presupuestos?mes=${monthParam(nextMonth)}`);
-                  }
-                }}
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="grid gap-4">
+      {!showYearOverview && (
+        <>
+          <section
+            className="grid gap-3 overflow-x-auto"
+            style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(18rem, 1fr)" }}
+          >
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle>{monthLabel}</CardTitle>
+                  <CardDescription>
+                    Previsto, real y diferencia.
+                  </CardDescription>
+                </div>
+                <CardAction className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    disabled={!previousMonth}
+                    aria-label="Mes anterior"
+                    onClick={() => {
+                      if (previousMonth) {
+                        router.push(`/presupuestos?mes=${monthParam(previousMonth)}`);
+                      }
+                    }}
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    disabled={!nextMonth}
+                    aria-label="Mes siguiente"
+                    onClick={() => {
+                      if (nextMonth) {
+                        router.push(`/presupuestos?mes=${monthParam(nextMonth)}`);
+                      }
+                    }}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="grid gap-4">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border bg-muted/25 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Previsto</p>
@@ -457,17 +678,17 @@ export function BudgetsView({
                 </Badge>
               )}
             </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Cerrar mes</CardTitle>
-            <CardDescription>
-              Resultado frente a lo previsto.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            <Card>
+              <CardHeader>
+                <CardTitle>Cerrar mes</CardTitle>
+                <CardDescription>
+                  Resultado frente a lo previsto.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
             <form
               ref={closeFormRef}
               action={(formData) =>
@@ -516,15 +737,15 @@ export function BudgetsView({
                 Guardar cierre
               </Button>
             </form>
-          </CardContent>
-        </Card>
-      </section>
+              </CardContent>
+            </Card>
+          </section>
 
-      <section
-        className="grid gap-4 overflow-x-auto"
-        style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(18rem, 1fr)" }}
-      >
-        <Card>
+          <section
+            className="grid gap-4 overflow-x-auto"
+            style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(18rem, 1fr)" }}
+          >
+            <Card>
           <CardHeader>
             <CardTitle>Gastos previstos</CardTitle>
             <CardDescription>
@@ -651,9 +872,9 @@ export function BudgetsView({
               </div>
             )}
           </CardContent>
-        </Card>
+            </Card>
 
-        <Card>
+            <Card>
           <CardHeader>
             <CardTitle>Mapa mensual</CardTitle>
             <CardDescription>
@@ -696,8 +917,10 @@ export function BudgetsView({
               );
             })}
           </CardContent>
-        </Card>
-      </section>
+            </Card>
+          </section>
+        </>
+      )}
     </div>
   );
 }

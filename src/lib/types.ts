@@ -80,6 +80,17 @@ export interface Budget {
   categories?: Category | null;
 }
 
+export interface FixedExpense {
+  id: string;
+  user_id: string;
+  name: string;
+  category_id: string | null;
+  amount: number | null;
+  active: boolean;
+  created_at: string;
+  categories?: Category | null;
+}
+
 export type MonthlyBudgetOutcome = "met" | "under" | "over";
 
 export interface MonthlyBudgetItem {

@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
-import type { Budget, Category } from "@/lib/types";
+import { Save, Trash2 } from "lucide-react";
+import type { Budget, Category, FixedExpense } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,9 @@ import {
   createCategory,
   deleteBudget,
   deleteCategory,
+  deleteFixedExpense,
   saveBudget,
+  saveFixedExpense,
   updateMonthlyIncome,
 } from "./actions";
 
@@ -262,6 +264,142 @@ export function BudgetsManager({
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+export function FixedExpensesManager({
+  fixedExpenses,
+  categories,
+}: {
+  fixedExpenses: FixedExpense[];
+  categories: Category[];
+}) {
+  const [pending, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+
+  function runSave(formData: FormData, successMessage: string) {
+    startTransition(async () => {
+      const result = await saveFixedExpense(formData);
+      if (result.error) toast.error(result.error);
+      else {
+        formRef.current?.reset();
+        toast.success(successMessage);
+        router.refresh();
+      }
+    });
+  }
+
+  return (
+    <div className="grid gap-4">
+      <form
+        ref={formRef}
+        action={(formData) => runSave(formData, "Gasto fijo añadido.")}
+        className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9rem_auto]"
+      >
+        <Input name="name" placeholder="Nombre del gasto fijo" required />
+        <Select
+          name="category_id"
+          defaultValue="none"
+          items={[
+            { value: "none", label: "Sin categoría" },
+            ...categories.map((category) => ({
+              value: category.id,
+              label: category.name,
+            })),
+          ]}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Categoría" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Sin categoría</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          name="amount"
+          inputMode="decimal"
+          placeholder="€/mes"
+        />
+        <Button type="submit" disabled={pending}>
+          Añadir
+        </Button>
+      </form>
+
+      {fixedExpenses.length > 0 ? (
+        <div className="grid gap-2">
+          {fixedExpenses.map((expense) => (
+            <form
+              key={expense.id}
+              action={(formData) => runSave(formData, "Gasto fijo actualizado.")}
+              className="grid gap-2 rounded-lg border bg-muted/20 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9rem_auto_auto]"
+            >
+              <input type="hidden" name="id" value={expense.id} />
+              <Input name="name" defaultValue={expense.name} required />
+              <Select
+                name="category_id"
+                defaultValue={expense.category_id ?? "none"}
+                items={[
+                  { value: "none", label: "Sin categoría" },
+                  ...categories.map((category) => ({
+                    value: category.id,
+                    label: category.name,
+                  })),
+                ]}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin categoría</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                name="amount"
+                inputMode="decimal"
+                defaultValue={expense.amount ?? ""}
+                placeholder="€/mes"
+              />
+              <Button type="submit" variant="outline" disabled={pending}>
+                <Save className="size-4" />
+                Guardar
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const result = await deleteFixedExpense(expense.id);
+                    if (result.error) toast.error(result.error);
+                    else {
+                      toast.success("Gasto fijo eliminado.");
+                      router.refresh();
+                    }
+                  })
+                }
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </form>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          Aún no tienes gastos mensuales fijos.
+        </p>
       )}
     </div>
   );

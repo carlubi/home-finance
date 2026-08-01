@@ -20,14 +20,9 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [profile, { data: onboarding }, { data: ownedGroups }, { data: memberships }] =
+  const [profile, { data: ownedGroups }, { data: memberships }] =
     await Promise.all([
       getAppProfile(user.id),
-      supabase
-        .from("onboarding_answers")
-        .select("fixed_income_amount")
-        .eq("user_id", user.id)
-        .single(),
       supabase
         .from("shared_groups")
         .select("id, name, created_at")
@@ -83,7 +78,6 @@ export default async function ProfilePage() {
       <ProfileClient
         fullName={profile?.full_name ?? ""}
         email={user.email ?? ""}
-        monthlyIncome={(onboarding as { fixed_income_amount?: number | null } | null)?.fixed_income_amount ?? null}
         groups={groups}
       />
     </div>

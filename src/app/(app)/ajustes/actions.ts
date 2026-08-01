@@ -135,3 +135,59 @@ export async function deleteBudget(id: string) {
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+export async function saveFixedExpense(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const categoryIdRaw = String(formData.get("category_id") ?? "").trim();
+  const amountRaw = String(formData.get("amount") ?? "").trim();
+  const amount = parseMoneyInput(amountRaw);
+
+  if (!name) return { error: "El nombre del gasto fijo es obligatorio." };
+  if (amountRaw && (amount === null || amount <= 0)) {
+    return { error: "El importe debe ser mayor que 0." };
+  }
+
+  const payload = {
+    user_id: user.id,
+    name,
+    category_id: categoryIdRaw && categoryIdRaw !== "none" ? categoryIdRaw : null,
+    amount,
+    active: true,
+  };
+
+  const query = id
+    ? supabase
+        .from("fixed_expenses")
+        .update(payload)
+        .eq("id", id)
+        .eq("user_id", user.id)
+    : supabase.from("fixed_expenses").insert(payload);
+
+  const { error } = await query;
+  if (error) return { error: "No se pudo guardar el gasto fijo." };
+
+  revalidatePath("/ajustes");
+  revalidatePath("/informes");
+  return { ok: true };
+}
+
+export async function deleteFixedExpense(id: string) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const { error } = await supabase
+    .from("fixed_expenses")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: "No se pudo eliminar el gasto fijo." };
+
+  revalidatePath("/ajustes");
+  revalidatePath("/informes");
+  return { ok: true };
+}

@@ -354,9 +354,9 @@ export function OnboardingWizard({ userId }: { userId: string }) {
       canContinue: !uploading,
     },
     {
-      title: "¿Compartes gastos con otras personas?",
+      title: "¿Quieres crear un grupo de gastos compartidos?",
       description:
-        "Por ejemplo si vives de alquiler con compañeros o compartes gastos del hogar.",
+        "Sirve para invitar a otras personas, repartir gastos y ver métricas del grupo dentro de la app.",
       content: (
         <div className="grid gap-4">
           <YesNo value={sharesExpenses} onChange={setSharesExpenses} />

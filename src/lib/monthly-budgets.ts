@@ -1,7 +1,8 @@
 import { monthStart } from "./format";
 import type {
   Category,
-  Expense,
+  CategoryTotal,
+  MonthlyBudgetItem,
   MonthlyBudgetOutcome,
   MonthlyBudgetPlan,
 } from "@/lib/types";
@@ -18,11 +19,12 @@ export interface MonthlyBudgetView {
   suggestedOutcome: MonthlyBudgetOutcome | null;
 }
 
-export interface YearExpenseMonthView {
+export interface YearBudgetMonthView {
   month: string;
   total: number;
-  topExpenses: Expense[];
-  expenses: Expense[];
+  actualTotal: number;
+  topItems: MonthlyBudgetItem[];
+  items: MonthlyBudgetItem[];
 }
 
 export function normalizeBudgetMonth(value: string | null | undefined) {
@@ -103,42 +105,65 @@ export function expenseCategories(categories: Category[]) {
   return categories.filter((category) => category.kind === "expense");
 }
 
-export function buildYearExpenseOverview({
+export function buildYearBudgetOverview({
   months,
-  expenses,
+  plans,
+  actualTotals,
 }: {
   months: string[];
-  expenses: Expense[];
-}): YearExpenseMonthView[] {
-  const byMonth = new Map<string, Expense[]>(
-    months.map((month) => [month, []])
-  );
-
-  for (const expense of expenses) {
-    const month = `${expense.occurred_at.slice(0, 7)}-01`;
-    const monthExpenses = byMonth.get(month);
-    if (monthExpenses) {
-      monthExpenses.push(expense);
-    }
-  }
+  plans: MonthlyBudgetPlan[];
+  actualTotals: Map<string, number>;
+}): YearBudgetMonthView[] {
+  const plansByMonth = new Map(plans.map((plan) => [plan.month, plan]));
 
   return months.map((month) => {
-    const monthExpenses = byMonth.get(month) ?? [];
-    const expensesByDate = [...monthExpenses].sort((a, b) =>
-      b.occurred_at.localeCompare(a.occurred_at)
-    );
-    const expensesByAmount = [...monthExpenses].sort(
-      (a, b) => Number(b.amount) - Number(a.amount)
+    const items = plansByMonth.get(month)?.monthly_budget_items ?? [];
+    const itemsByAmount = [...items].sort(
+      (a, b) => Number(b.planned_amount) - Number(a.planned_amount)
     );
 
     return {
       month,
-      total: monthExpenses.reduce(
-        (sum, expense) => sum + Number(expense.amount),
+      total: items.reduce(
+        (sum, item) => sum + Number(item.planned_amount),
         0
       ),
-      topExpenses: expensesByAmount.slice(0, 3),
-      expenses: expensesByDate,
+      actualTotal: actualTotals.get(month) ?? 0,
+      topItems: itemsByAmount.slice(0, 3),
+      items: itemsByAmount,
     };
   });
+}
+
+export function buildBudgetCategoryTotals({
+  userId,
+  months,
+}: {
+  userId: string;
+  months: YearBudgetMonthView[];
+}): CategoryTotal[] {
+  const totals = new Map<string, CategoryTotal>();
+
+  for (const month of months) {
+    for (const item of month.items) {
+      const key = item.category_id ?? "none";
+      const existing = totals.get(key);
+      if (existing) {
+        existing.total = Number(existing.total) + Number(item.planned_amount);
+        existing.num_expenses = (existing.num_expenses ?? 0) + 1;
+      } else {
+        totals.set(key, {
+          user_id: userId,
+          month: month.month,
+          category_id: item.category_id,
+          category_name: item.categories?.name ?? null,
+          category_color: item.categories?.color ?? null,
+          total: Number(item.planned_amount),
+          num_expenses: 1,
+        });
+      }
+    }
+  }
+
+  return Array.from(totals.values()).sort((a, b) => Number(b.total) - Number(a.total));
 }

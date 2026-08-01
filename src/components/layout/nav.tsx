@@ -18,9 +18,9 @@ const items = [
   { href: "/", label: "Resumen", icon: Home },
   { href: "/global", label: "Visión global", icon: ChartPie },
   { href: "/presupuestos", label: "Presupuestos", icon: PiggyBank },
-  { href: "/compartidos", label: "Compartidos", icon: Users },
   { href: "/importar", label: "Importar", icon: Import },
   { href: "/informes", label: "Informes", icon: FileText },
+  { href: "/compartidos", label: "Compartidos", icon: Users },
   { href: "/ajustes", label: "Ajustes", icon: Settings },
 ];
 

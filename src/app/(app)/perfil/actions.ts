@@ -32,6 +32,44 @@ export async function updateProfileName(formData: FormData) {
   return { ok: true };
 }
 
+export async function changePassword(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const currentPassword = String(formData.get("current_password") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+  if (!currentPassword) {
+    return { error: "Escribe tu contraseña actual." };
+  }
+
+  if (password.length < 8) {
+    return { error: "La nueva contraseña debe tener al menos 8 caracteres." };
+  }
+
+  if (password !== confirmPassword) {
+    return { error: "Las contraseñas nuevas no coinciden." };
+  }
+
+  if (currentPassword === password) {
+    return { error: "La nueva contraseña debe ser distinta a la actual." };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    email: user.email,
+    current_password: currentPassword,
+    password,
+  });
+
+  if (error) {
+    return { error: "No se pudo cambiar la contraseña. Revisa la contraseña actual." };
+  }
+
+  revalidatePath("/perfil");
+  return { ok: true };
+}
+
 export async function deleteAccount(confirmEmail: string) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };

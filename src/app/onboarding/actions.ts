@@ -59,6 +59,28 @@ export async function completeOnboarding(data: OnboardingData) {
   // Reflejar el salario declarado en los ingresos de cada mes del año
   await syncSalaryIncome(supabase, user.id, data.fixedIncomeAmount);
 
+  if (data.fixedExpenseTypes.length > 0) {
+    const { data: categories } = await supabase
+      .from("categories")
+      .select("id, name")
+      .eq("kind", "expense");
+    const categoryByName = new Map(
+      (categories ?? []).map((category) => [
+        String(category.name).toLowerCase(),
+        category.id,
+      ])
+    );
+    await supabase.from("fixed_expenses").insert(
+      data.fixedExpenseTypes.map((name) => ({
+        user_id: user.id,
+        name,
+        category_id: categoryByName.get(name.toLowerCase()) ?? null,
+        amount: null,
+        active: true,
+      }))
+    );
+  }
+
   if (data.invests && (data.investmentName || data.investmentMonthly)) {
     await supabase.from("investments").insert({
       user_id: user.id,

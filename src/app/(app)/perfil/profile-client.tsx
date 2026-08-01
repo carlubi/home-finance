@@ -3,10 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, ShieldAlert, Users } from "lucide-react";
+import { KeyRound, LogOut, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { logout } from "@/app/(auth)/actions";
-import { formatMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { updateProfileName, deleteAccount } from "./actions";
+import { changePassword, updateProfileName, deleteAccount } from "./actions";
 
 type GroupRow = {
   id: string;
@@ -42,12 +41,10 @@ type GroupRow = {
 export function ProfileClient({
   fullName,
   email,
-  monthlyIncome,
   groups,
 }: {
   fullName: string;
   email: string;
-  monthlyIncome: number | null;
   groups: GroupRow[];
 }) {
   const router = useRouter();
@@ -118,14 +115,67 @@ export function ProfileClient({
             <span className="font-medium">{email}</span>
           </div>
 
-          <div className="grid gap-1 rounded-xl border bg-muted/30 p-4 text-sm">
-            <span className="text-muted-foreground">Ingreso mensual</span>
-            <span className="font-medium">
-              {monthlyIncome ? formatMoney(monthlyIncome) : "No configurado"}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Puedes editarlo desde Ajustes.
-            </span>
+          <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
+            <div className="flex items-center gap-2">
+              <KeyRound className="size-4 text-muted-foreground" />
+              <div>
+                <span className="block font-medium">Cambiar contraseña</span>
+                <span className="text-xs text-muted-foreground">
+                  Por seguridad, confirma primero tu contraseña actual.
+                </span>
+              </div>
+            </div>
+            <form
+              action={(formData) =>
+                startTransition(async () => {
+                  const r = await changePassword(formData);
+                  if (r.error) toast.error(r.error);
+                  else toast.success("Contraseña cambiada.");
+                })
+              }
+              className="grid gap-3"
+            >
+              <div className="grid gap-1.5">
+                <Label htmlFor="current_password">Contraseña actual</Label>
+                <Input
+                  id="current_password"
+                  name="current_password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="password">Nueva contraseña</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="confirm_password">Confirmar nueva</Label>
+                  <Input
+                    id="confirm_password"
+                    name="confirm_password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Button type="submit" variant="outline" disabled={pending}>
+                  <KeyRound className="size-4" />
+                  Guardar nueva contraseña
+                </Button>
+              </div>
+            </form>
           </div>
         </CardContent>
       </Card>

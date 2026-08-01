@@ -12,7 +12,7 @@ import {
   Packer,
   Paragraph,
 } from "docx";
-import { FileDown, FileText, Loader2, Sparkles } from "lucide-react";
+import { FileDown, FileText, LineChart, Loader2, Sparkles } from "lucide-react";
 import { downloadReportPdf } from "@/lib/report-pdf";
 import { createClient } from "@/lib/supabase/client";
 import { addMonths, formatMonth, formatMonthRange, monthStart } from "@/lib/format";
@@ -118,6 +118,12 @@ export function ReportsView({
     <div className="grid gap-4">
       {/* Generador */}
       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <LineChart className="size-4" />
+            Generar informes
+          </CardTitle>
+        </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="grid gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Desde</span>

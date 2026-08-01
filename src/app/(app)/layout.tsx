@@ -25,10 +25,10 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-svh w-full">
+    <div className="flex h-svh w-full overflow-hidden">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="z-30 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur">
           <div className="hover-wiggle flex items-center md:hidden">
             <BrandLogo className="h-9" />
           </div>
@@ -42,7 +42,7 @@ export default async function AppLayout({
             />
           </div>
         </header>
-        <main className="animate-fade-up flex-1 p-4 pb-20 md:p-6 md:pb-6">
+        <main className="animate-fade-up min-h-0 flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">
           {children}
         </main>
       </div>

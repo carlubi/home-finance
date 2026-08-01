@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { MonthlyReport } from "@/lib/types";
+import type { Category, MonthlyReport } from "@/lib/types";
+import { ExportPanel } from "./export-panel";
 import { ReportsView } from "./reports-view";
 
-export const metadata = { title: "Informes IA" };
+export const metadata = { title: "Informes y exportación" };
 
 export default async function InformesPage() {
   const supabase = await createClient();
@@ -16,6 +17,7 @@ export default async function InformesPage() {
     { data: rangeReports },
     { data: summaries },
     { data: budgetPlans },
+    { data: categories },
   ] = await Promise.all([
       supabase.from("monthly_reports").select("*").order("month", { ascending: false }),
       supabase
@@ -27,6 +29,7 @@ export default async function InformesPage() {
         .from("monthly_budget_plans")
         .select("month")
         .order("month", { ascending: true }),
+      supabase.from("categories").select("*").order("name"),
     ]);
 
   const earliestMonth = [summaries?.[0]?.month, budgetPlans?.[0]?.month]
@@ -59,14 +62,16 @@ export default async function InformesPage() {
   ].sort((a, b) => b.created_at.localeCompare(a.created_at));
 
   return (
-    <div className="grid max-w-3xl gap-4">
+    <div className="grid max-w-4xl gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Informes IA</h1>
+        <h1 className="text-2xl font-semibold">Informes y exportación</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          La IA puede analizar un mes concreto o un rango de meses para detectar
-          patrones, gastos evitables y devolverte un plan de acción personalizado.
+          Genera análisis financieros con IA o descarga tus datos cuando los necesites.
         </p>
       </div>
+
+      <ExportPanel categories={(categories ?? []) as Category[]} />
+
       <ReportsView reports={reports} earliestMonth={earliestMonth} />
     </div>
   );

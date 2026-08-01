@@ -3,14 +3,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Category,
-  Expense,
   MonthlyBudgetPlan,
   MonthlySummary,
 } from "@/lib/types";
 import {
   buildBudgetMonths,
   buildBudgetViews,
-  buildYearExpenseOverview,
+  buildYearBudgetOverview,
   expenseCategories,
   normalizeBudgetMonth,
 } from "@/lib/monthly-budgets";
@@ -30,9 +29,7 @@ export default async function PresupuestosPage({
 
   const supabase = await createClient();
   const currentYear = new Date().getFullYear();
-  const yearStart = `${currentYear}-01-01`;
-  const nextYearStart = `${currentYear + 1}-01-01`;
-  const [{ data: categories }, { data: plans }, { data: summaries }, { data: expenses }] =
+  const [{ data: categories }, { data: plans }, { data: summaries }] =
     await Promise.all([
       supabase.from("categories").select("*").order("name"),
       supabase
@@ -45,13 +42,6 @@ export default async function PresupuestosPage({
         .select("month, total_expenses")
         .eq("user_id", user.id)
         .order("month", { ascending: true }),
-      supabase
-        .from("expenses")
-        .select("*, categories(*)")
-        .eq("user_id", user.id)
-        .gte("occurred_at", yearStart)
-        .lt("occurred_at", nextYearStart)
-        .order("occurred_at", { ascending: false }),
     ]);
 
   const budgetPlans = (plans ?? []) as MonthlyBudgetPlan[];
@@ -84,9 +74,11 @@ export default async function PresupuestosPage({
       views={views}
       selected={selected}
       year={currentYear}
-      yearExpenses={buildYearExpenseOverview({
+      userId={user.id}
+      yearBudget={buildYearBudgetOverview({
         months,
-        expenses: (expenses ?? []) as Expense[],
+        plans: budgetPlans,
+        actualTotals,
       })}
     />
   );
