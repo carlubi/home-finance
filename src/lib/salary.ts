@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Sincroniza el ingreso mensual (salario) configurado en Ajustes/Onboarding
+ * Sincroniza el ingreso mensual (salario) configurado en Resumen/Onboarding
  * con la tabla `income`: crea un movimiento "Salario" el día 1 de cada mes
  * del año en curso y, si el importe cambia, actualiza todos los existentes.
  * Con importe nulo se retiran los movimientos automáticos.

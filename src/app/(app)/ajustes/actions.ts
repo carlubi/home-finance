@@ -170,6 +170,7 @@ export async function saveFixedExpense(formData: FormData) {
   const { error } = await query;
   if (error) return { error: "No se pudo guardar el gasto fijo." };
 
+  revalidatePath("/", "layout");
   revalidatePath("/ajustes");
   revalidatePath("/informes");
   return { ok: true };
@@ -187,6 +188,7 @@ export async function deleteFixedExpense(id: string) {
 
   if (error) return { error: "No se pudo eliminar el gasto fijo." };
 
+  revalidatePath("/", "layout");
   revalidatePath("/ajustes");
   revalidatePath("/informes");
   return { ok: true };

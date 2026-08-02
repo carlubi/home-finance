@@ -39,7 +39,7 @@ export interface Income {
   notes: string | null;
   source: "manual" | "import";
   import_id: string | null;
-  /** true si lo genera el ingreso mensual configurado en Ajustes */
+  /** true si lo genera el ingreso mensual configurado en Resumen */
   auto_salary?: boolean;
   created_at: string;
   categories?: Category | null;

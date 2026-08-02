@@ -2,12 +2,15 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getMonthData } from "@/lib/data";
+import { createClient } from "@/lib/supabase/server";
 import { formatMonth, monthStart } from "@/lib/format";
 import { pctChange, roundCents } from "@/lib/finance";
 import { formatMoney } from "@/lib/format";
+import type { FixedExpense } from "@/lib/types";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { ChartCard } from "@/components/charts/chart-card";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
+import { FinancialSettingsDialog } from "@/components/dashboard/financial-settings-dialog";
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { TransactionList } from "@/components/transactions/transaction-list";
@@ -30,7 +33,24 @@ export default async function DashboardPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const data = await getMonthData(user.id, month);
+  const supabase = await createClient();
+  const [
+    data,
+    { data: onboarding },
+    { data: fixedExpenses },
+  ] = await Promise.all([
+    getMonthData(user.id, month),
+    supabase
+      .from("onboarding_answers")
+      .select("fixed_income_amount, fixed_expense_types")
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("fixed_expenses")
+      .select("*, categories(*)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true }),
+  ]);
   const income = Number(data.current?.total_income ?? 0);
   const expenses = Number(data.current?.total_expenses ?? 0);
   const savings = roundCents(income - expenses);
@@ -49,14 +69,47 @@ export default async function DashboardPage({
 
   const expenseCategories = data.categories.filter((c) => c.kind === "expense");
   const incomeCategories = data.categories.filter((c) => c.kind === "income");
+  let fixed = (fixedExpenses ?? []) as FixedExpense[];
+  const onboardingFixedTypes = (onboarding?.fixed_expense_types ?? []) as string[];
+  const existingNames = new Set(fixed.map((expense) => expense.name.toLowerCase()));
+  const missingOnboardingFixed = onboardingFixedTypes.filter(
+    (name) => !existingNames.has(name.toLowerCase())
+  );
+
+  if (missingOnboardingFixed.length > 0) {
+    const categoryByName = new Map(
+      expenseCategories.map((category) => [category.name.toLowerCase(), category.id])
+    );
+    const { data: inserted } = await supabase
+      .from("fixed_expenses")
+      .insert(
+        missingOnboardingFixed.map((name) => ({
+          user_id: user.id,
+          name,
+          category_id: categoryByName.get(name.toLowerCase()) ?? null,
+          amount: null,
+          active: true,
+        }))
+      )
+      .select("*, categories(*)");
+
+    fixed = [...fixed, ...((inserted ?? []) as FixedExpense[])];
+  }
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Resumen mensual</h1>
-        <Suspense>
-          <MonthSwitcher month={month} />
-        </Suspense>
+        <div className="flex flex-wrap items-center gap-2">
+          <FinancialSettingsDialog
+            monthlyIncome={onboarding?.fixed_income_amount ?? null}
+            fixedExpenses={fixed}
+            categories={expenseCategories}
+          />
+          <Suspense>
+            <MonthSwitcher month={month} />
+          </Suspense>
+        </div>
       </div>
 
       <SummaryCards
