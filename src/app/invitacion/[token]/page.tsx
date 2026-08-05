@@ -68,7 +68,11 @@ export default async function InvitacionPage({
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             Este enlace no existe, ha caducado o la invitación fue revocada.
           </p>
-          <Button render={<Link href="/login" />} className="mt-6 w-full">
+          <Button
+            nativeButton={false}
+            render={<Link href="/login" />}
+            className="mt-6 w-full"
+          >
             Ir a iniciar sesión
           </Button>
         </section>
@@ -176,6 +180,7 @@ export default async function InvitacionPage({
             ) : (
               <>
                 <Button
+                  nativeButton={false}
                   render={<Link href={{ pathname: "/login", query: authQuery }} />}
                   className="h-10 w-full"
                 >
@@ -184,6 +189,7 @@ export default async function InvitacionPage({
                 </Button>
                 <Button
                   variant="outline"
+                  nativeButton={false}
                   render={<Link href={{ pathname: "/registro", query: authQuery }} />}
                   className="h-10 w-full"
                 >

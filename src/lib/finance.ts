@@ -141,3 +141,102 @@ export function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return null;
   return roundCents(((current - previous) / Math.abs(previous)) * 100);
 }
+
+export interface InvestmentLike {
+  monthly_amount: number | null;
+  one_off_amount: number | null;
+  accumulated_capital: number | null;
+  expected_annual_return_pct?: number | null;
+  starts_on?: string | null;
+  ends_on?: string | null;
+  created_at: string;
+}
+
+function monthIndex(month: string): number {
+  const [year, monthNumber] = month.slice(0, 7).split("-").map(Number);
+  return year * 12 + monthNumber - 1;
+}
+
+export function monthsSinceInvestmentStart(
+  investment: Pick<InvestmentLike, "created_at">,
+  month: string
+): number {
+  const target = monthIndex(month);
+  const start = monthIndex(investment.created_at);
+  return Math.max(0, target - start + 1);
+}
+
+function investmentStartMonth(investment: InvestmentLike): string {
+  return investment.starts_on ?? investment.created_at;
+}
+
+function activeInvestmentMonths(investment: InvestmentLike, month: string): number {
+  const target = monthIndex(month);
+  const start = monthIndex(investmentStartMonth(investment));
+  const end = investment.ends_on ? monthIndex(investment.ends_on) : target;
+
+  if (target < start || target > end) return 0;
+  return Math.max(0, target - start + 1);
+}
+
+export function investmentMonthlyContribution(
+  investments: InvestmentLike[],
+  month?: string
+): number {
+  return roundCents(
+    investments.reduce((total, investment) => {
+      if (month && activeInvestmentMonths(investment, month) === 0) return total;
+      return total + Number(investment.monthly_amount ?? 0);
+    }, 0)
+  );
+}
+
+export function investmentActualValueAtMonth(
+  investments: InvestmentLike[],
+  month: string
+): number {
+  return roundCents(
+    investments.reduce((total, investment) => {
+      const months = activeInvestmentMonths(investment, month);
+      if (months <= 0) return total;
+      return (
+        total +
+        Number(investment.accumulated_capital ?? 0) +
+        Number(investment.one_off_amount ?? 0) +
+        Number(investment.monthly_amount ?? 0) * months
+      );
+    }, 0)
+  );
+}
+
+export function investmentProjectedValueAtMonth(
+  investments: InvestmentLike[],
+  month: string
+): number {
+  return roundCents(
+    investments.reduce((total, investment) => {
+      const months = activeInvestmentMonths(investment, month);
+      if (months <= 0) return total;
+
+      const startingCapital =
+        Number(investment.accumulated_capital ?? 0) +
+        Number(investment.one_off_amount ?? 0);
+      const monthlyAmount = Number(investment.monthly_amount ?? 0);
+      const annualReturn = Number(investment.expected_annual_return_pct ?? 0) / 100;
+      const monthlyReturn =
+        annualReturn > -1 ? Math.pow(1 + annualReturn, 1 / 12) - 1 : 0;
+
+      if (monthlyReturn === 0) {
+        return total + startingCapital + monthlyAmount * months;
+      }
+
+      const grownStartingCapital =
+        startingCapital * Math.pow(1 + monthlyReturn, months);
+      const grownContributions =
+        monthlyAmount *
+        ((Math.pow(1 + monthlyReturn, months) - 1) / monthlyReturn);
+
+      return total + grownStartingCapital + grownContributions;
+    }, 0)
+  );
+}

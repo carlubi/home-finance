@@ -139,6 +139,7 @@ export function OnboardingWizard({ userId }: { userId: string }) {
   const [investmentMonthly, setInvestmentMonthly] = useState("");
   const [investmentOneOff, setInvestmentOneOff] = useState("");
   const [investmentCapital, setInvestmentCapital] = useState("");
+  const [investmentExpectedReturn, setInvestmentExpectedReturn] = useState("8");
   const [statementPath, setStatementPath] = useState<string | null>(null);
   const [statementName, setStatementName] = useState<string | null>(null);
   const [sharesExpenses, setSharesExpenses] = useState<boolean | null>(null);
@@ -178,6 +179,9 @@ export function OnboardingWizard({ userId }: { userId: string }) {
       investmentMonthly: investmentMonthly ? Number(investmentMonthly) : null,
       investmentOneOff: investmentOneOff ? Number(investmentOneOff) : null,
       investmentCapital: investmentCapital ? Number(investmentCapital) : null,
+      investmentExpectedReturn: investmentExpectedReturn
+        ? Number(investmentExpectedReturn.replace(",", "."))
+        : null,
       sharesExpenses,
       groupName,
       inviteEmails: inviteEmails.split(/[\n,;]+/),
@@ -312,6 +316,18 @@ export function OnboardingWizard({ userId }: { userId: string }) {
                   min="0"
                   value={investmentCapital}
                   onChange={(e) => setInvestmentCapital(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Rentabilidad anual esperada (%)</Label>
+                <Input
+                  type="number"
+                  min="-100"
+                  max="100"
+                  step="0.1"
+                  value={investmentExpectedReturn}
+                  onChange={(e) => setInvestmentExpectedReturn(e.target.value)}
+                  placeholder="Ej. 8"
                 />
               </div>
             </>

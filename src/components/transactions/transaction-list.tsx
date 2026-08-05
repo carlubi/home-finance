@@ -49,12 +49,14 @@ export function TransactionList({
   categories,
   userId,
   emptyLabel,
+  defaultDate,
 }: {
   kind: "expense" | "income";
   items: Tx[];
   categories: Category[];
   userId: string;
   emptyLabel: string;
+  defaultDate: string;
 }) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -312,6 +314,7 @@ export function TransactionList({
         onOpenChange={setDialogOpen}
         initial={editing}
         userId={userId}
+        defaultDate={defaultDate}
       />
 
       <AlertDialog

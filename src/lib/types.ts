@@ -87,8 +87,24 @@ export interface FixedExpense {
   category_id: string | null;
   amount: number | null;
   active: boolean;
+  starts_on: string | null;
+  ends_on: string | null;
   created_at: string;
   categories?: Category | null;
+}
+
+export interface Investment {
+  id: string;
+  user_id: string;
+  name: string;
+  monthly_amount: number | null;
+  one_off_amount: number | null;
+  accumulated_capital: number | null;
+  expected_annual_return_pct: number | null;
+  starts_on: string | null;
+  ends_on: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 export type MonthlyBudgetOutcome = "met" | "under" | "over";

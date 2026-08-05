@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseMoneyInput } from "@/lib/format";
+import { addMonths, monthStart, parseMoneyInput } from "@/lib/format";
+import { investmentActualValueAtMonth } from "@/lib/finance";
 import { syncSalaryIncome } from "@/lib/salary";
+import type { Investment } from "@/lib/types";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -13,12 +15,27 @@ async function requireUser() {
   return { supabase, user };
 }
 
+type ChangeScope = "global" | "from_month";
+
+function readChangeScope(formData: FormData): ChangeScope {
+  return formData.get("change_scope") === "global" ? "global" : "from_month";
+}
+
+function readEffectiveMonth(formData: FormData) {
+  const raw = String(formData.get("effective_month") ?? "").trim();
+  if (/^\d{4}-\d{2}-01$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
+  return monthStart(new Date());
+}
+
 export async function updateMonthlyIncome(formData: FormData) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };
 
   const monthlyIncomeRaw = String(formData.get("monthly_income") ?? "").trim();
   const monthlyIncome = parseMoneyInput(monthlyIncomeRaw);
+  const changeScope = readChangeScope(formData);
+  const effectiveMonth = readEffectiveMonth(formData);
 
   if (monthlyIncomeRaw && (monthlyIncome === null || monthlyIncome <= 0)) {
     return { error: "El ingreso mensual debe ser mayor que 0." };
@@ -55,7 +72,10 @@ export async function updateMonthlyIncome(formData: FormData) {
     .eq("id", user.id);
 
   // Reflejar el salario en los ingresos de cada mes del año
-  const sync = await syncSalaryIncome(supabase, user.id, monthlyIncome);
+  const sync = await syncSalaryIncome(supabase, user.id, monthlyIncome, {
+    scope: changeScope,
+    effectiveMonth,
+  });
   if (sync.error) return { error: sync.error };
 
   revalidatePath("/", "layout");
@@ -145,6 +165,8 @@ export async function saveFixedExpense(formData: FormData) {
   const categoryIdRaw = String(formData.get("category_id") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "").trim();
   const amount = parseMoneyInput(amountRaw);
+  const changeScope = readChangeScope(formData);
+  const effectiveMonth = readEffectiveMonth(formData);
 
   if (!name) return { error: "El nombre del gasto fijo es obligatorio." };
   if (amountRaw && (amount === null || amount <= 0)) {
@@ -158,16 +180,39 @@ export async function saveFixedExpense(formData: FormData) {
     amount,
     active: true,
   };
+  const insertPayload = {
+    ...payload,
+    starts_on: effectiveMonth,
+    ends_on: null,
+  };
 
-  const query = id
-    ? supabase
+  let error;
+  if (id && changeScope === "from_month") {
+    const previousMonth = addMonths(effectiveMonth, -1);
+    const { error: closeError } = await supabase
+      .from("fixed_expenses")
+      .update({ ends_on: previousMonth })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (closeError) error = closeError;
+    else {
+      const { error: insertError } = await supabase
         .from("fixed_expenses")
-        .update(payload)
-        .eq("id", id)
-        .eq("user_id", user.id)
-    : supabase.from("fixed_expenses").insert(payload);
+        .insert(insertPayload);
+      error = insertError;
+    }
+  } else {
+    const query = id
+      ? supabase
+          .from("fixed_expenses")
+          .update(payload)
+          .eq("id", id)
+          .eq("user_id", user.id)
+      : supabase.from("fixed_expenses").insert(insertPayload);
 
-  const { error } = await query;
+    const result = await query;
+    error = result.error;
+  }
   if (error) return { error: "No se pudo guardar el gasto fijo." };
 
   revalidatePath("/", "layout");
@@ -190,6 +235,147 @@ export async function deleteFixedExpense(id: string) {
 
   revalidatePath("/", "layout");
   revalidatePath("/ajustes");
+  revalidatePath("/informes");
+  return { ok: true };
+}
+
+export async function saveInvestment(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const monthlyAmountRaw = String(formData.get("monthly_amount") ?? "").trim();
+  const oneOffAmountRaw = String(formData.get("one_off_amount") ?? "").trim();
+  const expectedReturnRaw = String(
+    formData.get("expected_annual_return_pct") ?? ""
+  ).trim();
+  const accumulatedCapitalRaw = String(
+    formData.get("accumulated_capital") ?? ""
+  ).trim();
+  const changeScope = readChangeScope(formData);
+  const effectiveMonth = readEffectiveMonth(formData);
+
+  const monthlyAmount = parseMoneyInput(monthlyAmountRaw);
+  const oneOffAmount = parseMoneyInput(oneOffAmountRaw);
+  const accumulatedCapital = parseMoneyInput(accumulatedCapitalRaw);
+  const expectedAnnualReturnPct = expectedReturnRaw
+    ? Number(expectedReturnRaw.replace(",", "."))
+    : null;
+  const entryType =
+    formData.get("investment_entry_type") === "one_off" ? "one_off" : "recurring";
+
+  if (!name) return { error: "El fondo o inversión es obligatorio." };
+  if (monthlyAmountRaw && (monthlyAmount === null || monthlyAmount <= 0)) {
+    return { error: "El importe mensual debe ser mayor que 0." };
+  }
+  if (oneOffAmountRaw && (oneOffAmount === null || oneOffAmount <= 0)) {
+    return { error: "El importe invertido debe ser mayor que 0." };
+  }
+  if (entryType === "recurring" && !id && !(monthlyAmount && monthlyAmount > 0)) {
+    return { error: "El importe mensual debe ser mayor que 0." };
+  }
+  if (entryType === "one_off" && !(oneOffAmount && oneOffAmount > 0)) {
+    return { error: "El importe invertido debe ser mayor que 0." };
+  }
+  if (
+    accumulatedCapitalRaw &&
+    (accumulatedCapital === null || accumulatedCapital < 0)
+  ) {
+    return { error: "El capital acumulado no puede ser negativo." };
+  }
+  if (
+    expectedAnnualReturnPct !== null &&
+    (!Number.isFinite(expectedAnnualReturnPct) ||
+      expectedAnnualReturnPct < -100 ||
+      expectedAnnualReturnPct > 100)
+  ) {
+    return { error: "La rentabilidad esperada debe estar entre -100% y 100%." };
+  }
+
+  const payload = {
+    user_id: user.id,
+    name,
+    monthly_amount: entryType === "one_off" ? null : monthlyAmount,
+    one_off_amount: entryType === "one_off" ? oneOffAmount : null,
+    accumulated_capital: accumulatedCapital,
+    expected_annual_return_pct: expectedAnnualReturnPct,
+  };
+  const insertPayload = {
+    ...payload,
+    starts_on: effectiveMonth,
+    ends_on: null,
+  };
+
+  let error;
+  if (id && changeScope === "from_month") {
+    const { data: current, error: currentError } = await supabase
+      .from("investments")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+    if (currentError) {
+      error = currentError;
+    } else {
+      const previousMonth = addMonths(effectiveMonth, -1);
+      const carriedCapital = investmentActualValueAtMonth(
+        [current as Investment],
+        previousMonth
+      );
+      const { error: closeError } = await supabase
+        .from("investments")
+        .update({ ends_on: previousMonth })
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (closeError) error = closeError;
+      else {
+        const { error: insertError } = await supabase.from("investments").insert({
+          ...insertPayload,
+          accumulated_capital:
+            accumulatedCapitalRaw.trim() === "" ? carriedCapital : accumulatedCapital,
+          one_off_amount: entryType === "one_off" ? oneOffAmount : null,
+        });
+        error = insertError;
+      }
+    }
+  } else {
+    const query = id
+      ? supabase
+          .from("investments")
+          .update(payload)
+          .eq("id", id)
+          .eq("user_id", user.id)
+      : supabase.from("investments").insert(insertPayload);
+
+    const result = await query;
+    error = result.error;
+  }
+  if (error) return { error: "No se pudo guardar la inversión recurrente." };
+
+  revalidatePath("/", "layout");
+  revalidatePath("/ajustes");
+  revalidatePath("/global");
+  revalidatePath("/informes");
+  return { ok: true };
+}
+
+export async function deleteInvestment(id: string) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const { error } = await supabase
+    .from("investments")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: "No se pudo eliminar la inversión recurrente." };
+
+  revalidatePath("/", "layout");
+  revalidatePath("/ajustes");
+  revalidatePath("/global");
   revalidatePath("/informes");
   return { ok: true };
 }

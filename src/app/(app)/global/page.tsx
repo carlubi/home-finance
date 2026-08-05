@@ -3,14 +3,21 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getAllMonthlySummaries } from "@/lib/data";
 import { formatMoney, formatMonth } from "@/lib/format";
-import { roundCents } from "@/lib/finance";
-import type { CategoryTotal } from "@/lib/types";
+import {
+  investmentActualValueAtMonth,
+  investmentMonthlyContribution,
+  investmentProjectedValueAtMonth,
+  roundCents,
+} from "@/lib/finance";
+import type { CategoryTotal, Investment } from "@/lib/types";
 import { ChartCard } from "@/components/charts/chart-card";
+import { CategoryExpenseTrend } from "@/components/charts/category-expense-trend";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
 import { SavingsTrend } from "@/components/charts/savings-trend";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { StatCard } from "@/components/dashboard/summary-cards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata = { title: "Visión global" };
 
@@ -26,10 +33,16 @@ export default async function GlobalPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [summaries, { data: categoryRows }] = await Promise.all([
-    getAllMonthlySummaries(user.id),
-    supabase.from("expenses_by_category").select("*").eq("user_id", user.id),
-  ]);
+  const [summaries, { data: categoryRows }, { data: investmentRows }] =
+    await Promise.all([
+      getAllMonthlySummaries(user.id),
+      supabase.from("expenses_by_category").select("*").eq("user_id", user.id),
+      supabase
+        .from("investments")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
+    ]);
 
   if (summaries.length === 0) {
     return (
@@ -44,6 +57,25 @@ export default async function GlobalPage() {
   }
 
   const last12 = summaries.slice(-12);
+  const investments = (investmentRows ?? []) as Investment[];
+  const investedNow =
+    summaries.length > 0
+      ? investmentActualValueAtMonth(
+          investments,
+          summaries[summaries.length - 1].month
+        )
+      : 0;
+  const projectedInvestedNow =
+    summaries.length > 0
+      ? investmentProjectedValueAtMonth(
+          investments,
+          summaries[summaries.length - 1].month
+        )
+      : 0;
+  const monthlyInvestment = investmentMonthlyContribution(
+    investments,
+    summaries[summaries.length - 1].month
+  );
   const totalIncome = summaries.reduce((s, m) => s + Number(m.total_income), 0);
   const totalExpenses = summaries.reduce((s, m) => s + Number(m.total_expenses), 0);
   const avgSavings = roundCents(
@@ -67,6 +99,57 @@ export default async function GlobalPage() {
     }
   }
   const topCategories = [...byCategory.values()];
+  const last12MonthKeys = new Set(last12.map((m) => m.month));
+  const last12CategoryRows = ((categoryRows ?? []) as CategoryTotal[]).filter((row) =>
+    last12MonthKeys.has(row.month)
+  );
+  const categoryTrendTotals = new Map<string, CategoryTotal>();
+
+  for (const row of last12CategoryRows) {
+    const key = row.category_id ?? "none";
+    const existing = categoryTrendTotals.get(key);
+    if (existing) {
+      existing.total = Number(existing.total) + Number(row.total);
+    } else {
+      categoryTrendTotals.set(key, {
+        ...row,
+        total: Number(row.total),
+        category_name: row.category_name ?? "Sin categoría",
+      });
+    }
+  }
+
+  const categoryTrendSeries = [...categoryTrendTotals.entries()]
+    .sort(([, a], [, b]) => Number(b.total) - Number(a.total))
+    .slice(0, 5)
+    .map(([key, row]) => ({
+      key,
+      label: row.category_name ?? "Sin categoría",
+      color: row.category_color,
+    }));
+
+  const categoryTrendByMonth = new Map<string, Map<string, number>>();
+  for (const row of last12CategoryRows) {
+    const key = row.category_id ?? "none";
+    if (!categoryTrendByMonth.has(row.month)) {
+      categoryTrendByMonth.set(row.month, new Map());
+    }
+    categoryTrendByMonth
+      .get(row.month)!
+      .set(key, Number(row.total));
+  }
+  const categoryTrendData = last12.map((monthRow) => {
+    const values = categoryTrendByMonth.get(monthRow.month);
+    return {
+      label: shortMonth(monthRow.month),
+      ...Object.fromEntries(
+        categoryTrendSeries.map((series) => [
+          series.key,
+          values?.get(series.key) ?? 0,
+        ])
+      ),
+    };
+  });
 
   return (
     <div className="grid gap-4">
@@ -79,6 +162,23 @@ export default async function GlobalPage() {
           value={formatMoney(roundCents(totalIncome - totalExpenses))}
         />
         <StatCard
+          label="Inversión acumulada"
+          value={formatMoney(investedNow)}
+          helper={
+            monthlyInvestment > 0
+              ? `${formatMoney(monthlyInvestment)} recurrentes al mes`
+              : undefined
+          }
+        />
+        <StatCard
+          label="Proyección inversión"
+          value={formatMoney(projectedInvestedNow)}
+          helper="Con rentabilidad esperada"
+        />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <StatCard
           label="Mes con más ahorro"
           value={bestSavings ? formatMonth(bestSavings.month) : "—"}
         />
@@ -89,16 +189,46 @@ export default async function GlobalPage() {
       </div>
 
       <ChartCard
-        title="Evolución del ahorro"
+        title="Evolución de mis finanzas"
         description="Últimos 12 meses"
-        fileName="evolucion-ahorro"
+        fileName="evolucion-mis-finanzas"
       >
-        <SavingsTrend
-          data={last12.map((m) => ({
-            label: shortMonth(m.month),
-            Ahorro: Number(m.savings),
-          }))}
-        />
+        <Tabs defaultValue="ahorro">
+          <TabsList>
+            <TabsTrigger value="ahorro">Ahorro</TabsTrigger>
+            <TabsTrigger value="categorias">Gasto por categoría</TabsTrigger>
+          </TabsList>
+          <TabsContent value="ahorro">
+            <SavingsTrend
+              data={last12.map((m) => {
+                const base = {
+                  label: shortMonth(m.month),
+                  Ahorro: Number(m.savings),
+                };
+
+                if (investments.length === 0) return base;
+
+                return {
+                  ...base,
+                  "Ahorro + inversión": roundCents(
+                    Number(m.savings) +
+                      investmentActualValueAtMonth(investments, m.month)
+                  ),
+                  "Con rentabilidad": roundCents(
+                    Number(m.savings) +
+                      investmentProjectedValueAtMonth(investments, m.month)
+                  ),
+                };
+              })}
+            />
+          </TabsContent>
+          <TabsContent value="categorias">
+            <CategoryExpenseTrend
+              data={categoryTrendData}
+              series={categoryTrendSeries}
+            />
+          </TabsContent>
+        </Tabs>
       </ChartCard>
 
       <ChartCard

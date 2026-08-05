@@ -2,9 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Sincroniza el ingreso mensual (salario) configurado en Resumen/Onboarding
- * con la tabla `income`: crea un movimiento "Salario" el día 1 de cada mes
- * del año en curso y, si el importe cambia, actualiza todos los existentes.
- * Con importe nulo se retiran los movimientos automáticos.
+ * con la tabla `income`: crea un movimiento "Salario" el día 1 de cada mes.
+ * Si `scope` es "global", actualiza todos los salarios automáticos. Si es
+ * "from_month", solo toca el mes indicado y los posteriores.
  *
  * Los movimientos llevan `auto_salary = true`, así que los ingresos añadidos
  * a mano por el usuario nunca se tocan.
@@ -12,14 +12,24 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export async function syncSalaryIncome(
   supabase: SupabaseClient,
   userId: string,
-  amount: number | null
+  amount: number | null,
+  options: {
+    scope?: "global" | "from_month";
+    effectiveMonth?: string;
+  } = {}
 ): Promise<{ error?: string }> {
+  const scope = options.scope ?? "global";
+  const effectiveMonth = options.effectiveMonth ?? `${new Date().getFullYear()}-01-01`;
+
   if (amount === null || amount <= 0) {
-    const { error } = await supabase
+    let query = supabase
       .from("income")
       .delete()
       .eq("user_id", userId)
       .eq("auto_salary", true);
+    if (scope === "from_month") query = query.gte("occurred_at", effectiveMonth);
+
+    const { error } = await query;
     return error ? { error: "No se pudieron retirar los salarios automáticos." } : {};
   }
 
@@ -41,9 +51,9 @@ export async function syncSalaryIncome(
     return { error: "No se pudo leer el salario actual: " + readError.message };
   }
 
-  // Actualizar los existentes (cualquier año) al nuevo importe
+  // Actualizar los existentes según el alcance seleccionado.
   if ((existing ?? []).length > 0) {
-    const { error } = await supabase
+    let query = supabase
       .from("income")
       .update({
         amount,
@@ -53,15 +63,22 @@ export async function syncSalaryIncome(
       })
       .eq("user_id", userId)
       .eq("auto_salary", true);
+
+    if (scope === "from_month") query = query.gte("occurred_at", effectiveMonth);
+
+    const { error } = await query;
     if (error) return { error: "No se pudo actualizar el salario mensual." };
   }
 
-  // Crear los meses del año en curso que falten
-  const year = new Date().getFullYear();
+  // Crear los meses del año en curso que falten, respetando el mes efectivo.
+  const effectiveDate = new Date(effectiveMonth + "T00:00:00");
+  const year = effectiveDate.getFullYear();
+  const startIndex = scope === "from_month" ? effectiveDate.getMonth() : 0;
   const existingMonths = new Set(
     (existing ?? []).map((r) => String(r.occurred_at).slice(0, 7))
   );
-  const missing = Array.from({ length: 12 }, (_, i) => {
+  const missing = Array.from({ length: 12 - startIndex }, (_, offset) => {
+    const i = startIndex + offset;
     const month = `${year}-${String(i + 1).padStart(2, "0")}`;
     return existingMonths.has(month) ? null : `${month}-01`;
   }).filter((d): d is string => d !== null);

@@ -1,6 +1,7 @@
 import {
   ArrowDownRight,
   ArrowUpRight,
+  Landmark,
   PiggyBank,
   Receipt,
   Sparkle,
@@ -44,6 +45,7 @@ export function StatCard({
   delta,
   upIsGood = true,
   deltaSuffix,
+  helper,
   icon: Icon,
   iconClass,
 }: {
@@ -52,6 +54,7 @@ export function StatCard({
   delta?: number | null;
   upIsGood?: boolean;
   deltaSuffix?: string;
+  helper?: string;
   icon?: React.ComponentType<{ className?: string }>;
   iconClass?: string;
 }) {
@@ -74,6 +77,7 @@ export function StatCard({
           {delta !== undefined && (
             <Delta value={delta} upIsGood={upIsGood} suffix={deltaSuffix} />
           )}
+          {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
         </div>
       </CardContent>
     </Card>
@@ -88,6 +92,8 @@ export function SummaryCards({
   incomeDelta,
   expensesDelta,
   savingsDelta,
+  monthlyInvestment,
+  accumulatedInvestment,
 }: {
   income: number;
   expenses: number;
@@ -96,9 +102,11 @@ export function SummaryCards({
   incomeDelta: number | null;
   expensesDelta: number | null;
   savingsDelta: number | null;
+  monthlyInvestment?: number;
+  accumulatedInvestment?: number;
 }) {
   return (
-    <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-5">
       <StatCard
         label="Ingresos"
         value={formatMoney(income)}
@@ -127,6 +135,17 @@ export function SummaryCards({
         value={savingsPct === null ? "—" : `${savingsPct.toFixed(1)}%`}
         icon={Sparkle}
         iconClass="bg-[oklch(0.62_0.2_330/0.14)] text-[oklch(0.55_0.2_330)] dark:text-[oklch(0.78_0.15_330)]"
+      />
+      <StatCard
+        label="Inversión acumulada"
+        value={formatMoney(accumulatedInvestment ?? 0)}
+        helper={
+          monthlyInvestment && monthlyInvestment > 0
+            ? `${formatMoney(monthlyInvestment)} aportados este mes`
+            : undefined
+        }
+        icon={Landmark}
+        iconClass="bg-[oklch(0.72_0.16_95/0.16)] text-[oklch(0.48_0.13_95)] dark:text-[oklch(0.8_0.13_95)]"
       />
     </div>
   );

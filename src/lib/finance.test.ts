@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   computePositions,
+  investmentActualValueAtMonth,
+  investmentMonthlyContribution,
+  investmentProjectedValueAtMonth,
   pctChange,
   pendingTransfers,
   roundCents,
@@ -128,5 +131,65 @@ describe("pctChange", () => {
 
   it("devuelve null sin base de comparación", () => {
     expect(pctChange(50, 0)).toBeNull();
+  });
+});
+
+describe("investment calculations", () => {
+  const investments = [
+    {
+      monthly_amount: 100,
+      one_off_amount: 250,
+      accumulated_capital: 1000,
+      expected_annual_return_pct: 12,
+      created_at: "2026-01-15T10:00:00.000Z",
+    },
+    {
+      monthly_amount: 50,
+      one_off_amount: null,
+      accumulated_capital: null,
+      expected_annual_return_pct: null,
+      created_at: "2026-03-01T10:00:00.000Z",
+    },
+  ];
+
+  it("calcula la aportación mensual recurrente", () => {
+    expect(investmentMonthlyContribution(investments)).toBe(150);
+  });
+
+  it("calcula el valor acumulado sin rentabilidad por mes", () => {
+    expect(investmentActualValueAtMonth(investments, "2026-03-01")).toBe(1600);
+  });
+
+  it("proyecta por encima del acumulado cuando hay rentabilidad esperada", () => {
+    expect(investmentProjectedValueAtMonth(investments, "2026-03-01")).toBeGreaterThan(
+      investmentActualValueAtMonth(investments, "2026-03-01")
+    );
+  });
+
+  it("respeta la vigencia de una inversión versionada", () => {
+    const versioned = [
+      {
+        monthly_amount: 100,
+        one_off_amount: null,
+        accumulated_capital: null,
+        expected_annual_return_pct: null,
+        starts_on: "2026-01-01",
+        ends_on: "2026-02-01",
+        created_at: "2026-01-01T10:00:00.000Z",
+      },
+      {
+        monthly_amount: 150,
+        one_off_amount: null,
+        accumulated_capital: 200,
+        expected_annual_return_pct: null,
+        starts_on: "2026-03-01",
+        ends_on: null,
+        created_at: "2026-03-01T10:00:00.000Z",
+      },
+    ];
+
+    expect(investmentMonthlyContribution(versioned, "2026-02-01")).toBe(100);
+    expect(investmentMonthlyContribution(versioned, "2026-03-01")).toBe(150);
+    expect(investmentActualValueAtMonth(versioned, "2026-03-01")).toBe(350);
   });
 });

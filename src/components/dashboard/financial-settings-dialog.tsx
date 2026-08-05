@@ -1,7 +1,7 @@
 "use client";
 
 import { Settings2 } from "lucide-react";
-import type { Category, FixedExpense } from "@/lib/types";
+import type { Category, FixedExpense, Investment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,30 +13,35 @@ import {
 } from "@/components/ui/dialog";
 import {
   FixedExpensesManager,
+  InvestmentsManager,
   MonthlyIncomeForm,
 } from "@/components/settings/recurring-finance-forms";
 
 export function FinancialSettingsDialog({
   monthlyIncome,
   fixedExpenses,
+  investments,
   categories,
+  currentMonth,
 }: {
   monthlyIncome: number | null;
   fixedExpenses: FixedExpense[];
+  investments: Investment[];
   categories: Category[];
+  currentMonth: string;
 }) {
   return (
     <Dialog>
       <DialogTrigger render={<Button variant="outline" />}>
         <Settings2 className="size-4" />
-        Ajustes mensuales
+        Ajustes recurrentes
       </DialogTrigger>
-      <DialogContent className="max-h-[min(760px,calc(100vh-2rem))] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[min(820px,calc(100vh-2rem))] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[72rem]">
         <DialogHeader>
-          <DialogTitle>Ingreso y gastos fijos</DialogTitle>
+          <DialogTitle>Ingreso, gastos e inversión recurrente</DialogTitle>
           <DialogDescription>
-            Configura tu ingreso mensual y los pagos recurrentes desde el
-            resumen.
+            Configura tu ingreso mensual, pagos recurrentes y aportaciones a
+            inversión desde el resumen.
           </DialogDescription>
         </DialogHeader>
 
@@ -48,7 +53,10 @@ export function FinancialSettingsDialog({
               año.
             </p>
           </div>
-          <MonthlyIncomeForm monthlyIncome={monthlyIncome} />
+          <MonthlyIncomeForm
+            monthlyIncome={monthlyIncome}
+            currentMonth={currentMonth}
+          />
         </section>
 
         <section className="grid gap-3 rounded-lg border p-3">
@@ -62,6 +70,21 @@ export function FinancialSettingsDialog({
           <FixedExpensesManager
             fixedExpenses={fixedExpenses}
             categories={categories}
+            currentMonth={currentMonth}
+          />
+        </section>
+
+        <section className="grid gap-3 rounded-lg border p-3">
+          <div className="grid gap-1">
+            <h2 className="text-sm font-medium">Inversión mensual recurrente</h2>
+            <p className="text-xs text-muted-foreground">
+              Añade el importe mensual, el fondo o producto, y la rentabilidad
+              anual esperada para simulaciones.
+            </p>
+          </div>
+          <InvestmentsManager
+            investments={investments}
+            currentMonth={currentMonth}
           />
         </section>
       </DialogContent>

@@ -22,6 +22,8 @@ export const SERIES = {
   income: "var(--viz-income)",
   expense: "var(--viz-expense)",
   savings: "var(--viz-savings)",
+  savingsWithInvestment: "var(--viz-income)",
+  projectedInvestment: "var(--viz-yellow)",
   grid: "var(--viz-grid)",
   axis: "var(--viz-axis)",
   muted: "var(--viz-muted)",

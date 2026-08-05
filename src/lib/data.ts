@@ -6,6 +6,7 @@ import type {
   CategoryTotal,
   Expense,
   Income,
+  Investment,
   MonthlySummary,
 } from "@/lib/types";
 
@@ -15,7 +16,7 @@ export async function getMonthData(userId: string, month: string) {
   const nextMonth = addMonths(month, 1);
   const prevMonth = addMonths(month, -1);
 
-  const [summaries, byCategory, expenses, income, categories, budgets] =
+  const [summaries, byCategory, expenses, income, categories, budgets, investments] =
     await Promise.all([
       supabase
         .from("monthly_summary")
@@ -49,6 +50,11 @@ export async function getMonthData(userId: string, month: string) {
         .from("budgets")
         .select("*, categories(*)")
         .eq("user_id", userId),
+      supabase
+        .from("investments")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true }),
     ]);
 
   const summaryRows = (summaries.data ?? []) as MonthlySummary[];
@@ -60,6 +66,7 @@ export async function getMonthData(userId: string, month: string) {
     income: (income.data ?? []) as Income[],
     categories: (categories.data ?? []) as Category[],
     budgets: (budgets.data ?? []) as Budget[],
+    investments: (investments.data ?? []) as Investment[],
   };
 }
 

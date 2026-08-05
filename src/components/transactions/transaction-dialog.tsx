@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -34,6 +35,21 @@ const PAYMENT_METHODS = [
   "Otro",
 ];
 
+function SuffixedInput({
+  suffix,
+  className,
+  ...props
+}: ComponentProps<typeof Input> & { suffix: string }) {
+  return (
+    <div className="relative">
+      <Input className={className ?? "pr-8"} {...props} />
+      <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">
+        {suffix}
+      </span>
+    </div>
+  );
+}
+
 export function TransactionDialog({
   kind,
   categories,
@@ -41,6 +57,7 @@ export function TransactionDialog({
   onOpenChange,
   initial,
   userId,
+  defaultDate,
 }: {
   kind: "expense" | "income";
   categories: Category[];
@@ -48,6 +65,7 @@ export function TransactionDialog({
   onOpenChange: (open: boolean) => void;
   initial?: (Expense & Income) | Expense | Income | null;
   userId: string;
+  defaultDate: string;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -130,13 +148,14 @@ export function TransactionDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label htmlFor="amount">Importe (€)</Label>
-              <Input
+              <SuffixedInput
                 id="amount"
                 name="amount"
                 type="number"
                 min="0.01"
                 step="0.01"
                 required
+                suffix="€"
                 defaultValue={initial?.amount ?? ""}
               />
             </div>
@@ -147,9 +166,7 @@ export function TransactionDialog({
                 name="occurred_at"
                 type="date"
                 required
-                defaultValue={
-                  initial?.occurred_at ?? new Date().toISOString().slice(0, 10)
-                }
+                defaultValue={initial?.occurred_at ?? defaultDate}
               />
             </div>
           </div>

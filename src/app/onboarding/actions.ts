@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { monthStart } from "@/lib/format";
 import { syncSalaryIncome } from "@/lib/salary";
 
 export interface OnboardingData {
@@ -17,6 +18,7 @@ export interface OnboardingData {
   investmentMonthly: number | null;
   investmentOneOff: number | null;
   investmentCapital: number | null;
+  investmentExpectedReturn: number | null;
   sharesExpenses: boolean | null;
   groupName: string;
   inviteEmails: string[];
@@ -31,6 +33,7 @@ export async function completeOnboarding(data: OnboardingData) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const currentMonth = monthStart(new Date());
 
   const { error: answersError } = await supabase.from("onboarding_answers").upsert({
     user_id: user.id,
@@ -47,6 +50,7 @@ export async function completeOnboarding(data: OnboardingData) {
           monthly: data.investmentMonthly,
           one_off: data.investmentOneOff,
           capital: data.investmentCapital,
+          expected_annual_return_pct: data.investmentExpectedReturn,
         }
       : null,
     shares_expenses: data.sharesExpenses,
@@ -77,6 +81,7 @@ export async function completeOnboarding(data: OnboardingData) {
         category_id: categoryByName.get(name.toLowerCase()) ?? null,
         amount: null,
         active: true,
+        starts_on: currentMonth,
       }))
     );
   }
@@ -88,6 +93,8 @@ export async function completeOnboarding(data: OnboardingData) {
       monthly_amount: data.investmentMonthly,
       one_off_amount: data.investmentOneOff,
       accumulated_capital: data.investmentCapital,
+      expected_annual_return_pct: data.investmentExpectedReturn,
+      starts_on: currentMonth,
     });
   }
 

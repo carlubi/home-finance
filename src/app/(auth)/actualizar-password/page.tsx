@@ -29,7 +29,7 @@ export default function ActualizarPasswordPage() {
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
               Contraseña actualizada. Ya puedes iniciar sesión con la nueva clave.
             </div>
-            <Button render={<Link href="/login" />} className="w-full">
+            <Button nativeButton={false} render={<Link href="/login" />} className="w-full">
               Iniciar sesión
             </Button>
           </div>
