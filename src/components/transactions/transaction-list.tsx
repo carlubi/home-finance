@@ -10,7 +10,6 @@ import {
   Paperclip,
   Pencil,
   Plus,
-  Repeat,
   Trash2,
   X,
 } from "lucide-react";
@@ -41,7 +40,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TransactionDialog } from "./transaction-dialog";
 
-type Tx = (Expense | Income) & { categories?: Category | null };
+type Tx = (Expense | Income) & {
+  categories?: Category | null;
+  readOnlyReason?: string;
+};
 
 export function TransactionList({
   kind,
@@ -66,10 +68,14 @@ export function TransactionList({
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const allSelected = items.length > 0 && selected.size === items.length;
+  const selectableItems = items.filter((item) => !item.readOnlyReason);
+  const allSelected =
+    selectableItems.length > 0 && selected.size === selectableItems.length;
 
   function toggleOne(id: string) {
     setSelected((current) => {
+      const item = items.find((tx) => tx.id === id);
+      if (item?.readOnlyReason) return current;
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -78,7 +84,7 @@ export function TransactionList({
   }
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(items.map((t) => t.id)));
+    setSelected(allSelected ? new Set() : new Set(selectableItems.map((t) => t.id)));
   }
 
   async function onDelete() {
@@ -118,7 +124,7 @@ export function TransactionList({
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* Selección múltiple */}
-        {items.length > 0 ? (
+        {selectableItems.length > 0 ? (
           selected.size > 0 ? (
             <div className="animate-pop-in flex items-center gap-2">
               <span className="text-sm font-medium">
@@ -226,9 +232,14 @@ export function TransactionList({
               }
             >
               <Checkbox
-                checked={selected.has(tx.id)}
+                checked={!tx.readOnlyReason && selected.has(tx.id)}
+                disabled={Boolean(tx.readOnlyReason)}
                 onCheckedChange={() => toggleOne(tx.id)}
-                aria-label={`Seleccionar ${tx.name}`}
+                aria-label={
+                  tx.readOnlyReason
+                    ? tx.readOnlyReason
+                    : `Seleccionar ${tx.name}`
+                }
               />
               <span
                 className="size-2.5 shrink-0 rounded-full"
@@ -237,9 +248,6 @@ export function TransactionList({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
                   {tx.name}
-                  {"is_recurring" in tx && tx.is_recurring && (
-                    <Repeat className="ml-1 inline size-3 text-muted-foreground" />
-                  )}
                   {"attachment_path" in tx && tx.attachment_path && (
                     <Paperclip className="ml-1 inline size-3 text-muted-foreground" />
                   )}
@@ -275,33 +283,35 @@ export function TransactionList({
                 {kind === "expense" ? "−" : "+"}
                 {formatMoney(tx.amount)}
               </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button variant="ghost" size="icon" className="size-8">
-                      <MoreVertical className="size-4" />
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setEditing(tx);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    <Pencil />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => setConfirmDelete(tx)}
-                  >
-                    <Trash2 />
-                    Eliminar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {!tx.readOnlyReason && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="ghost" size="icon" className="size-8">
+                        <MoreVertical className="size-4" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditing(tx);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <Pencil />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setConfirmDelete(tx)}
+                    >
+                      <Trash2 />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </li>
           ))}
         </ul>

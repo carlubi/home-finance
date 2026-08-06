@@ -28,15 +28,106 @@ function shortMonth(month: string) {
   });
 }
 
+type CategorySnapshot = {
+  name: string | null;
+  color: string | null;
+};
+
+type CategoryRelation = CategorySnapshot | CategorySnapshot[] | null;
+
+type ExpenseCategoryRow = {
+  category_id: string | null;
+  amount: number;
+  occurred_at: string;
+  categories?: CategoryRelation;
+};
+
+type FixedExpenseCategoryRow = {
+  user_id: string;
+  category_id: string | null;
+  amount: number | null;
+  active: boolean;
+  starts_on: string | null;
+  ends_on: string | null;
+  created_at: string;
+  categories?: CategoryRelation;
+};
+
+function resolveCategory(category: CategoryRelation | undefined) {
+  if (Array.isArray(category)) return category[0] ?? null;
+  return category ?? null;
+}
+
+function addCategoryAmount(
+  rowsByKey: Map<string, CategoryTotal>,
+  {
+    userId,
+    month,
+    categoryId,
+    category,
+    amount,
+  }: {
+    userId: string;
+    month: string;
+    categoryId: string | null;
+    category: CategorySnapshot | null;
+    amount: number;
+  }
+) {
+  const key = `${month}:${categoryId ?? "none"}`;
+  const existing = rowsByKey.get(key);
+
+  if (existing) {
+    existing.total = Number(existing.total) + amount;
+    existing.num_expenses = Number(existing.num_expenses ?? 0) + 1;
+    return;
+  }
+
+  rowsByKey.set(key, {
+    user_id: userId,
+    month,
+    category_id: categoryId,
+    category_name: category?.name ?? "Sin categoría",
+    category_color: category?.color ?? null,
+    total: amount,
+    num_expenses: 1,
+  });
+}
+
+function fixedExpenseIsActiveInMonth(
+  expense: FixedExpenseCategoryRow,
+  month: string
+) {
+  const startsOn = expense.starts_on ?? expense.created_at.slice(0, 10);
+  return (
+    expense.active &&
+    Number(expense.amount ?? 0) > 0 &&
+    startsOn <= month &&
+    (!expense.ends_on || expense.ends_on >= month)
+  );
+}
+
 export default async function GlobalPage() {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [summaries, { data: categoryRows }, { data: investmentRows }] =
+  const [
+    summaries,
+    { data: expenseCategoryRows },
+    { data: fixedExpenseRows },
+    { data: investmentRows },
+  ] =
     await Promise.all([
       getAllMonthlySummaries(user.id),
-      supabase.from("expenses_by_category").select("*").eq("user_id", user.id),
+      supabase
+        .from("expenses")
+        .select("category_id, amount, occurred_at, categories(name, color)")
+        .eq("user_id", user.id),
+      supabase
+        .from("fixed_expenses")
+        .select("user_id, category_id, amount, active, starts_on, ends_on, created_at, categories(name, color)")
+        .eq("user_id", user.id),
       supabase
         .from("investments")
         .select("*")
@@ -65,19 +156,14 @@ export default async function GlobalPage() {
           summaries[summaries.length - 1].month
         )
       : 0;
-  const projectedInvestedNow =
-    summaries.length > 0
-      ? investmentProjectedValueAtMonth(
-          investments,
-          summaries[summaries.length - 1].month
-        )
-      : 0;
   const monthlyInvestment = investmentMonthlyContribution(
     investments,
     summaries[summaries.length - 1].month
   );
   const totalIncome = summaries.reduce((s, m) => s + Number(m.total_income), 0);
   const totalExpenses = summaries.reduce((s, m) => s + Number(m.total_expenses), 0);
+  const totalSavings = roundCents(totalIncome - totalExpenses);
+  const totalNetWorth = roundCents(totalSavings + investedNow);
   const avgSavings = roundCents(
     summaries.reduce((s, m) => s + Number(m.savings), 0) / summaries.length
   );
@@ -87,9 +173,37 @@ export default async function GlobalPage() {
     (a, b) => b.total_expenses - a.total_expenses
   )[0];
 
+  const categoryRowsByKey = new Map<string, CategoryTotal>();
+  const summaryMonths = summaries.map((summary) => summary.month);
+
+  for (const row of (expenseCategoryRows ?? []) as ExpenseCategoryRow[]) {
+    addCategoryAmount(categoryRowsByKey, {
+      userId: user.id,
+      month: row.occurred_at.slice(0, 7) + "-01",
+      categoryId: row.category_id,
+      category: resolveCategory(row.categories),
+      amount: Number(row.amount),
+    });
+  }
+
+  for (const expense of (fixedExpenseRows ?? []) as FixedExpenseCategoryRow[]) {
+    for (const month of summaryMonths) {
+      if (!fixedExpenseIsActiveInMonth(expense, month)) continue;
+      addCategoryAmount(categoryRowsByKey, {
+        userId: user.id,
+        month,
+        categoryId: expense.category_id,
+        category: resolveCategory(expense.categories),
+        amount: Number(expense.amount ?? 0),
+      });
+    }
+  }
+
+  const categoryRows = [...categoryRowsByKey.values()];
+
   // Agregado histórico por categoría (para "dónde más gastas")
   const byCategory = new Map<string, CategoryTotal>();
-  for (const row of (categoryRows ?? []) as CategoryTotal[]) {
+  for (const row of categoryRows) {
     const key = row.category_id ?? "none";
     const existing = byCategory.get(key);
     if (existing) {
@@ -100,7 +214,7 @@ export default async function GlobalPage() {
   }
   const topCategories = [...byCategory.values()];
   const last12MonthKeys = new Set(last12.map((m) => m.month));
-  const last12CategoryRows = ((categoryRows ?? []) as CategoryTotal[]).filter((row) =>
+  const last12CategoryRows = categoryRows.filter((row) =>
     last12MonthKeys.has(row.month)
   );
   const categoryTrendTotals = new Map<string, CategoryTotal>();
@@ -157,10 +271,7 @@ export default async function GlobalPage() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Ahorro medio mensual" value={formatMoney(avgSavings)} />
-        <StatCard
-          label="Ahorro total"
-          value={formatMoney(roundCents(totalIncome - totalExpenses))}
-        />
+        <StatCard label="Ahorro total" value={formatMoney(totalSavings)} />
         <StatCard
           label="Inversión acumulada"
           value={formatMoney(investedNow)}
@@ -171,9 +282,9 @@ export default async function GlobalPage() {
           }
         />
         <StatCard
-          label="Proyección inversión"
-          value={formatMoney(projectedInvestedNow)}
-          helper="Con rentabilidad esperada"
+          label="Patrimonio Total"
+          value={formatMoney(totalNetWorth)}
+          helper="Ahorro + inversión"
         />
       </div>
 

@@ -13,7 +13,7 @@ import {
   roundCents,
 } from "@/lib/finance";
 import { formatMoney } from "@/lib/format";
-import type { FixedExpense, Investment } from "@/lib/types";
+import type { CategoryTotal, Expense, FixedExpense, Investment } from "@/lib/types";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { ChartCard } from "@/components/charts/chart-card";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
@@ -28,6 +28,82 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata = { title: "Resumen mensual" };
+
+function activeFixedExpensesForMonth(fixedExpenses: FixedExpense[], month: string) {
+  return fixedExpenses.filter((expense) => {
+    const startsOn = expense.starts_on ?? expense.created_at.slice(0, 10);
+    return (
+      expense.active &&
+      Number(expense.amount ?? 0) > 0 &&
+      startsOn <= month &&
+      (!expense.ends_on || expense.ends_on >= month)
+    );
+  });
+}
+
+function fixedExpensesTotal(fixedExpenses: FixedExpense[]) {
+  return fixedExpenses.reduce(
+    (total, expense) => total + Number(expense.amount ?? 0),
+    0
+  );
+}
+
+function mergeFixedExpensesByCategory(
+  byCategory: CategoryTotal[],
+  fixedExpenses: FixedExpense[]
+) {
+  const merged = new Map<string, CategoryTotal>();
+
+  byCategory.forEach((category) => {
+    merged.set(category.category_id ?? "none", { ...category });
+  });
+
+  fixedExpenses.forEach((expense) => {
+    const key = expense.category_id ?? "none";
+    const current = merged.get(key);
+    if (current) {
+      current.total = Number(current.total) + Number(expense.amount ?? 0);
+      current.num_expenses = Number(current.num_expenses ?? 0) + 1;
+      return;
+    }
+
+    merged.set(key, {
+      user_id: expense.user_id,
+      month: expense.starts_on ?? expense.created_at.slice(0, 10),
+      category_id: expense.category_id,
+      category_name: expense.categories?.name ?? null,
+      category_color: expense.categories?.color ?? null,
+      total: Number(expense.amount ?? 0),
+      num_expenses: 1,
+    });
+  });
+
+  return [...merged.values()];
+}
+
+function fixedExpensesAsMonthExpenses(
+  fixedExpenses: FixedExpense[],
+  month: string
+): (Expense & { readOnlyReason: string })[] {
+  return fixedExpenses.map((expense) => ({
+    id: `fixed-${expense.id}-${month}`,
+    user_id: expense.user_id,
+    name: expense.name,
+    category_id: expense.category_id,
+    amount: Number(expense.amount ?? 0),
+    occurred_at: month,
+    payment_method: null,
+    notes: null,
+    attachment_path: null,
+    tags: [],
+    source: "manual",
+    import_id: null,
+    created_at: expense.created_at,
+    categories: expense.categories,
+    readOnlyReason:
+      "Gasto recurrente gestionado desde Ajustes recurrentes.",
+  }));
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -51,7 +127,7 @@ export default async function DashboardPage({
     getMonthData(user.id, month),
     supabase
       .from("onboarding_answers")
-      .select("fixed_income_amount, fixed_expense_types")
+      .select("fixed_income_amount")
       .eq("user_id", user.id)
       .single(),
     supabase
@@ -60,14 +136,11 @@ export default async function DashboardPage({
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
   ]);
-  const income = Number(data.current?.total_income ?? 0);
-  const expenses = Number(data.current?.total_expenses ?? 0);
-  const savings = roundCents(income - expenses);
+  const recurrentSettingsMonth = monthStart(new Date());
   const recurringInvestmentsForSettings = data.investments.filter(
     (investment) =>
       Number(investment.monthly_amount ?? 0) > 0 &&
-      (investment.starts_on ?? investment.created_at.slice(0, 10)) <= month &&
-      (!investment.ends_on || investment.ends_on >= month)
+      !investment.ends_on
   );
   const monthInvestmentMovements = data.investments.filter((investment) => {
     const startsOn = investment.starts_on ?? investment.created_at.slice(0, 10);
@@ -87,11 +160,50 @@ export default async function DashboardPage({
     data.investments,
     month
   );
+  const allFixedExpenses = ((fixedExpenses ?? []) as FixedExpense[]).filter(
+    (expense) => expense.active && Number(expense.amount ?? 0) > 0
+  );
+  const fixed = allFixedExpenses.filter((expense) => !expense.ends_on);
+  const monthFixedExpenses = activeFixedExpensesForMonth(allFixedExpenses, month);
+  const prevMonth = new Date(month + "T00:00:00");
+  prevMonth.setMonth(prevMonth.getMonth() - 1);
+  const previousMonthValue = monthStart(prevMonth);
+  const previousFixedExpenses = activeFixedExpensesForMonth(
+    allFixedExpenses,
+    previousMonthValue
+  );
+  const fixedMonthTotal = fixedExpensesTotal(monthFixedExpenses);
+  const fixedPreviousTotal = fixedExpensesTotal(previousFixedExpenses);
+  const income = Number(data.current?.total_income ?? 0);
+  const rawExpenses = Number(data.current?.total_expenses ?? 0);
+  const manualExpenseTotal = data.expenses.reduce(
+    (total, expense) => total + Number(expense.amount ?? 0),
+    0
+  );
+  const summaryAlreadyHasFixedExpenses =
+    fixedMonthTotal > 0 &&
+    rawExpenses >= manualExpenseTotal + monthlyInvestment + fixedMonthTotal - 0.01;
+  const shouldAddFixedExpenses = fixedMonthTotal > 0 && !summaryAlreadyHasFixedExpenses;
+  const expenses = shouldAddFixedExpenses
+    ? roundCents(rawExpenses + fixedMonthTotal)
+    : rawExpenses;
+  const previousExpenses = shouldAddFixedExpenses
+    ? Number(data.previous?.total_expenses ?? 0) + fixedPreviousTotal
+    : Number(data.previous?.total_expenses ?? 0);
+  const savings = roundCents(income - expenses);
+  const savingsPct = income > 0 ? roundCents((savings / income) * 100) : null;
+  const byCategory = shouldAddFixedExpenses
+    ? mergeFixedExpensesByCategory(data.byCategory, monthFixedExpenses)
+    : data.byCategory;
+  const visibleExpenses = [
+    ...fixedExpensesAsMonthExpenses(monthFixedExpenses, month),
+    ...data.expenses,
+  ];
   const prevLabel = new Date(month + "T00:00:00");
   prevLabel.setMonth(prevLabel.getMonth() - 1);
 
   const spentByCategory = new Map(
-    data.byCategory.map((c) => [c.category_id, Number(c.total)])
+    byCategory.map((c) => [c.category_id, Number(c.total)])
   );
   const budgetsWithSpent = data.budgets
     .map((b) => ({
@@ -102,41 +214,6 @@ export default async function DashboardPage({
 
   const expenseCategories = data.categories.filter((c) => c.kind === "expense");
   const incomeCategories = data.categories.filter((c) => c.kind === "income");
-  const selectedMonthSalary =
-    data.income.find((item) => item.auto_salary)?.amount ??
-    onboarding?.fixed_income_amount ??
-    null;
-  let fixed = ((fixedExpenses ?? []) as FixedExpense[]).filter(
-    (expense) =>
-      (expense.starts_on ?? expense.created_at.slice(0, 10)) <= month &&
-      (!expense.ends_on || expense.ends_on >= month)
-  );
-  const onboardingFixedTypes = (onboarding?.fixed_expense_types ?? []) as string[];
-  const existingNames = new Set(fixed.map((expense) => expense.name.toLowerCase()));
-  const missingOnboardingFixed = onboardingFixedTypes.filter(
-    (name) => !existingNames.has(name.toLowerCase())
-  );
-
-  if (missingOnboardingFixed.length > 0) {
-    const categoryByName = new Map(
-      expenseCategories.map((category) => [category.name.toLowerCase(), category.id])
-    );
-    const { data: inserted } = await supabase
-      .from("fixed_expenses")
-      .insert(
-        missingOnboardingFixed.map((name) => ({
-          user_id: user.id,
-          name,
-          category_id: categoryByName.get(name.toLowerCase()) ?? null,
-          amount: null,
-          active: true,
-          starts_on: month,
-        }))
-      )
-      .select("*, categories(*)");
-
-    fixed = [...fixed, ...((inserted ?? []) as FixedExpense[])];
-  }
 
   return (
     <div className="grid gap-4">
@@ -144,6 +221,7 @@ export default async function DashboardPage({
         <h1 className="text-2xl font-semibold">Resumen mensual</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Button
+            nativeButton={false}
             render={
               <Link
                 href={{
@@ -158,11 +236,11 @@ export default async function DashboardPage({
             Importar documentos
           </Button>
           <FinancialSettingsDialog
-            monthlyIncome={selectedMonthSalary}
+            monthlyIncome={onboarding?.fixed_income_amount ?? null}
             fixedExpenses={fixed}
             investments={recurringInvestmentsForSettings as Investment[]}
             categories={expenseCategories}
-            currentMonth={month}
+            currentMonth={recurrentSettingsMonth}
           />
           <Suspense>
             <MonthSwitcher month={month} />
@@ -174,9 +252,9 @@ export default async function DashboardPage({
         income={income}
         expenses={expenses}
         savings={savings}
-        savingsPct={data.current?.savings_pct ?? null}
+        savingsPct={shouldAddFixedExpenses ? savingsPct : data.current?.savings_pct ?? null}
         incomeDelta={pctChange(income, Number(data.previous?.total_income ?? 0))}
-        expensesDelta={pctChange(expenses, Number(data.previous?.total_expenses ?? 0))}
+        expensesDelta={pctChange(expenses, previousExpenses)}
         savingsDelta={pctChange(savings, Number(data.previous?.savings ?? 0))}
         monthlyInvestment={monthlyInvestment}
         accumulatedInvestment={accumulatedInvestment}
@@ -188,7 +266,7 @@ export default async function DashboardPage({
           fileName={`gastos-categoria-${month.slice(0, 7)}`}
           exportSubtitle={formatMonth(month)}
         >
-          <CategoryDonut data={data.byCategory} />
+          <CategoryDonut data={byCategory} />
         </ChartCard>
 
         <ChartCard
@@ -250,7 +328,7 @@ export default async function DashboardPage({
 
       <Tabs defaultValue="gastos">
         <TabsList>
-          <TabsTrigger value="gastos">Gastos ({data.expenses.length})</TabsTrigger>
+          <TabsTrigger value="gastos">Gastos ({visibleExpenses.length})</TabsTrigger>
           <TabsTrigger value="ingresos">Ingresos ({data.income.length})</TabsTrigger>
           <TabsTrigger value="inversion">
             Inversión ({monthInvestmentMovements.length})
@@ -259,7 +337,7 @@ export default async function DashboardPage({
         <TabsContent value="gastos">
           <TransactionList
             kind="expense"
-            items={data.expenses}
+            items={visibleExpenses}
             categories={expenseCategories}
             userId={user.id}
             emptyLabel="No hay gastos registrados este mes. Añade el primero."

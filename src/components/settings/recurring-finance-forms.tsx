@@ -301,6 +301,7 @@ export function FixedExpensesManager({
           inputMode="decimal"
           suffix="€"
           placeholder="Ej. 850,00"
+          required
         />
         <SaveStatusButton saved={newSaved} pending={pending} label="Añadir" />
       </form>
@@ -328,8 +329,14 @@ export function FixedExpensesManager({
               className="grid gap-2 rounded-lg border bg-muted/20 p-3 xl:grid-cols-[minmax(11rem,1.2fr)_minmax(11rem,1fr)_9rem_13rem_auto_auto]"
             >
               <input type="hidden" name="id" value={expense.id} />
-              <Input name="name" defaultValue={expense.name} required />
+              <Input
+                key={`${expense.id}-name-${expense.name}`}
+                name="name"
+                defaultValue={expense.name}
+                required
+              />
               <Select
+                key={`${expense.id}-category-${expense.category_id ?? "none"}`}
                 name="category_id"
                 defaultValue={expense.category_id ?? "none"}
                 items={[
@@ -353,11 +360,13 @@ export function FixedExpensesManager({
                 </SelectContent>
               </Select>
               <SuffixedInput
+                key={`${expense.id}-amount-${expense.amount ?? "empty"}`}
                 name="amount"
                 inputMode="decimal"
                 defaultValue={expense.amount ?? ""}
                 suffix="€"
                 placeholder="Ej. 850,00"
+                required
               />
               <ChangeScopeFields currentMonth={currentMonth} compact />
               <SaveStatusButton
@@ -520,8 +529,14 @@ export function InvestmentsManager({
               className="grid gap-2 rounded-lg border bg-muted/20 p-3 xl:grid-cols-[minmax(12rem,1fr)_9rem_9rem_9rem_13rem_auto_auto]"
             >
               <input type="hidden" name="id" value={investment.id} />
-              <Input name="name" defaultValue={investment.name} required />
+              <Input
+                key={`${investment.id}-name-${investment.name}`}
+                name="name"
+                defaultValue={investment.name}
+                required
+              />
               <SuffixedInput
+                key={`${investment.id}-monthly-${investment.monthly_amount ?? "empty"}`}
                 name="monthly_amount"
                 inputMode="decimal"
                 defaultValue={investment.monthly_amount ?? ""}
@@ -529,6 +544,7 @@ export function InvestmentsManager({
                 placeholder="Ej. 300,00"
               />
               <SuffixedInput
+                key={`${investment.id}-return-${investment.expected_annual_return_pct ?? "empty"}`}
                 name="expected_annual_return_pct"
                 inputMode="decimal"
                 defaultValue={investment.expected_annual_return_pct ?? ""}
@@ -536,6 +552,7 @@ export function InvestmentsManager({
                 placeholder="Ej. 8"
               />
               <SuffixedInput
+                key={`${investment.id}-capital-${investment.accumulated_capital ?? "empty"}`}
                 name="accumulated_capital"
                 inputMode="decimal"
                 defaultValue={investment.accumulated_capital ?? ""}

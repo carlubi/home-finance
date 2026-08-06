@@ -6,6 +6,7 @@ import { addMonths, monthStart, parseMoneyInput } from "@/lib/format";
 import { investmentActualValueAtMonth } from "@/lib/finance";
 import { syncSalaryIncome } from "@/lib/salary";
 import type { Investment } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -26,6 +27,21 @@ function readEffectiveMonth(formData: FormData) {
   if (/^\d{4}-\d{2}-01$/.test(raw)) return raw;
   if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
   return monthStart(new Date());
+}
+
+async function getGlobalRecurrenceStartMonth(
+  supabase: SupabaseClient,
+  userId: string
+) {
+  const { data } = await supabase
+    .from("monthly_summary")
+    .select("month")
+    .eq("user_id", userId)
+    .order("month", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return data?.month ?? monthStart(new Date(new Date().getFullYear(), 0, 1));
 }
 
 export async function updateMonthlyIncome(formData: FormData) {
@@ -75,6 +91,10 @@ export async function updateMonthlyIncome(formData: FormData) {
   const sync = await syncSalaryIncome(supabase, user.id, monthlyIncome, {
     scope: changeScope,
     effectiveMonth,
+    startMonth:
+      changeScope === "global"
+        ? await getGlobalRecurrenceStartMonth(supabase, user.id)
+        : undefined,
   });
   if (sync.error) return { error: sync.error };
 
@@ -169,7 +189,7 @@ export async function saveFixedExpense(formData: FormData) {
   const effectiveMonth = readEffectiveMonth(formData);
 
   if (!name) return { error: "El nombre del gasto fijo es obligatorio." };
-  if (amountRaw && (amount === null || amount <= 0)) {
+  if (amount === null || amount <= 0) {
     return { error: "El importe debe ser mayor que 0." };
   }
 
@@ -180,12 +200,6 @@ export async function saveFixedExpense(formData: FormData) {
     amount,
     active: true,
   };
-  const insertPayload = {
-    ...payload,
-    starts_on: effectiveMonth,
-    ends_on: null,
-  };
-
   let error;
   if (id && changeScope === "from_month") {
     const previousMonth = addMonths(effectiveMonth, -1);
@@ -198,19 +212,52 @@ export async function saveFixedExpense(formData: FormData) {
     else {
       const { error: insertError } = await supabase
         .from("fixed_expenses")
-        .insert(insertPayload);
+        .insert({
+          ...payload,
+          starts_on: effectiveMonth,
+          ends_on: null,
+        });
       error = insertError;
     }
-  } else {
-    const query = id
-      ? supabase
-          .from("fixed_expenses")
-          .update(payload)
-          .eq("id", id)
-          .eq("user_id", user.id)
-      : supabase.from("fixed_expenses").insert(insertPayload);
+  } else if (id && changeScope === "global") {
+    const { data: current, error: currentError } = await supabase
+      .from("fixed_expenses")
+      .select("name")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
 
-    const result = await query;
+    if (currentError) {
+      error = currentError;
+    } else {
+      const globalStart = await getGlobalRecurrenceStartMonth(supabase, user.id);
+      const { error: cleanupError } = await supabase
+        .from("fixed_expenses")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("name", current.name)
+        .neq("id", id);
+
+      if (cleanupError) error = cleanupError;
+      else {
+        const { error: updateError } = await supabase
+          .from("fixed_expenses")
+          .update({ ...payload, starts_on: globalStart, ends_on: null })
+          .eq("id", id)
+          .eq("user_id", user.id);
+        error = updateError;
+      }
+    }
+  } else {
+    const startsOn =
+      changeScope === "global"
+        ? await getGlobalRecurrenceStartMonth(supabase, user.id)
+        : effectiveMonth;
+    const result = await supabase.from("fixed_expenses").insert({
+      ...payload,
+      starts_on: startsOn,
+      ends_on: null,
+    });
     error = result.error;
   }
   if (error) return { error: "No se pudo guardar el gasto fijo." };
@@ -301,12 +348,6 @@ export async function saveInvestment(formData: FormData) {
     accumulated_capital: accumulatedCapital,
     expected_annual_return_pct: expectedAnnualReturnPct,
   };
-  const insertPayload = {
-    ...payload,
-    starts_on: effectiveMonth,
-    ends_on: null,
-  };
-
   let error;
   if (id && changeScope === "from_month") {
     const { data: current, error: currentError } = await supabase
@@ -332,7 +373,9 @@ export async function saveInvestment(formData: FormData) {
       if (closeError) error = closeError;
       else {
         const { error: insertError } = await supabase.from("investments").insert({
-          ...insertPayload,
+          ...payload,
+          starts_on: effectiveMonth,
+          ends_on: null,
           accumulated_capital:
             accumulatedCapitalRaw.trim() === "" ? carriedCapital : accumulatedCapital,
           one_off_amount: entryType === "one_off" ? oneOffAmount : null,
@@ -340,16 +383,45 @@ export async function saveInvestment(formData: FormData) {
         error = insertError;
       }
     }
-  } else {
-    const query = id
-      ? supabase
-          .from("investments")
-          .update(payload)
-          .eq("id", id)
-          .eq("user_id", user.id)
-      : supabase.from("investments").insert(insertPayload);
+  } else if (id && changeScope === "global") {
+    const { data: current, error: currentError } = await supabase
+      .from("investments")
+      .select("name")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
 
-    const result = await query;
+    if (currentError) {
+      error = currentError;
+    } else {
+      const globalStart = await getGlobalRecurrenceStartMonth(supabase, user.id);
+      const { error: cleanupError } = await supabase
+        .from("investments")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("name", current.name)
+        .neq("id", id);
+
+      if (cleanupError) error = cleanupError;
+      else {
+        const { error: updateError } = await supabase
+          .from("investments")
+          .update({ ...payload, starts_on: globalStart, ends_on: null })
+          .eq("id", id)
+          .eq("user_id", user.id);
+        error = updateError;
+      }
+    }
+  } else {
+    const startsOn =
+      changeScope === "global"
+        ? await getGlobalRecurrenceStartMonth(supabase, user.id)
+        : effectiveMonth;
+    const result = await supabase.from("investments").insert({
+      ...payload,
+      starts_on: startsOn,
+      ends_on: null,
+    });
     error = result.error;
   }
   if (error) return { error: "No se pudo guardar la inversión recurrente." };

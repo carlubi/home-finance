@@ -22,6 +22,9 @@ update public.fixed_expenses
 set starts_on = date_trunc('month', created_at)::date
 where starts_on is null;
 
+delete from public.fixed_expenses
+where amount is null;
+
 update public.investments
 set starts_on = date_trunc('month', created_at)::date
 where starts_on is null;

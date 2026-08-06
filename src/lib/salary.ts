@@ -16,10 +16,12 @@ export async function syncSalaryIncome(
   options: {
     scope?: "global" | "from_month";
     effectiveMonth?: string;
+    startMonth?: string;
   } = {}
 ): Promise<{ error?: string }> {
   const scope = options.scope ?? "global";
   const effectiveMonth = options.effectiveMonth ?? `${new Date().getFullYear()}-01-01`;
+  const startMonth = options.startMonth ?? effectiveMonth;
 
   if (amount === null || amount <= 0) {
     let query = supabase
@@ -70,18 +72,22 @@ export async function syncSalaryIncome(
     if (error) return { error: "No se pudo actualizar el salario mensual." };
   }
 
-  // Crear los meses del año en curso que falten, respetando el mes efectivo.
-  const effectiveDate = new Date(effectiveMonth + "T00:00:00");
-  const year = effectiveDate.getFullYear();
-  const startIndex = scope === "from_month" ? effectiveDate.getMonth() : 0;
+  // Crear los meses que falten en el rango afectado por el cambio.
+  const rangeStart = scope === "from_month" ? effectiveMonth : startMonth;
+  const currentYear = new Date().getFullYear();
+  const rangeEnd = `${currentYear}-12-01`;
   const existingMonths = new Set(
     (existing ?? []).map((r) => String(r.occurred_at).slice(0, 7))
   );
-  const missing = Array.from({ length: 12 - startIndex }, (_, offset) => {
-    const i = startIndex + offset;
-    const month = `${year}-${String(i + 1).padStart(2, "0")}`;
-    return existingMonths.has(month) ? null : `${month}-01`;
-  }).filter((d): d is string => d !== null);
+  const missing: string[] = [];
+  for (
+    let cursor = rangeStart;
+    cursor <= rangeEnd;
+    cursor = addOneMonth(cursor)
+  ) {
+    const month = cursor.slice(0, 7);
+    if (!existingMonths.has(month)) missing.push(cursor);
+  }
 
   if (missing.length > 0) {
     const { error } = await supabase.from("income").insert(
@@ -100,4 +106,10 @@ export async function syncSalaryIncome(
   }
 
   return {};
+}
+
+function addOneMonth(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
 }
