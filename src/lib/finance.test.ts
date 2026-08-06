@@ -3,6 +3,7 @@ import {
   computePositions,
   investmentActualValueAtMonth,
   investmentMonthlyContribution,
+  investmentMonthlyOutflow,
   investmentProjectedValueAtMonth,
   pctChange,
   pendingTransfers,
@@ -154,6 +155,11 @@ describe("investment calculations", () => {
 
   it("calcula la aportación mensual recurrente", () => {
     expect(investmentMonthlyContribution(investments)).toBe(150);
+  });
+
+  it("incluye aportaciones puntuales solo en el mes de inicio", () => {
+    expect(investmentMonthlyOutflow(investments, "2026-01-01")).toBe(350);
+    expect(investmentMonthlyOutflow(investments, "2026-03-01")).toBe(150);
   });
 
   it("calcula el valor acumulado sin rentabilidad por mes", () => {

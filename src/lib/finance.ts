@@ -191,6 +191,25 @@ export function investmentMonthlyContribution(
   );
 }
 
+export function investmentMonthlyOutflow(
+  investments: InvestmentLike[],
+  month: string
+): number {
+  return roundCents(
+    investments.reduce((total, investment) => {
+      if (activeInvestmentMonths(investment, month) === 0) return total;
+      const startsThisMonth =
+        monthIndex(investmentStartMonth(investment)) === monthIndex(month);
+
+      return (
+        total +
+        Number(investment.monthly_amount ?? 0) +
+        (startsThisMonth ? Number(investment.one_off_amount ?? 0) : 0)
+      );
+    }, 0)
+  );
+}
+
 export function investmentActualValueAtMonth(
   investments: InvestmentLike[],
   month: string

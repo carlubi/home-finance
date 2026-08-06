@@ -131,12 +131,6 @@ export function SummaryCards({
         icon={PiggyBank}
       />
       <StatCard
-        label="% de ahorro"
-        value={savingsPct === null ? "—" : `${savingsPct.toFixed(1)}%`}
-        icon={Sparkle}
-        iconClass="bg-[oklch(0.62_0.2_330/0.14)] text-[oklch(0.55_0.2_330)] dark:text-[oklch(0.78_0.15_330)]"
-      />
-      <StatCard
         label="Inversión acumulada"
         value={formatMoney(accumulatedInvestment ?? 0)}
         helper={
@@ -146,6 +140,13 @@ export function SummaryCards({
         }
         icon={Landmark}
         iconClass="bg-[oklch(0.72_0.16_95/0.16)] text-[oklch(0.48_0.13_95)] dark:text-[oklch(0.8_0.13_95)]"
+      />
+      <StatCard
+        label="% de ahorro"
+        value={savingsPct === null ? "—" : `${savingsPct.toFixed(1)}%`}
+        helper="Las inversiones no forman parte del ahorro neto"
+        icon={Sparkle}
+        iconClass="bg-[oklch(0.62_0.2_330/0.14)] text-[oklch(0.55_0.2_330)] dark:text-[oklch(0.78_0.15_330)]"
       />
     </div>
   );

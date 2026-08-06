@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMonth, monthStart } from "@/lib/format";
 import {
   investmentActualValueAtMonth,
-  investmentMonthlyContribution,
+  investmentMonthlyOutflow,
   pctChange,
   roundCents,
 } from "@/lib/finance";
@@ -155,7 +155,7 @@ export default async function DashboardPage({
 
     return isRecurringInMonth || isOneOffThisMonth;
   });
-  const monthlyInvestment = investmentMonthlyContribution(data.investments, month);
+  const monthlyInvestment = investmentMonthlyOutflow(data.investments, month);
   const accumulatedInvestment = investmentActualValueAtMonth(
     data.investments,
     month
@@ -175,22 +175,41 @@ export default async function DashboardPage({
   const fixedMonthTotal = fixedExpensesTotal(monthFixedExpenses);
   const fixedPreviousTotal = fixedExpensesTotal(previousFixedExpenses);
   const income = Number(data.current?.total_income ?? 0);
+  const previousIncome = Number(data.previous?.total_income ?? 0);
   const rawExpenses = Number(data.current?.total_expenses ?? 0);
   const manualExpenseTotal = data.expenses.reduce(
     (total, expense) => total + Number(expense.amount ?? 0),
     0
   );
+  const rawExpensesWithoutInvestment =
+    monthlyInvestment > 0 &&
+    rawExpenses >= manualExpenseTotal + monthlyInvestment - 0.01
+      ? roundCents(rawExpenses - monthlyInvestment)
+      : rawExpenses;
   const summaryAlreadyHasFixedExpenses =
     fixedMonthTotal > 0 &&
-    rawExpenses >= manualExpenseTotal + monthlyInvestment + fixedMonthTotal - 0.01;
+    rawExpensesWithoutInvestment >= manualExpenseTotal + fixedMonthTotal - 0.01;
   const shouldAddFixedExpenses = fixedMonthTotal > 0 && !summaryAlreadyHasFixedExpenses;
   const expenses = shouldAddFixedExpenses
-    ? roundCents(rawExpenses + fixedMonthTotal)
-    : rawExpenses;
+    ? roundCents(rawExpensesWithoutInvestment + fixedMonthTotal)
+    : rawExpensesWithoutInvestment;
+  const previousMonthlyInvestment = investmentMonthlyOutflow(
+    data.investments,
+    previousMonthValue
+  );
+  const rawPreviousExpenses = Number(data.previous?.total_expenses ?? 0);
+  const rawPreviousExpensesWithoutInvestment =
+    previousMonthlyInvestment > 0 &&
+    rawPreviousExpenses >= previousMonthlyInvestment - 0.01
+      ? roundCents(rawPreviousExpenses - previousMonthlyInvestment)
+      : rawPreviousExpenses;
   const previousExpenses = shouldAddFixedExpenses
-    ? Number(data.previous?.total_expenses ?? 0) + fixedPreviousTotal
-    : Number(data.previous?.total_expenses ?? 0);
-  const savings = roundCents(income - expenses);
+    ? roundCents(rawPreviousExpensesWithoutInvestment + fixedPreviousTotal)
+    : rawPreviousExpensesWithoutInvestment;
+  const savings = roundCents(income - expenses - monthlyInvestment);
+  const previousSavings = roundCents(
+    previousIncome - previousExpenses - previousMonthlyInvestment
+  );
   const savingsPct = income > 0 ? roundCents((savings / income) * 100) : null;
   const byCategory = shouldAddFixedExpenses
     ? mergeFixedExpensesByCategory(data.byCategory, monthFixedExpenses)
@@ -252,10 +271,10 @@ export default async function DashboardPage({
         income={income}
         expenses={expenses}
         savings={savings}
-        savingsPct={shouldAddFixedExpenses ? savingsPct : data.current?.savings_pct ?? null}
-        incomeDelta={pctChange(income, Number(data.previous?.total_income ?? 0))}
+        savingsPct={savingsPct}
+        incomeDelta={pctChange(income, previousIncome)}
         expensesDelta={pctChange(expenses, previousExpenses)}
-        savingsDelta={pctChange(savings, Number(data.previous?.savings ?? 0))}
+        savingsDelta={pctChange(savings, previousSavings)}
         monthlyInvestment={monthlyInvestment}
         accumulatedInvestment={accumulatedInvestment}
       />
