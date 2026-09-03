@@ -283,39 +283,29 @@ export default async function DashboardPage({
     (total, expense) => total + Number(expense.amount ?? 0),
     0
   );
-  const rawExpensesWithoutInvestment =
-    monthlyInvestment > 0 &&
-    rawExpenses >= manualExpenseTotal + monthlyInvestment - 0.01
-      ? roundCents(rawExpenses - monthlyInvestment)
-      : rawExpenses;
+  // monthly_summary.total_expenses ya excluye la inversión (solo reduce el
+  // ahorro, ver migración investments_reduce_savings_not_expenses), así que
+  // no hay nada que restar aquí.
   const summaryIncludesFixedExpenses =
     allFixedMonthTotal > 0 &&
-    rawExpensesWithoutInvestment >= manualExpenseTotal + allFixedMonthTotal - 0.01;
-  const expenseBase = summaryIncludesFixedExpenses
-    ? manualExpenseTotal
-    : rawExpensesWithoutInvestment;
+    rawExpenses >= manualExpenseTotal + allFixedMonthTotal - 0.01;
+  const expenseBase = summaryIncludesFixedExpenses ? manualExpenseTotal : rawExpenses;
   const expenses = roundCents(expenseBase + fixedMonthTotal);
   const previousMonthlyInvestment = investmentMonthlyOutflow(
     data.investments,
     previousMonthValue
   );
   const rawPreviousExpenses = Number(data.previous?.total_expenses ?? 0);
-  const rawPreviousExpensesWithoutInvestment =
-    previousMonthlyInvestment > 0 &&
-    rawPreviousExpenses >= previousMonthlyInvestment - 0.01
-      ? roundCents(rawPreviousExpenses - previousMonthlyInvestment)
-      : rawPreviousExpenses;
   const previousManualExpenseTotal = data.previousExpenses.reduce(
     (total, expense) => total + Number(expense.amount ?? 0),
     0
   );
   const previousSummaryIncludesFixedExpenses =
     allFixedPreviousTotal > 0 &&
-    rawPreviousExpensesWithoutInvestment >=
-      previousManualExpenseTotal + allFixedPreviousTotal - 0.01;
+    rawPreviousExpenses >= previousManualExpenseTotal + allFixedPreviousTotal - 0.01;
   const previousExpenseBase = previousSummaryIncludesFixedExpenses
     ? previousManualExpenseTotal
-    : rawPreviousExpensesWithoutInvestment;
+    : rawPreviousExpenses;
   const previousExpenses = roundCents(previousExpenseBase + fixedPreviousTotal);
   const savings = roundCents(income - expenses - monthlyInvestment);
   const previousSavings = roundCents(
