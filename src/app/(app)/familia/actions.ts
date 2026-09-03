@@ -53,6 +53,39 @@ function readCommonFields(formData: FormData) {
   return { name, category, amount, peopleCount } as const;
 }
 
+async function recurringExpenseOverlaps(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  values: {
+    id?: string;
+    name: string;
+    category: string;
+    startsOn: string;
+    endsOn: string | null;
+  }
+) {
+  let query = supabase
+    .from("family_recurring_expenses")
+    .select("id, starts_on, ends_on")
+    .eq("user_id", userId)
+    .eq("name", values.name)
+    .eq("category", values.category)
+    .eq("active", true);
+
+  if (values.id) query = query.neq("id", values.id);
+
+  const { data, error } = await query;
+  if (error) return { error };
+
+  const newEnd = values.endsOn ?? "9999-12-31";
+  const overlap = (data ?? []).some((row) => {
+    const existingEnd = row.ends_on ?? "9999-12-31";
+    return values.startsOn <= existingEnd && row.starts_on <= newEnd;
+  });
+
+  return { overlap };
+}
+
 export async function saveFamilyExpense(formData: FormData) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };
@@ -118,6 +151,20 @@ export async function saveFamilyRecurringExpense(formData: FormData) {
   }
 
   const id = String(formData.get("id") ?? "").trim();
+  const overlapping = await recurringExpenseOverlaps(supabase, user.id, {
+    id: id || undefined,
+    name: fields.name,
+    category: fields.category,
+    startsOn,
+    endsOn,
+  });
+  if (overlapping.error) return { error: "No se pudo comprobar el periodo del gasto." };
+  if (overlapping.overlap) {
+    return {
+      error: "Ya existe un gasto recurrente con el mismo concepto en ese periodo.",
+    };
+  }
+
   const payload = {
     user_id: user.id,
     name: fields.name,

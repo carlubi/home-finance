@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   deleteFamilyRecurringExpense,
@@ -120,6 +121,7 @@ export function FamilyRecurringSettingsDialog({
 }) {
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
 
   function runSave(formData: FormData, message: string, reset = false) {
     startTransition(async () => {
@@ -130,6 +132,7 @@ export function FamilyRecurringSettingsDialog({
       }
       if (reset) formRef.current?.reset();
       toast.success(message);
+      router.refresh();
     });
   }
 
@@ -138,7 +141,10 @@ export function FamilyRecurringSettingsDialog({
     startTransition(async () => {
       const result = await deleteFamilyRecurringExpense(id);
       if (result.error) toast.error(result.error);
-      else toast.success("Gasto recurrente eliminado.");
+      else {
+        toast.success("Gasto recurrente eliminado.");
+        router.refresh();
+      }
     });
   }
 
@@ -209,9 +215,12 @@ export function FamilyRecurringSettingsDialog({
               <form
                 key={expense.id}
                 action={(formData) => runSave(formData, "Gasto recurrente actualizado.")}
-                className="grid gap-2 rounded-xl border p-3 lg:grid-cols-[minmax(10rem,1.2fr)_minmax(10rem,1fr)_8rem_6rem_9rem_9rem_auto] lg:items-end"
+                className="grid gap-2 rounded-xl border p-3 lg:grid-cols-[minmax(10rem,1.2fr)_minmax(10rem,1fr)_8rem_6rem_9rem_9rem_auto_auto] lg:items-end"
               >
                 <RecurringFields expense={expense} />
+                <Button type="submit" variant="outline" disabled={pending}>
+                  Guardar
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"
