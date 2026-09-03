@@ -13,6 +13,25 @@ async function requireUser() {
   return { supabase, user };
 }
 
+export async function saveFamilyPeopleCount(peopleCount: number) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+  if (!Number.isInteger(peopleCount) || peopleCount < 1 || peopleCount > 50) {
+    return { error: "Las personas deben ser un número entre 1 y 50." };
+  }
+
+  const { error } = await supabase
+    .from("family_expense_preferences")
+    .upsert(
+      { user_id: user.id, people_count: peopleCount },
+      { onConflict: "user_id" }
+    );
+  if (error) return { error: "No se pudo guardar el número de personas." };
+
+  revalidatePath("/familia");
+  return { ok: true };
+}
+
 function readPeopleCount(value: FormDataEntryValue | null) {
   const people = Number(String(value ?? ""));
   return Number.isInteger(people) && people >= 1 && people <= 50 ? people : null;
@@ -118,6 +137,7 @@ export async function saveFamilyExpense(formData: FormData) {
   if (result.error) return { error: "No se pudo guardar el gasto familiar." };
 
   revalidatePath("/familia");
+  revalidatePath("/global");
   return { ok: true };
 }
 
@@ -133,7 +153,25 @@ export async function deleteFamilyExpense(id: string) {
   if (error) return { error: "No se pudo eliminar el gasto familiar." };
 
   revalidatePath("/familia");
+  revalidatePath("/global");
   return { ok: true };
+}
+
+export async function deleteFamilyExpenses(ids: string[]) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+  if (ids.length === 0) return { error: "No hay gastos seleccionados." };
+
+  const { error, count } = await supabase
+    .from("family_expenses")
+    .delete({ count: "exact" })
+    .in("id", ids)
+    .eq("user_id", user.id);
+  if (error) return { error: "No se pudieron eliminar los gastos familiares." };
+
+  revalidatePath("/familia");
+  revalidatePath("/global");
+  return { ok: true, count: count ?? ids.length };
 }
 
 export async function saveFamilyRecurringExpense(formData: FormData) {
@@ -188,6 +226,7 @@ export async function saveFamilyRecurringExpense(formData: FormData) {
   if (result.error) return { error: "No se pudo guardar el gasto recurrente." };
 
   revalidatePath("/familia");
+  revalidatePath("/global");
   return { ok: true };
 }
 
@@ -203,5 +242,6 @@ export async function deleteFamilyRecurringExpense(id: string) {
   if (error) return { error: "No se pudo eliminar el gasto recurrente." };
 
   revalidatePath("/familia");
+  revalidatePath("/global");
   return { ok: true };
 }

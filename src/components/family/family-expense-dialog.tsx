@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveFamilyExpense } from "@/app/(app)/familia/actions";
 import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
@@ -28,13 +29,21 @@ export function FamilyExpenseDialog({
   defaultDate,
   initial = null,
   trigger,
+  open,
+  onOpenChange,
 }: {
   defaultDate: string;
   initial?: FamilyExpense | null;
   trigger?: React.ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : internalOpen;
+  const setDialogOpen = onOpenChange ?? setInternalOpen;
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -44,21 +53,24 @@ export function FamilyExpenseDialog({
         return;
       }
       toast.success(initial ? "Gasto familiar actualizado." : "Gasto familiar añadido.");
-      setOpen(false);
+      setDialogOpen(false);
+      router.refresh();
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          trigger ?? (
-            <Button className="shadow-sm hover:-translate-y-0.5 hover:shadow-md">
-              Añadir gasto
-            </Button>
-          )
-        }
-      />
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {!isControlled && (
+        <DialogTrigger
+          render={
+            trigger ?? (
+              <Button className="shadow-sm hover:-translate-y-0.5 hover:shadow-md">
+                Añadir gasto
+              </Button>
+            )
+          }
+        />
+      )}
       <DialogContent className="max-h-[90svh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initial ? "Editar gasto familiar" : "Nuevo gasto familiar"}</DialogTitle>

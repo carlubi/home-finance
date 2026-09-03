@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
+  CalendarDays,
   Import,
   Receipt,
   Users,
@@ -25,6 +26,7 @@ import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { FamilyExpenseTable } from "@/components/family/family-expense-table";
 import { FamilyRecurringSettingsDialog } from "@/components/family/family-recurring-dialog";
 import { CategoryDonut } from "@/components/charts/category-donut";
+import { FamilyTotalPerPersonCard } from "@/components/family/family-total-per-person-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
@@ -72,7 +74,11 @@ export default async function FamilyExpensesPage({
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [{ data: familyExpenseRows }, { data: recurringRows }] = await Promise.all([
+  const [
+    { data: familyExpenseRows },
+    { data: recurringRows },
+    { data: preferenceRow },
+  ] = await Promise.all([
     supabase
       .from("family_expenses")
       .select("*")
@@ -83,10 +89,16 @@ export default async function FamilyExpensesPage({
       .select("*")
       .eq("user_id", user.id)
       .order("starts_on", { ascending: false }),
+    supabase
+      .from("family_expense_preferences")
+      .select("people_count")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   const familyExpenses = (familyExpenseRows ?? []) as FamilyExpense[];
   const recurringExpenses = (recurringRows ?? []) as FamilyRecurringExpense[];
+  const preferredPeopleCount = Number(preferenceRow?.people_count ?? 1);
   const monthExpenses = familyExpenses.filter((expense) => monthKey(expense.occurred_at) === month);
   const activeRecurring = recurringExpenses.filter((expense) => recurringIsActive(expense, month));
   const displayRows: FamilyDisplayExpense[] = [
@@ -113,6 +125,7 @@ export default async function FamilyExpensesPage({
     if (a.source !== b.source) return a.source === "recurring" ? -1 : 1;
     return b.occurred_at.localeCompare(a.occurred_at);
   });
+  const monthTotal = displayRows.reduce((sum, row) => sum + Number(row.amount), 0);
 
   const historicalDates = [
     ...familyExpenses
@@ -182,11 +195,36 @@ export default async function FamilyExpensesPage({
       num_expenses: 1,
     })
   );
-  const totalUntilNow = monthlyOverview.reduce((sum, item) => sum + item.total, 0);
-  const totalPerPersonUntilNow = monthlyOverview.reduce(
-    (sum, item) => sum + item.totalPerPerson,
-    0
+  const monthCategoryTotals = new Map<string, number>();
+  displayRows.forEach((row) => {
+    monthCategoryTotals.set(
+      row.category,
+      (monthCategoryTotals.get(row.category) ?? 0) + Number(row.amount)
+    );
+  });
+  const monthCategoryData: CategoryTotal[] = [...monthCategoryTotals.entries()].map(
+    ([category, total]) => ({
+      user_id: user.id,
+      month,
+      category_id: null,
+      category_name: category,
+      category_color: familyCategoryColor(category),
+      total,
+      num_expenses: 1,
+    })
   );
+  const totalUntilNow = monthlyOverview.reduce((sum, item) => sum + item.total, 0);
+  const totalCostPerPerson = totalUntilNow / preferredPeopleCount;
+  const averageMonthlyExpense =
+    overviewMonths.length > 0 ? totalUntilNow / overviewMonths.length : 0;
+  const averageMonthlyExpenseValue =
+    preferredPeopleCount > 1
+      ? averageMonthlyExpense / preferredPeopleCount
+      : averageMonthlyExpense;
+  const averageMonthlyExpenseLabel =
+    preferredPeopleCount > 1
+      ? "Media de Gasto Mensual (por persona)"
+      : "Media de Gasto Mensual";
   const mostExpensiveMonth = [...monthlyOverview].sort((a, b) => b.total - a.total)[0];
   const last12Months = monthlyOverview.slice(-12);
 
@@ -235,20 +273,41 @@ export default async function FamilyExpensesPage({
 
         <TabsContent value="month" className="grid gap-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-2">
-            <StatCard label="Total del mes" value={formatMoney(displayRows.reduce((sum, row) => sum + row.amount, 0))} icon={Receipt} />
-            <StatCard label="Total por persona" value={formatMoney(displayRows.reduce((sum, row) => sum + perPerson(row.amount, row.people_count), 0))} icon={Users} />
+            <StatCard label="Total del mes" value={formatMoney(monthTotal)} icon={Receipt} />
+            <FamilyTotalPerPersonCard
+              total={monthTotal}
+              initialPeopleCount={preferredPeopleCount}
+            />
           </div>
+          <ChartCard
+            title="Gasto por categoría"
+            description={`Distribución del gasto de ${formatMonth(month)}`}
+            fileName={`gastos-familiares-categoria-${month.slice(0, 7)}`}
+            exportSubtitle={formatMonth(month)}
+          >
+            <CategoryDonut
+              data={monthCategoryData}
+              emptyLabel="Todavía no hay gastos familiares este mes."
+              variant="family"
+            />
+          </ChartCard>
           <FamilyExpenseTable
             month={month}
             rows={displayRows}
             manualExpenses={monthExpenses}
+            peopleCount={preferredPeopleCount}
           />
         </TabsContent>
 
         <TabsContent value="global" className="grid gap-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard label="Gastado hasta ahora" value={formatMoney(totalUntilNow)} icon={Receipt} />
-            <StatCard label="Coste por persona" value={formatMoney(totalPerPersonUntilNow)} icon={Users} />
+            <StatCard label="Coste por persona" value={formatMoney(totalCostPerPerson)} icon={Users} />
+            <StatCard
+              label={averageMonthlyExpenseLabel}
+              value={formatMoney(averageMonthlyExpenseValue)}
+              icon={CalendarDays}
+            />
             <StatCard
               label="Mes más costoso"
               value={mostExpensiveMonth ? formatMonth(mostExpensiveMonth.month) : "—"}
@@ -258,7 +317,11 @@ export default async function FamilyExpensesPage({
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <ChartCard title="Gasto por categoría" description="Acumulado hasta ahora" fileName="gastos-familiares-categoria">
-              <CategoryDonut data={globalCategoryData} emptyLabel="Todavía no hay gastos familiares." />
+              <CategoryDonut
+                data={globalCategoryData}
+                emptyLabel="Todavía no hay gastos familiares."
+                variant="family"
+              />
             </ChartCard>
             <ChartCard title="Evolución del gasto" description="Últimos 12 meses" fileName="evolucion-gastos-familiares">
               <FamilyExpenseTrend
