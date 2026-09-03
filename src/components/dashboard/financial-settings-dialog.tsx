@@ -32,7 +32,14 @@ export function FinancialSettingsDialog({
 }) {
   return (
     <Dialog>
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="default"
+            className="shadow-sm hover:-translate-y-0.5 hover:shadow-md"
+          />
+        }
+      >
         <Settings2 className="size-4" />
         Ajustes recurrentes
       </DialogTrigger>

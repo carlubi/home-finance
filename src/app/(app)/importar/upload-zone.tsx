@@ -5,9 +5,16 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileUp, Loader2, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import type { ImportScope } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 
-export function UploadZone({ userId }: { userId: string }) {
+export function UploadZone({
+  userId,
+  importScope = "personal",
+}: {
+  userId: string;
+  importScope?: ImportScope;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
@@ -30,6 +37,7 @@ export function UploadZone({ userId }: { userId: string }) {
           file_name: file.name,
           mime_type: file.type || null,
           status: "pending",
+          import_scope: importScope,
         })
         .select("id")
         .single();

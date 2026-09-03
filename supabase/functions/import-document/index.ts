@@ -14,6 +14,21 @@ import { corsHeaders, json, requireUser, toBase64 } from "../_shared/utils.ts";
 const MODEL = "gpt-4.1";
 const ROWS_PER_CHUNK = 40;
 const PARALLEL_CALLS = 4;
+const FAMILY_EXPENSE_CATEGORIES = [
+  "Hipoteca",
+  "Luz",
+  "Gas",
+  "Agua",
+  "IBI",
+  "WiFi",
+  "Comida",
+  "Extras",
+  "Seguro de vida",
+  "Seguro de hogar",
+  "Gastos de comunidad de vecinos",
+  "Transporte",
+  "Tasa de basuras",
+];
 
 const EXTRACTION_SCHEMA = {
   type: "object",
@@ -72,8 +87,21 @@ type ContentPart =
   | { type: "image_url"; image_url: { url: string } }
   | { type: "file"; file: { filename: string; file_data: string } };
 
-function systemPrompt() {
+function systemPrompt(importScope: "personal" | "family") {
+  const scopeRules = importScope === "family"
+    ? `
+Este documento se importará en Gastos unidad familiar:
+- Devuelve únicamente cargos y pagos como kind=expense. No devuelvas ingresos.
+- category debe ser EXACTAMENTE una de las categorías familiares proporcionadas.
+- No uses categorías de finanzas personales y no agrupes operaciones.
+`
+    : `
+Este documento se importará en Gastos personales:
+- Clasifica cargos y abonos como gastos o ingresos según corresponda.
+`;
+
   return `Eres un asistente financiero que extrae transacciones de documentos bancarios españoles.
+${scopeRules}
 Reglas:
 - Devuelve UNA transacción por CADA fila u operación del documento. No resumas, no agrupes y no omitas ninguna: si hay 40 filas de datos, devuelve ~40 transacciones (menos solo las filas no transaccionales o anuladas).
 - Omite filas con estado REVERTED, FAILED, DECLINED o PENDING, y líneas de saldo/totales/cabeceras.
@@ -100,13 +128,14 @@ function chunkTextRows(text: string, rowsPerChunk: number): string[] {
 async function extractFromContent(
   openai: OpenAI,
   content: ContentPart[],
-  categoriesText: string
+  categoriesText: string,
+  importScope: "personal" | "family"
 ): Promise<Transaction[]> {
   const completion = await openai.chat.completions.create({
     model: MODEL,
     max_completion_tokens: 16000,
     messages: [
-      { role: "system", content: systemPrompt() },
+      { role: "system", content: systemPrompt(importScope) },
       {
         role: "user",
         content: [
@@ -155,6 +184,8 @@ Deno.serve(async (req) => {
     .eq("id", import_id)
     .single();
   if (!file) return json({ error: "Archivo no encontrado" }, 404);
+  const importScope: "personal" | "family" =
+    file.import_scope === "family" ? "family" : "personal";
 
   await supabase
     .from("imported_files")
@@ -209,7 +240,10 @@ Deno.serve(async (req) => {
       .select("id, name, kind");
     const expenseCats = (categories ?? []).filter((c) => c.kind === "expense");
     const incomeCats = (categories ?? []).filter((c) => c.kind === "income");
-    const categoriesText = `Extrae todas las transacciones.
+    const categoriesText = importScope === "family"
+      ? `Extrae todos los gastos familiares.
+Categorías de gasto familiar: ${FAMILY_EXPENSE_CATEGORIES.join(", ")}`
+      : `Extrae todas las transacciones.
 Categorías de gasto: ${expenseCats.map((c) => c.name).join(", ")}
 Categorías de ingreso: ${incomeCats.map((c) => c.name).join(", ")}`;
 
@@ -231,14 +265,20 @@ Categorías de ingreso: ${incomeCats.map((c) => c.name).join(", ")}`;
                   text: `Fragmento de un archivo tabular (la primera línea es la cabecera):\n${chunk}`,
                 },
               ],
-              categoriesText
+              categoriesText,
+              importScope
             )
           )
         );
         transactions = transactions.concat(...results);
       }
     } else if (binaryBlock !== null) {
-      transactions = await extractFromContent(openai, [binaryBlock], categoriesText);
+      transactions = await extractFromContent(
+        openai,
+        [binaryBlock],
+        categoriesText,
+        importScope
+      );
     }
 
     const byName = new Map(
@@ -246,6 +286,7 @@ Categorías de ingreso: ${incomeCats.map((c) => c.name).join(", ")}`;
     );
 
     const rows = transactions
+      .filter((t) => importScope !== "family" || t.kind === "expense")
       .filter((t) => t.amount > 0 && t.name && t.occurred_at)
       .map((t) => ({
         import_id,
@@ -253,11 +294,15 @@ Categorías de ingreso: ${incomeCats.map((c) => c.name).join(", ")}`;
         kind: t.kind,
         name: t.name.slice(0, 200),
         suggested_category_id:
-          byName.get(`${t.kind}:${t.category?.toLowerCase()}`) ??
-          byName.get(`${t.kind}:otros`) ??
-          null,
+          importScope === "family"
+            ? null
+            : byName.get(`${t.kind}:${t.category?.toLowerCase()}`) ??
+              byName.get(`${t.kind}:otros`) ??
+              null,
+        suggested_category: importScope === "family" ? t.category : null,
         amount: t.amount,
         occurred_at: t.occurred_at,
+        people_count: 1,
         is_recurring: t.is_recurring ?? false,
         notes: t.notes,
         status: "pending",

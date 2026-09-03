@@ -1,6 +1,7 @@
 const eur = new Intl.NumberFormat("es-ES", {
   style: "currency",
   currency: "EUR",
+  useGrouping: true,
 });
 
 export function formatMoney(amount: number): string {

@@ -1,6 +1,7 @@
 // Tipos de dominio (espejo del esquema de Supabase)
 
 export type CategoryKind = "expense" | "income";
+export type ImportScope = "personal" | "family";
 
 export interface Category {
   id: string;
@@ -93,6 +94,46 @@ export interface FixedExpense {
   categories?: Category | null;
 }
 
+export interface FamilyExpense {
+  id: string;
+  user_id: string;
+  name: string;
+  category: string;
+  amount: number;
+  occurred_at: string;
+  people_count: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  import_id: string | null;
+}
+
+export interface FamilyRecurringExpense {
+  id: string;
+  user_id: string;
+  name: string;
+  category: string;
+  monthly_amount: number;
+  people_count: number;
+  active: boolean;
+  starts_on: string;
+  ends_on: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FamilyDisplayExpense {
+  id: string;
+  name: string;
+  category: string;
+  amount: number;
+  occurred_at: string;
+  people_count: number;
+  source: "manual" | "recurring";
+  recurring_id?: string;
+}
+
 export interface Investment {
   id: string;
   user_id: string;
@@ -141,6 +182,7 @@ export interface ImportedFile {
   file_name: string;
   mime_type: string | null;
   status: "pending" | "processing" | "ready" | "confirmed" | "error";
+  import_scope: ImportScope;
   error_message: string | null;
   created_at: string;
 }
@@ -152,8 +194,10 @@ export interface ExtractedTransaction {
   kind: CategoryKind;
   name: string;
   suggested_category_id: string | null;
+  suggested_category: string | null;
   amount: number;
   occurred_at: string;
+  people_count: number;
   is_recurring: boolean;
   notes: string | null;
   status: "pending" | "confirmed" | "discarded";

@@ -36,9 +36,11 @@ const monthNames: Record<string, string> = {
 
 const caDictionary: Record<string, string> = {
   "Resumen": "Resum",
+  "Gastos personales": "Despeses personals",
   "Resumen mensual": "Resum mensual",
   "Visión global": "Visió global",
   "Presupuestos": "Pressupostos",
+  "Gastos unidad familiar": "Despeses de la unitat familiar",
   "Presupuestos mensuales": "Pressupostos mensuals",
   "Compartidos": "Compartits",
   "Importar": "Importar",

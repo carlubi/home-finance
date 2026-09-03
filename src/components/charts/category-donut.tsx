@@ -64,18 +64,20 @@ export function CategoryDonut({
         </ResponsiveContainer>
       </div>
       {/* Leyenda con valores: canal de identidad y vista de datos accesible */}
-      <ul className="grid gap-1.5 text-sm">
+      <ul className="grid min-w-0 gap-1.5 text-sm">
         {segments.map((s) => (
-          <li key={s.name} className="flex items-center gap-2">
+          <li key={s.name} className="flex min-w-0 items-start gap-2">
             <span
               className="size-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: s.color }}
             />
-            <span className="truncate text-muted-foreground">{s.name}</span>
-            <span className="ml-auto font-medium tabular-nums">
+            <span className="min-w-0 flex-1 break-words leading-tight text-muted-foreground">
+              {s.name}
+            </span>
+            <span className="ml-auto shrink-0 font-medium tabular-nums">
               {formatMoney(s.value)}
             </span>
-            <span className="w-10 text-right text-xs text-muted-foreground tabular-nums">
+            <span className="w-10 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
               {total > 0 ? Math.round((s.value / total) * 100) : 0}%
             </span>
           </li>

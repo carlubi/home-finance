@@ -34,25 +34,42 @@ export default async function RevisarImportacionPage({
   const dates = [...new Set(rows.map((r) => r.occurred_at))];
   const duplicates = new Set<string>();
   if (dates.length > 0) {
-    const [{ data: existingExpenses }, { data: existingIncome }] =
+    const [
+      { data: existingExpenses },
+      { data: existingIncome },
+      { data: existingFamilyExpenses },
+    ] =
       await Promise.all([
         supabase
           .from("expenses")
           .select("amount, occurred_at")
+          .eq("user_id", user.id)
           .in("occurred_at", dates),
         supabase
           .from("income")
           .select("amount, occurred_at")
+          .eq("user_id", user.id)
+          .in("occurred_at", dates),
+        supabase
+          .from("family_expenses")
+          .select("amount, occurred_at")
+          .eq("user_id", user.id)
           .in("occurred_at", dates),
       ]);
     const keys = new Set(
       [
         ...(existingExpenses ?? []).map((e) => `expense:${e.occurred_at}:${e.amount}`),
         ...(existingIncome ?? []).map((i) => `income:${i.occurred_at}:${i.amount}`),
+        ...(existingFamilyExpenses ?? []).map(
+          (e) => `family:${e.occurred_at}:${e.amount}`
+        ),
       ]
     );
     for (const r of rows) {
-      if (keys.has(`${r.kind}:${r.occurred_at}:${r.amount}`)) duplicates.add(r.id);
+      const key = file.import_scope === "family"
+        ? `family:${r.occurred_at}:${r.amount}`
+        : `${r.kind}:${r.occurred_at}:${r.amount}`;
+      if (keys.has(key)) duplicates.add(r.id);
     }
   }
 
@@ -62,11 +79,12 @@ export default async function RevisarImportacionPage({
         <h1 className="text-2xl font-semibold">Revisar importación</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {file.file_name} · edita o descarta lo que no encaje y confirma. Nada se
-          guarda en tus finanzas hasta que confirmes.
+          guarda hasta que confirmes en {file.import_scope === "family" ? "gastos familiares" : "gastos personales"}.
         </p>
       </div>
       <ReviewTable
         importId={importId}
+        scope={file.import_scope}
         rows={rows}
         categories={(categoriesRes.data ?? []) as Category[]}
         duplicates={[...duplicates]}

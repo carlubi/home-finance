@@ -8,13 +8,15 @@ import {
   Home,
   PiggyBank,
   Settings,
+  UserRound,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./brand-logo";
 
 const items = [
-  { href: "/", label: "Resumen", icon: Home },
+  { href: "/", label: "Gastos personales", icon: UserRound },
+  { href: "/familia", label: "Gastos unidad familiar", icon: Home },
   { href: "/global", label: "Visión global", icon: ChartPie },
   { href: "/presupuestos", label: "Presupuestos", icon: PiggyBank },
   { href: "/informes", label: "Informes", icon: FileText },
@@ -63,7 +65,7 @@ export function Sidebar() {
 export function BottomNav() {
   const pathname = usePathname();
   const mobileItems = items.filter((item) =>
-    ["/", "/global", "/presupuestos", "/informes"].includes(
+    ["/", "/global", "/presupuestos", "/familia", "/informes"].includes(
       item.href
     )
   );

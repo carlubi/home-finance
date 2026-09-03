@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AlertTriangle, Check, RotateCcw, Trash2 } from "lucide-react";
-import type { Category, ExtractedTransaction } from "@/lib/types";
+import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
+import type { Category, ExtractedTransaction, ImportScope } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
 import {
   confirmImport,
@@ -25,12 +26,14 @@ import {
 
 export function ReviewTable({
   importId,
+  scope,
   rows: initialRows,
   categories,
   duplicates,
   confirmed,
 }: {
   importId: string;
+  scope: ImportScope;
   rows: ExtractedTransaction[];
   categories: Category[];
   duplicates: string[];
@@ -40,10 +43,12 @@ export function ReviewTable({
   const [rows, setRows] = useState(initialRows);
   const [pending, startTransition] = useTransition();
   const duplicateSet = new Set(duplicates);
+  const familyImport = scope === "family";
 
   const pendingRows = rows.filter((r) => r.status === "pending");
   const total = pendingRows.reduce(
-    (s, r) => s + (r.kind === "expense" ? -1 : 1) * Number(r.amount),
+    (s, r) =>
+      s + (familyImport || r.kind === "income" ? 1 : -1) * Number(r.amount),
     0
   );
 
@@ -59,6 +64,8 @@ export function ReviewTable({
         amount: Number(row.amount),
         occurred_at: row.occurred_at,
         suggested_category_id: row.suggested_category_id,
+        suggested_category: row.suggested_category,
+        people_count: row.people_count ?? 1,
         kind: row.kind,
       });
       if (r.error) toast.error(r.error);
@@ -91,6 +98,7 @@ export function ReviewTable({
               <th className="p-2 font-medium">Categoría</th>
               <th className="p-2 font-medium">Fecha real</th>
               <th className="p-2 text-right font-medium">Importe</th>
+              {familyImport && <th className="p-2 font-medium">Personas</th>}
               <th className="p-2" />
             </tr>
           </thead>
@@ -129,29 +137,57 @@ export function ReviewTable({
                     />
                   </td>
                   <td className="p-2">
-                    <Select
-                      value={row.suggested_category_id ?? undefined}
-                      disabled={discarded || confirmed}
-                      onValueChange={(v) => {
-                        patchRow(row.id, { suggested_category_id: String(v) });
-                        saveRow({ ...row, suggested_category_id: String(v) });
-                      }}
-                      items={rowCategories.map((c) => ({
-                        value: c.id,
-                        label: c.name,
-                      }))}
-                    >
-                      <SelectTrigger size="sm" className="min-w-32">
-                        <SelectValue placeholder="Categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {rowCategories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {familyImport ? (
+                      <Select
+                        value={row.suggested_category ?? "Extras"}
+                        disabled={discarded || confirmed}
+                        onValueChange={(value) => {
+                          const category = String(value);
+                          patchRow(row.id, { suggested_category: category });
+                          saveRow({ ...row, suggested_category: category });
+                        }}
+                        items={FAMILY_EXPENSE_CATEGORIES.map((category) => ({
+                          value: category,
+                          label: category,
+                        }))}
+                      >
+                        <SelectTrigger size="sm" className="min-w-40">
+                          <SelectValue placeholder="Categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FAMILY_EXPENSE_CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Select
+                        value={row.suggested_category_id ?? undefined}
+                        disabled={discarded || confirmed}
+                        onValueChange={(value) => {
+                          const categoryId = String(value);
+                          patchRow(row.id, { suggested_category_id: categoryId });
+                          saveRow({ ...row, suggested_category_id: categoryId });
+                        }}
+                        items={rowCategories.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                        }))}
+                      >
+                        <SelectTrigger size="sm" className="min-w-32">
+                          <SelectValue placeholder="Categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rowCategories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </td>
                   <td className="p-2">
                     <Input
@@ -181,6 +217,25 @@ export function ReviewTable({
                       onBlur={() => saveRow(row)}
                     />
                   </td>
+                  {familyImport && (
+                    <td className="p-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        max="50"
+                        step="1"
+                        value={row.people_count ?? 1}
+                        disabled={discarded || confirmed}
+                        className="h-8 w-20"
+                        onChange={(event) =>
+                          patchRow(row.id, {
+                            people_count: Number(event.target.value),
+                          })
+                        }
+                        onBlur={() => saveRow(row)}
+                      />
+                    </td>
+                  )}
                   <td className="p-2 text-right">
                     {!confirmed &&
                       (discarded ? (
@@ -225,7 +280,7 @@ export function ReviewTable({
       {!confirmed && (
         <div className="flex items-center justify-between rounded-md border p-3">
           <p className="text-sm text-muted-foreground">
-            {pendingRows.length} transacciones se importarán · balance{" "}
+            {pendingRows.length} transacciones se importarán · {familyImport ? "importe total" : "balance"}{" "}
             <span className="font-medium text-foreground">{formatMoney(total)}</span>
           </p>
           <Button
@@ -236,7 +291,7 @@ export function ReviewTable({
                 if (r.error) toast.error(r.error);
                 else {
                   toast.success(`Importadas ${r.count} transacciones.`);
-                  router.push("/");
+                  router.push(r.scope === "family" ? "/familia" : "/");
                 }
               })
             }

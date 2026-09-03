@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronRight, FileText } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
-import type { ImportedFile } from "@/lib/types";
+import type { ImportScope, ImportedFile } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UploadZone } from "./upload-zone";
@@ -22,12 +22,23 @@ const STATUS_LABEL: Record<ImportedFile["status"], string> = {
 export default async function ImportarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>;
+  searchParams: Promise<{ mes?: string; scope?: string }>;
 }) {
-  const { mes } = await searchParams;
-  const backHref = /^\d{4}-\d{2}$/.test(mes ?? "")
-    ? { pathname: "/", query: { mes } }
-    : "/";
+  const { mes, scope } = await searchParams;
+  const importScope: ImportScope = scope === "family" ? "family" : "personal";
+  const validMonth = /^\d{4}-\d{2}$/.test(mes ?? "");
+  const backHref = importScope === "family"
+    ? validMonth
+      ? { pathname: "/familia", query: { mes } }
+      : "/familia"
+    : validMonth
+      ? { pathname: "/", query: { mes } }
+      : "/";
+  const scopeHref = (nextScope: ImportScope) => {
+    const params = new URLSearchParams({ scope: nextScope });
+    if (validMonth) params.set("mes", mes!);
+    return `/importar?${params.toString()}`;
+  };
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -35,6 +46,7 @@ export default async function ImportarPage({
   const { data: files } = await supabase
     .from("imported_files")
     .select("*")
+    .eq("import_scope", importScope)
     .order("created_at", { ascending: false });
 
   const list = (files ?? []) as ImportedFile[];
@@ -49,18 +61,45 @@ export default async function ImportarPage({
           className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Volver al resumen
+          Volver a {importScope === "family" ? "gastos familiares" : "gastos personales"}
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold">Importar documentos</h1>
+          <h1 className="text-2xl font-semibold">
+            Importar {importScope === "family" ? "gastos familiares" : "gastos personales"}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sube un extracto bancario, un Excel de gastos o la foto de un ticket. La
-            IA extraerá las transacciones y podrás revisarlas antes de guardarlas.
+            Sube un extracto bancario, un Excel de gastos o la foto de un ticket. La IA
+            extraerá las operaciones y podrás revisarlas antes de guardarlas.
           </p>
         </div>
       </div>
 
-      <UploadZone userId={user.id} />
+      <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+        <div>
+          <p className="text-sm font-medium">Guardar documento en</p>
+          <p className="text-xs text-muted-foreground">
+            Esta elección determina dónde se guardarán los movimientos al confirmar.
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            nativeButton={false}
+            render={<Link href={scopeHref("personal")} />}
+            variant={importScope === "personal" ? "default" : "outline"}
+          >
+            Gastos personales
+          </Button>
+          <Button
+            nativeButton={false}
+            render={<Link href={scopeHref("family")} />}
+            variant={importScope === "family" ? "default" : "outline"}
+          >
+            Gastos unidad familiar
+          </Button>
+        </div>
+      </div>
+
+      <UploadZone userId={user.id} importScope={importScope} />
 
       {list.length > 0 && (
         <ul className="divide-y rounded-md border">
@@ -72,6 +111,8 @@ export default async function ImportarPage({
                   <p className="truncate text-sm font-medium">{f.file_name}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatDate(f.created_at.slice(0, 10))}
+                    {" · "}
+                    {f.import_scope === "family" ? "Gastos familiares" : "Gastos personales"}
                     {f.status === "error" && f.error_message
                       ? ` · ${f.error_message}`
                       : ""}

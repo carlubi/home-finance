@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { Import } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getMonthData } from "@/lib/data";
@@ -21,13 +22,27 @@ import { FinancialSettingsDialog } from "@/components/dashboard/financial-settin
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { InvestmentList } from "@/components/investments/investment-list";
+import PersonalGlobalOverview from "@/components/dashboard/personal-global-overview";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export const metadata = { title: "Resumen mensual" };
+function monthFromSearchParam(mes?: string) {
+  return /^\d{4}-\d{2}$/.test(mes ?? "")
+    ? `${mes}-01`
+    : monthStart(new Date());
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string }>;
+}): Promise<Metadata> {
+  const { mes } = await searchParams;
+  return { title: formatMonth(monthFromSearchParam(mes)) };
+}
 
 function activeFixedExpensesForMonth(fixedExpenses: FixedExpense[], month: string) {
   return fixedExpenses.filter((expense) => {
@@ -111,9 +126,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ mes?: string }>;
 }) {
   const { mes } = await searchParams;
-  const month = /^\d{4}-\d{2}$/.test(mes ?? "")
-    ? `${mes}-01`
-    : monthStart(new Date());
+  const month = monthFromSearchParam(mes);
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -237,7 +250,7 @@ export default async function DashboardPage({
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Resumen mensual</h1>
+        <h1 className="text-2xl font-semibold">{formatMonth(month)}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             nativeButton={false}
@@ -249,7 +262,8 @@ export default async function DashboardPage({
                 }}
               />
             }
-            variant="outline"
+            variant="default"
+            className="shadow-sm hover:-translate-y-0.5 hover:shadow-md"
           >
             <Import className="size-4" />
             Importar documentos
@@ -267,17 +281,24 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <SummaryCards
-        income={income}
-        expenses={expenses}
-        savings={savings}
-        savingsPct={savingsPct}
-        incomeDelta={pctChange(income, previousIncome)}
-        expensesDelta={pctChange(expenses, previousExpenses)}
-        savingsDelta={pctChange(savings, previousSavings)}
-        monthlyInvestment={monthlyInvestment}
-        accumulatedInvestment={accumulatedInvestment}
-      />
+      <Tabs defaultValue="monthly" className="grid gap-4">
+        <TabsList className="w-fit">
+          <TabsTrigger value="monthly">Vista mensual</TabsTrigger>
+          <TabsTrigger value="global">Visión global</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="monthly" className="grid gap-4">
+          <SummaryCards
+            income={income}
+            expenses={expenses}
+            savings={savings}
+            savingsPct={savingsPct}
+            incomeDelta={pctChange(income, previousIncome)}
+            expensesDelta={pctChange(expenses, previousExpenses)}
+            savingsDelta={pctChange(savings, previousSavings)}
+            monthlyInvestment={monthlyInvestment}
+            accumulatedInvestment={accumulatedInvestment}
+          />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
@@ -345,36 +366,42 @@ export default async function DashboardPage({
         </Card>
       )}
 
-      <Tabs defaultValue="gastos">
-        <TabsList>
-          <TabsTrigger value="gastos">Gastos ({visibleExpenses.length})</TabsTrigger>
-          <TabsTrigger value="ingresos">Ingresos ({data.income.length})</TabsTrigger>
-          <TabsTrigger value="inversion">
-            Inversión ({monthInvestmentMovements.length})
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="gastos">
-          <TransactionList
-            kind="expense"
-            items={visibleExpenses}
-            categories={expenseCategories}
-            userId={user.id}
-            emptyLabel="No hay gastos registrados este mes. Añade el primero."
-            defaultDate={month}
-          />
+          <Tabs defaultValue="gastos">
+            <TabsList>
+              <TabsTrigger value="gastos">Gastos ({visibleExpenses.length})</TabsTrigger>
+              <TabsTrigger value="ingresos">Ingresos ({data.income.length})</TabsTrigger>
+              <TabsTrigger value="inversion">
+                Inversión ({monthInvestmentMovements.length})
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="gastos">
+              <TransactionList
+                kind="expense"
+                items={visibleExpenses}
+                categories={expenseCategories}
+                userId={user.id}
+                emptyLabel="No hay gastos registrados este mes. Añade el primero."
+                defaultDate={month}
+              />
+            </TabsContent>
+            <TabsContent value="ingresos">
+              <TransactionList
+                kind="income"
+                items={data.income}
+                categories={incomeCategories}
+                userId={user.id}
+                emptyLabel="No hay ingresos registrados este mes. Añade el primero."
+                defaultDate={month}
+              />
+            </TabsContent>
+            <TabsContent value="inversion">
+              <InvestmentList month={month} investments={monthInvestmentMovements} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value="ingresos">
-          <TransactionList
-            kind="income"
-            items={data.income}
-            categories={incomeCategories}
-            userId={user.id}
-            emptyLabel="No hay ingresos registrados este mes. Añade el primero."
-            defaultDate={month}
-          />
-        </TabsContent>
-        <TabsContent value="inversion">
-          <InvestmentList month={month} investments={monthInvestmentMovements} />
+
+        <TabsContent value="global" className="grid gap-4">
+          <PersonalGlobalOverview />
         </TabsContent>
       </Tabs>
     </div>

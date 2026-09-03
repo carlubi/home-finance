@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/config";
 import { splitAmount } from "@/lib/finance";
+import { formatMoney } from "@/lib/format";
 
 type GroupNotificationInput = {
   groupId: string;
@@ -364,7 +365,7 @@ export async function saveSharedExpense(input: SharedExpenseInput) {
         actorUserId: user.id,
         type: "shared_expense_created",
         title: "Nuevo gasto compartido",
-        body: `${actor?.display_name ?? actor?.email ?? "Un integrante"} ha añadido "${input.name.trim()}" por ${input.total_amount.toFixed(2)} €.`,
+        body: `${actor?.display_name ?? actor?.email ?? "Un integrante"} ha añadido "${input.name.trim()}" por ${formatMoney(input.total_amount)}.`,
         data: { expense_id: expenseId, occurred_at: input.occurred_at },
       });
     } catch {
@@ -428,7 +429,7 @@ export async function registerDebtPayment(input: {
       actorUserId: user.id,
       type: isPartial ? "debt_payment_registered" : "debt_paid",
       title: isPartial ? "Pago parcial registrado" : "Deuda saldada",
-      body: `${from?.display_name ?? from?.email ?? "Un integrante"} ha ${isPartial ? "registrado un pago de" : "saldado"} ${input.amount.toFixed(2)} € con ${to?.display_name ?? to?.email ?? "otro miembro"}.`,
+      body: `${from?.display_name ?? from?.email ?? "Un integrante"} ha ${isPartial ? "registrado un pago de" : "saldado"} ${formatMoney(input.amount)} con ${to?.display_name ?? to?.email ?? "otro miembro"}.`,
       data: { month: input.month, from_member: input.from_member, to_member: input.to_member },
     });
   } catch {
