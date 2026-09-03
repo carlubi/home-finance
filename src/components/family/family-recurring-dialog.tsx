@@ -7,7 +7,10 @@ import {
   deleteFamilyRecurringExpense,
   saveFamilyRecurringExpense,
 } from "@/app/(app)/familia/actions";
-import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
+import {
+  familyCategoryOptions,
+  type FamilyExpenseCategoryOption,
+} from "@/lib/family";
 import type { FamilyRecurringExpense } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,23 +32,29 @@ import {
 } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
 
-function CategorySelect({ defaultValue }: { defaultValue?: string }) {
+function CategorySelect({
+  defaultValue,
+  categories,
+}: {
+  defaultValue?: string;
+  categories: FamilyExpenseCategoryOption[];
+}) {
   return (
     <Select
       name="category"
-      defaultValue={defaultValue ?? FAMILY_EXPENSE_CATEGORIES[0]}
-      items={FAMILY_EXPENSE_CATEGORIES.map((category) => ({
-        value: category,
-        label: category,
+      defaultValue={defaultValue ?? categories[0]?.name}
+      items={categories.map((category) => ({
+        value: category.name,
+        label: category.name,
       }))}
     >
       <SelectTrigger className="w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {FAMILY_EXPENSE_CATEGORIES.map((category) => (
-          <SelectItem key={category} value={category}>
-            {category}
+        {categories.map((category) => (
+          <SelectItem key={category.name} value={category.name}>
+            {category.name}
           </SelectItem>
         ))}
       </SelectContent>
@@ -53,7 +62,13 @@ function CategorySelect({ defaultValue }: { defaultValue?: string }) {
   );
 }
 
-function RecurringFields({ expense }: { expense?: FamilyRecurringExpense }) {
+function RecurringFields({
+  expense,
+  categories,
+}: {
+  expense?: FamilyRecurringExpense;
+  categories: FamilyExpenseCategoryOption[];
+}) {
   return (
     <>
       {expense && <input type="hidden" name="id" value={expense.id} />}
@@ -63,7 +78,7 @@ function RecurringFields({ expense }: { expense?: FamilyRecurringExpense }) {
       </div>
       <div className="grid gap-1.5">
         <Label>Categoría</Label>
-        <CategorySelect defaultValue={expense?.category} />
+        <CategorySelect defaultValue={expense?.category} categories={categories} />
       </div>
       <div className="grid gap-1.5">
         <Label>€/mes</Label>
@@ -114,14 +129,17 @@ export function FamilyRecurringSettingsDialog({
   expenses,
   defaultMonth,
   trigger,
+  categories,
 }: {
   expenses: FamilyRecurringExpense[];
   defaultMonth: string;
   trigger?: React.ReactElement;
+  categories?: FamilyExpenseCategoryOption[];
 }) {
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
+  const categoryOptions = categories ?? familyCategoryOptions();
 
   function runSave(formData: FormData, message: string, reset = false) {
     startTransition(async () => {
@@ -182,7 +200,7 @@ export function FamilyRecurringSettingsDialog({
             </div>
             <div className="grid gap-1.5">
               <Label>Categoría</Label>
-              <CategorySelect />
+              <CategorySelect categories={categoryOptions} />
             </div>
             <div className="grid gap-1.5">
               <Label>€/mes</Label>
@@ -217,7 +235,7 @@ export function FamilyRecurringSettingsDialog({
                 action={(formData) => runSave(formData, "Gasto recurrente actualizado.")}
                 className="grid gap-2 rounded-xl border p-3 lg:grid-cols-[minmax(10rem,1.2fr)_minmax(10rem,1fr)_8rem_6rem_9rem_9rem_auto_auto] lg:items-end"
               >
-                <RecurringFields expense={expense} />
+                <RecurringFields expense={expense} categories={categoryOptions} />
                 <Button type="submit" variant="outline" disabled={pending}>
                   Guardar
                 </Button>

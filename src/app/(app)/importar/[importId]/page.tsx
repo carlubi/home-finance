@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import type { FamilyExpenseCategoryOption } from "@/lib/family";
 import type { Category, ExtractedTransaction, ImportedFile } from "@/lib/types";
 import { ReviewTable } from "./review-table";
 
@@ -16,7 +17,7 @@ export default async function RevisarImportacionPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [fileRes, rowsRes, categoriesRes] = await Promise.all([
+  const [fileRes, rowsRes, categoriesRes, familyCategoriesRes] = await Promise.all([
     supabase.from("imported_files").select("*").eq("id", importId).single(),
     supabase
       .from("ai_extracted_transactions")
@@ -24,6 +25,11 @@ export default async function RevisarImportacionPage({
       .eq("import_id", importId)
       .order("occurred_at"),
     supabase.from("categories").select("*").order("name"),
+    supabase
+      .from("family_expense_categories")
+      .select("id, name, color")
+      .eq("user_id", user.id)
+      .order("name"),
   ]);
 
   if (!fileRes.data) notFound();
@@ -87,6 +93,7 @@ export default async function RevisarImportacionPage({
         scope={file.import_scope}
         rows={rows}
         categories={(categoriesRes.data ?? []) as Category[]}
+        familyCategories={(familyCategoriesRes.data ?? []) as FamilyExpenseCategoryOption[]}
         duplicates={[...duplicates]}
         confirmed={file.status === "confirmed"}
       />

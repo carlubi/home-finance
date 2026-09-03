@@ -10,7 +10,11 @@ import {
   WalletCards,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { familyCategoryColor } from "@/lib/family";
+import {
+  familyCategoryColor,
+  familyCategoryOptions,
+  type FamilyExpenseCategoryOption,
+} from "@/lib/family";
 import { addMonths, formatMoney, formatMonth, monthStart } from "@/lib/format";
 import type {
   CategoryTotal,
@@ -78,6 +82,7 @@ export default async function FamilyExpensesPage({
     { data: familyExpenseRows },
     { data: recurringRows },
     { data: preferenceRow },
+    { data: familyCategoryRows },
   ] = await Promise.all([
     supabase
       .from("family_expenses")
@@ -94,10 +99,20 @@ export default async function FamilyExpensesPage({
       .select("people_count")
       .eq("user_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("family_expense_categories")
+      .select("id, name, color")
+      .eq("user_id", user.id)
+      .order("name"),
   ]);
 
   const familyExpenses = (familyExpenseRows ?? []) as FamilyExpense[];
   const recurringExpenses = (recurringRows ?? []) as FamilyRecurringExpense[];
+  const customFamilyCategories = (familyCategoryRows ?? []) as FamilyExpenseCategoryOption[];
+  const familyCategories = familyCategoryOptions(customFamilyCategories);
+  const familyCategoryColors = new Map(
+    familyCategories.map((category) => [category.name, category.color])
+  );
   const preferredPeopleCount = Number(preferenceRow?.people_count ?? 1);
   const monthExpenses = familyExpenses.filter((expense) => monthKey(expense.occurred_at) === month);
   const activeRecurring = recurringExpenses.filter((expense) => recurringIsActive(expense, month));
@@ -190,7 +205,7 @@ export default async function FamilyExpensesPage({
       month: currentMonth,
       category_id: null,
       category_name: category,
-      category_color: familyCategoryColor(category),
+      category_color: familyCategoryColor(category, familyCategoryColors.get(category)),
       total,
       num_expenses: 1,
     })
@@ -208,7 +223,7 @@ export default async function FamilyExpensesPage({
       month,
       category_id: null,
       category_name: category,
-      category_color: familyCategoryColor(category),
+      category_color: familyCategoryColor(category, familyCategoryColors.get(category)),
       total,
       num_expenses: 1,
     })
@@ -258,6 +273,7 @@ export default async function FamilyExpensesPage({
           <FamilyRecurringSettingsDialog
             expenses={recurringExpenses}
             defaultMonth={month}
+            categories={familyCategories}
           />
           <Suspense>
             <MonthSwitcher month={month} />
@@ -289,6 +305,7 @@ export default async function FamilyExpensesPage({
               data={monthCategoryData}
               emptyLabel="Todavía no hay gastos familiares este mes."
               variant="family"
+              showAllCategories
             />
           </ChartCard>
           <FamilyExpenseTable
@@ -296,6 +313,7 @@ export default async function FamilyExpensesPage({
             rows={displayRows}
             manualExpenses={monthExpenses}
             peopleCount={preferredPeopleCount}
+            categories={familyCategories}
           />
         </TabsContent>
 
@@ -321,6 +339,7 @@ export default async function FamilyExpensesPage({
                 data={globalCategoryData}
                 emptyLabel="Todavía no hay gastos familiares."
                 variant="family"
+                showAllCategories
               />
             </ChartCard>
             <ChartCard title="Evolución del gasto" description="Últimos 12 meses" fileName="evolucion-gastos-familiares">

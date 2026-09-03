@@ -8,7 +8,10 @@ import {
   deleteFamilyExpense,
   deleteFamilyExpenses,
 } from "@/app/(app)/familia/actions";
-import { familyCategoryColor } from "@/lib/family";
+import {
+  familyCategoryColor,
+  type FamilyExpenseCategoryOption,
+} from "@/lib/family";
 import { formatDate, formatMoney, formatMonth } from "@/lib/format";
 import type { FamilyDisplayExpense, FamilyExpense } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -42,11 +45,13 @@ export function FamilyExpenseTable({
   rows,
   manualExpenses,
   peopleCount,
+  categories,
 }: {
   month: string;
   rows: FamilyDisplayExpense[];
   manualExpenses: FamilyExpense[];
   peopleCount: number;
+  categories: FamilyExpenseCategoryOption[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -128,7 +133,7 @@ export function FamilyExpenseTable({
               Recurrentes activos y gastos puntuales de la unidad familiar.
             </p>
           </div>
-          <FamilyExpenseDialog defaultDate={month} />
+          <FamilyExpenseDialog defaultDate={month} categories={categories} />
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -199,7 +204,12 @@ export function FamilyExpenseTable({
                   />
                   <span
                     className="size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: familyCategoryColor(row.category) }}
+                    style={{
+                      backgroundColor: familyCategoryColor(
+                        row.category,
+                        categories.find((category) => category.name === row.category)?.color
+                      ),
+                    }}
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{row.name}</p>
@@ -303,6 +313,7 @@ export function FamilyExpenseTable({
         key={editing?.id ?? "family-expense-dialog"}
         defaultDate={month}
         initial={editing}
+        categories={categories}
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open);

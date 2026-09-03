@@ -4,6 +4,27 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isFamilyExpenseCategory } from "@/lib/family";
 
+async function getFamilyCategoryNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+) {
+  const { data } = await supabase
+    .from("family_expense_categories")
+    .select("name")
+    .eq("user_id", userId);
+  return (data ?? []).map((category) => category.name);
+}
+
+function resolveFamilyCategory(value: string | null | undefined, customNames: string[]) {
+  const category = String(value ?? "").trim();
+  if (isFamilyExpenseCategory(category)) return category;
+  return (
+    customNames.find(
+      (name) => name.toLocaleLowerCase("es-ES") === category.toLocaleLowerCase("es-ES")
+    ) ?? "Extras"
+  );
+}
+
 export async function updateExtractedRow(input: {
   id: string;
   name: string;
@@ -39,13 +60,18 @@ export async function updateExtractedRow(input: {
     .eq("user_id", user.id)
     .single();
 
-  const categoryFields =
+  const familyCategoryNames =
+    importedFile?.import_scope === "family"
+      ? await getFamilyCategoryNames(supabase, user.id)
+      : [];
+  const resolvedCategoryFields =
     importedFile?.import_scope === "family"
       ? {
           suggested_category_id: null,
-          suggested_category: isFamilyExpenseCategory(input.suggested_category ?? "")
-            ? input.suggested_category
-            : "Extras",
+          suggested_category: resolveFamilyCategory(
+            input.suggested_category,
+            familyCategoryNames
+          ),
         }
       : { suggested_category_id: input.suggested_category_id };
   const peopleFields =
@@ -67,7 +93,7 @@ export async function updateExtractedRow(input: {
       amount: input.amount,
       occurred_at: input.occurred_at,
       kind: input.kind,
-      ...categoryFields,
+      ...resolvedCategoryFields,
       ...peopleFields,
     })
     .eq("id", input.id)
@@ -141,12 +167,11 @@ export async function confirmImport(importId: string) {
       };
     }
 
+    const familyCategoryNames = await getFamilyCategoryNames(supabase, user.id);
     const familyExpenses = rows.map((row) => ({
       user_id: user.id,
       name: row.name,
-      category: isFamilyExpenseCategory(row.suggested_category ?? "")
-        ? row.suggested_category!
-        : "Extras",
+      category: resolveFamilyCategory(row.suggested_category, familyCategoryNames),
       amount: row.amount,
       occurred_at: row.occurred_at,
       people_count: row.people_count ?? 1,

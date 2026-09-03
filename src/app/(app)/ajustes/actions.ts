@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addMonths, monthStart, parseMoneyInput } from "@/lib/format";
 import { investmentActualValueAtMonth } from "@/lib/finance";
 import { syncSalaryIncome } from "@/lib/salary";
+import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
 import type { Investment } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -138,6 +139,89 @@ export async function deleteCategory(id: string) {
     .eq("user_id", user.id);
   if (error) return { error: "No se pudo eliminar." };
   revalidatePath("/ajustes");
+  return { ok: true };
+}
+
+export async function createFamilyCategory(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const name = String(formData.get("name") ?? "").trim();
+  const color = String(formData.get("color") ?? "#898781");
+  if (!name) return { error: "El nombre es obligatorio." };
+  if (name.length > 80) return { error: "El nombre no puede superar 80 caracteres." };
+  if (
+    FAMILY_EXPENSE_CATEGORIES.some(
+      (category) =>
+        category.toLocaleLowerCase("es-ES") === name.toLocaleLowerCase("es-ES")
+    )
+  ) {
+    return { error: "Esa categoría ya existe entre las estándar." };
+  }
+
+  const { error } = await supabase.from("family_expense_categories").insert({
+    user_id: user.id,
+    name,
+    color,
+  });
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? "Ya existe esa categoría familiar."
+          : "No se pudo crear la categoría familiar.",
+    };
+  }
+
+  revalidatePath("/ajustes");
+  revalidatePath("/familia");
+  return { ok: true };
+}
+
+export async function deleteFamilyCategory(id: string) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+
+  const { data: category, error: categoryError } = await supabase
+    .from("family_expense_categories")
+    .select("name")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (categoryError) return { error: "No se pudo eliminar la categoría familiar." };
+  if (!category) return { ok: true };
+
+  const [{ count: expenseCount, error: expenseError }, { count: recurringCount, error: recurringError }] =
+    await Promise.all([
+      supabase
+        .from("family_expenses")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("category", category.name),
+      supabase
+        .from("family_recurring_expenses")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("category", category.name),
+    ]);
+  if (expenseError || recurringError) {
+    return { error: "No se pudo comprobar el uso de la categoría." };
+  }
+  if ((expenseCount ?? 0) > 0 || (recurringCount ?? 0) > 0) {
+    return {
+      error: "No puedes eliminar una categoría que está siendo utilizada.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("family_expense_categories")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) return { error: "No se pudo eliminar la categoría familiar." };
+
+  revalidatePath("/ajustes");
+  revalidatePath("/familia");
   return { ok: true };
 }
 

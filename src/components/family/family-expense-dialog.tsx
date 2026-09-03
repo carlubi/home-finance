@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveFamilyExpense } from "@/app/(app)/familia/actions";
-import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
+import {
+  familyCategoryOptions,
+  type FamilyExpenseCategoryOption,
+} from "@/lib/family";
 import type { FamilyExpense } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,12 +34,14 @@ export function FamilyExpenseDialog({
   trigger,
   open,
   onOpenChange,
+  categories,
 }: {
   defaultDate: string;
   initial?: FamilyExpense | null;
   trigger?: React.ReactElement;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  categories?: FamilyExpenseCategoryOption[];
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -44,6 +49,7 @@ export function FamilyExpenseDialog({
   const isControlled = open !== undefined;
   const dialogOpen = isControlled ? open : internalOpen;
   const setDialogOpen = onOpenChange ?? setInternalOpen;
+  const categoryOptions = categories ?? familyCategoryOptions();
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -122,19 +128,19 @@ export function FamilyExpenseDialog({
             <Label>Categoría</Label>
             <Select
               name="category"
-              defaultValue={initial?.category ?? FAMILY_EXPENSE_CATEGORIES[0]}
-              items={FAMILY_EXPENSE_CATEGORIES.map((category) => ({
-                value: category,
-                label: category,
+              defaultValue={initial?.category ?? categoryOptions[0]?.name}
+              items={categoryOptions.map((category) => ({
+                value: category.name,
+                label: category.name,
               }))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FAMILY_EXPENSE_CATEGORIES.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                {categoryOptions.map((category) => (
+                  <SelectItem key={category.name} value={category.name}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>

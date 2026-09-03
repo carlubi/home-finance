@@ -12,15 +12,17 @@ export function CategoryDonut({
   data,
   emptyLabel = "Sin gastos este mes.",
   variant = "default",
+  showAllCategories = false,
 }: {
   data: CategoryTotal[];
   emptyLabel?: string;
   variant?: "default" | "family";
+  showAllCategories?: boolean;
 }) {
   const isFamily = variant === "family";
   const sorted = [...data].sort((a, b) => b.total - a.total);
-  const top = sorted.slice(0, MAX_SEGMENTS - 1);
-  const rest = sorted.slice(MAX_SEGMENTS - 1);
+  const top = showAllCategories ? sorted : sorted.slice(0, MAX_SEGMENTS - 1);
+  const rest = showAllCategories ? [] : sorted.slice(MAX_SEGMENTS - 1);
   const restTotal = rest.reduce((sum, d) => sum + Number(d.total), 0);
 
   const segments = [

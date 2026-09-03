@@ -49,14 +49,32 @@ function readMonth(value: FormDataEntryValue | null) {
   return monthStart(new Date());
 }
 
-function readCategory(value: FormDataEntryValue | null) {
+async function readCategory(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  value: FormDataEntryValue | null
+) {
   const category = String(value ?? "").trim();
-  return isFamilyExpenseCategory(category) ? category : null;
+  if (isFamilyExpenseCategory(category)) return category;
+
+  const { data, error } = await supabase
+    .from("family_expense_categories")
+    .select("name")
+    .eq("user_id", userId);
+  if (error) return null;
+
+  return (
+    data ?? []
+  ).find((item) => item.name.toLocaleLowerCase("es-ES") === category.toLocaleLowerCase("es-ES"))?.name ?? null;
 }
 
-function readCommonFields(formData: FormData) {
+async function readCommonFields(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  formData: FormData
+) {
   const name = String(formData.get("name") ?? "").trim();
-  const category = readCategory(formData.get("category"));
+  const category = await readCategory(supabase, userId, formData.get("category"));
   const amount = parseMoneyInput(String(formData.get("amount") ?? "").trim());
   const peopleCount = readPeopleCount(formData.get("people_count"));
 
@@ -109,7 +127,7 @@ export async function saveFamilyExpense(formData: FormData) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };
 
-  const fields = readCommonFields(formData);
+  const fields = await readCommonFields(supabase, user.id, formData);
   if ("error" in fields) return fields;
 
   const occurredAt = readDate(formData.get("occurred_at"));
@@ -178,7 +196,7 @@ export async function saveFamilyRecurringExpense(formData: FormData) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };
 
-  const fields = readCommonFields(formData);
+  const fields = await readCommonFields(supabase, user.id, formData);
   if ("error" in fields) return fields;
 
   const startsOn = readMonth(formData.get("starts_on"));

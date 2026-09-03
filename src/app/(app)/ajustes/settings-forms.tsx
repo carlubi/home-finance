@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import type { Budget, Category } from "@/lib/types";
+import {
+  FAMILY_EXPENSE_CATEGORIES,
+  familyCategoryColor,
+  type FamilyExpenseCategoryOption,
+} from "@/lib/family";
 import { formatMoney } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,9 +22,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  createFamilyCategory,
   createCategory,
   deleteBudget,
   deleteCategory,
+  deleteFamilyCategory,
   saveBudget,
 } from "./actions";
 
@@ -123,6 +130,116 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+export function FamilyCategoriesManager({
+  categories,
+}: {
+  categories: FamilyExpenseCategoryOption[];
+}) {
+  const [pending, startTransition] = useTransition();
+  const [color, setColor] = useState(COLOR_CHOICES[0]);
+  const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+
+  return (
+    <div className="grid gap-4">
+      <form
+        ref={formRef}
+        action={(formData) =>
+          startTransition(async () => {
+            formData.set("color", color);
+            const result = await createFamilyCategory(formData);
+            if (result.error) toast.error(result.error);
+            else {
+              formRef.current?.reset();
+              toast.success("Categoría familiar creada.");
+              router.refresh();
+            }
+          })
+        }
+        className="grid w-full gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+      >
+        <Input
+          className="w-full"
+          name="name"
+          placeholder="Ej. Colegio"
+          required
+        />
+        <div className="flex items-center gap-1">
+          {COLOR_CHOICES.map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              aria-label={`Color ${choice}`}
+              onClick={() => setColor(choice)}
+              className="size-6 rounded-full border-2"
+              style={{
+                backgroundColor: choice,
+                borderColor: color === choice ? "var(--foreground)" : "transparent",
+              }}
+            />
+          ))}
+        </div>
+        <Button type="submit" disabled={pending}>
+          Añadir
+        </Button>
+      </form>
+
+      <div className="grid gap-2">
+        <p className="text-xs text-muted-foreground">Categorías estándar</p>
+        <div className="flex flex-wrap gap-1.5">
+          {FAMILY_EXPENSE_CATEGORIES.map((category) => (
+            <Badge key={category} variant="outline" className="gap-1.5">
+              <span
+                className="size-2 rounded-full"
+                style={{ backgroundColor: familyCategoryColor(category) }}
+              />
+              {category}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {categories.length > 0 && (
+        <div className="grid gap-2">
+          <p className="text-xs text-muted-foreground">Tus categorías personalizadas</p>
+          <ul className="grid gap-1.5">
+            {categories.map((category) => (
+              <li key={category.id ?? category.name} className="flex items-center gap-2 text-sm">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: category.color ?? "#898781" }}
+                />
+                {category.name}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto size-7"
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      if (!category.id) return;
+                      const result = await deleteFamilyCategory(category.id);
+                      if (result.error) toast.error(result.error);
+                      else {
+                        toast.success("Categoría familiar eliminada.");
+                        router.refresh();
+                      }
+                    })
+                  }
+                  aria-label={`Eliminar ${category.name}`}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

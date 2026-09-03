@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AlertTriangle, Check, RotateCcw, Trash2 } from "lucide-react";
-import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
+import {
+  familyCategoryOptions,
+  type FamilyExpenseCategoryOption,
+} from "@/lib/family";
 import type { Category, ExtractedTransaction, ImportScope } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
 import {
@@ -29,6 +32,7 @@ export function ReviewTable({
   scope,
   rows: initialRows,
   categories,
+  familyCategories,
   duplicates,
   confirmed,
 }: {
@@ -36,6 +40,7 @@ export function ReviewTable({
   scope: ImportScope;
   rows: ExtractedTransaction[];
   categories: Category[];
+  familyCategories: FamilyExpenseCategoryOption[];
   duplicates: string[];
   confirmed: boolean;
 }) {
@@ -44,6 +49,7 @@ export function ReviewTable({
   const [pending, startTransition] = useTransition();
   const duplicateSet = new Set(duplicates);
   const familyImport = scope === "family";
+  const familyCategoryChoices = familyCategoryOptions(familyCategories);
 
   const pendingRows = rows.filter((r) => r.status === "pending");
   const total = pendingRows.reduce(
@@ -146,18 +152,18 @@ export function ReviewTable({
                           patchRow(row.id, { suggested_category: category });
                           saveRow({ ...row, suggested_category: category });
                         }}
-                        items={FAMILY_EXPENSE_CATEGORIES.map((category) => ({
-                          value: category,
-                          label: category,
+                        items={familyCategoryChoices.map((category) => ({
+                          value: category.name,
+                          label: category.name,
                         }))}
                       >
                         <SelectTrigger size="sm" className="min-w-40">
                           <SelectValue placeholder="Categoría" />
                         </SelectTrigger>
                         <SelectContent>
-                          {FAMILY_EXPENSE_CATEGORIES.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
+                          {familyCategoryChoices.map((category) => (
+                            <SelectItem key={category.name} value={category.name}>
+                              {category.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

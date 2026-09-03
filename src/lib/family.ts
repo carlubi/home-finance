@@ -16,6 +16,12 @@ export const FAMILY_EXPENSE_CATEGORIES = [
 
 export type FamilyExpenseCategory = (typeof FAMILY_EXPENSE_CATEGORIES)[number];
 
+export type FamilyExpenseCategoryOption = {
+  id?: string;
+  name: string;
+  color: string | null;
+};
+
 const FAMILY_CATEGORY_COLORS: Record<FamilyExpenseCategory, string> = {
   Hipoteca: "#4a3aa7",
   Luz: "#c98500",
@@ -32,10 +38,22 @@ const FAMILY_CATEGORY_COLORS: Record<FamilyExpenseCategory, string> = {
   "Tasa de basuras": "#898781",
 };
 
-export function familyCategoryColor(category: string) {
-  return FAMILY_CATEGORY_COLORS[category as FamilyExpenseCategory] ?? "#898781";
+export function familyCategoryColor(category: string, customColor?: string | null) {
+  return customColor ?? FAMILY_CATEGORY_COLORS[category as FamilyExpenseCategory] ?? "#898781";
 }
 
 export function isFamilyExpenseCategory(value: string): value is FamilyExpenseCategory {
   return FAMILY_EXPENSE_CATEGORIES.includes(value as FamilyExpenseCategory);
+}
+
+export function familyCategoryOptions(
+  customCategories: FamilyExpenseCategoryOption[] = []
+) {
+  return [
+    ...FAMILY_EXPENSE_CATEGORIES.map((name) => ({
+      name,
+      color: FAMILY_CATEGORY_COLORS[name],
+    })),
+    ...customCategories,
+  ];
 }

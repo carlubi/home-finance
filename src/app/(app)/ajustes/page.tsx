@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Budget, Category } from "@/lib/types";
+import type { FamilyExpenseCategoryOption } from "@/lib/family";
 import {
   Card,
   CardContent,
@@ -9,7 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CategoriesManager, BudgetsManager } from "./settings-forms";
+import {
+  CategoriesManager,
+  BudgetsManager,
+  FamilyCategoriesManager,
+} from "./settings-forms";
 
 export const metadata = { title: "Ajustes" };
 
@@ -18,9 +23,15 @@ export default async function AjustesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [{ data: categories }, { data: budgets }] = await Promise.all([
+  const [{ data: categories }, { data: budgets }, { data: familyCategories }] =
+    await Promise.all([
     supabase.from("categories").select("*").order("name"),
     supabase.from("budgets").select("*, categories(*)").eq("user_id", user.id),
+    supabase
+      .from("family_expense_categories")
+      .select("id, name, color")
+      .eq("user_id", user.id)
+      .order("name"),
   ]);
 
   const cats = (categories ?? []) as Category[];
@@ -41,6 +52,20 @@ export default async function AjustesPage() {
           <BudgetsManager
             budgets={(budgets ?? []) as Budget[]}
             categories={expenseCategories}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Categorías de gastos familiares</CardTitle>
+          <CardDescription>
+            Añade categorías propias para los gastos de la unidad familiar. Las estándar siempre están disponibles.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FamilyCategoriesManager
+            categories={(familyCategories ?? []) as FamilyExpenseCategoryOption[]}
           />
         </CardContent>
       </Card>
