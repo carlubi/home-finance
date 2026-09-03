@@ -9,7 +9,7 @@ import {
   investmentProjectedValueAtMonth,
   roundCents,
 } from "@/lib/finance";
-import type { CategoryTotal, Investment } from "@/lib/types";
+import type { CategoryTotal, Investment, MonthlySummary } from "@/lib/types";
 import { ChartCard } from "@/components/charts/chart-card";
 import { CategoryExpenseTrend } from "@/components/charts/category-expense-trend";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
@@ -34,6 +34,8 @@ type CategorySnapshot = {
 type CategoryRelation = CategorySnapshot | CategorySnapshot[] | null;
 
 type ExpenseCategoryRow = {
+  id: string;
+  name: string;
   category_id: string | null;
   amount: number;
   occurred_at: string;
@@ -41,6 +43,8 @@ type ExpenseCategoryRow = {
 };
 
 type FixedExpenseCategoryRow = {
+  id: string;
+  name: string;
   user_id: string;
   category_id: string | null;
   amount: number | null;
@@ -105,6 +109,90 @@ function fixedExpenseIsActiveInMonth(
   );
 }
 
+function comparableExpenseName(name: string) {
+  return name.trim().toLocaleLowerCase("es-ES");
+}
+
+function activeFixedExpensesForMonth(
+  fixedExpenses: FixedExpenseCategoryRow[],
+  month: string
+) {
+  const activeExpenses = fixedExpenses.filter((expense) =>
+    fixedExpenseIsActiveInMonth(expense, month)
+  );
+  const seen = new Set<string>();
+
+  return [...activeExpenses]
+    .sort((a, b) => {
+      const aStart = a.starts_on ?? a.created_at.slice(0, 10);
+      const bStart = b.starts_on ?? b.created_at.slice(0, 10);
+      return bStart.localeCompare(aStart) || b.created_at.localeCompare(a.created_at);
+    })
+    .filter((expense) => {
+      const key = `${comparableExpenseName(expense.name)}:${expense.category_id ?? "none"}:${Number(expense.amount ?? 0)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function fixedExpenseMatchesMonthExpense(
+  fixedExpense: FixedExpenseCategoryRow,
+  month: string,
+  expenses: ExpenseCategoryRow[]
+) {
+  return expenses.some(
+    (expense) =>
+      expense.occurred_at.slice(0, 7) + "-01" === month &&
+      comparableExpenseName(expense.name) ===
+        comparableExpenseName(fixedExpense.name) &&
+      Math.abs(Number(expense.amount ?? 0) - Number(fixedExpense.amount ?? 0)) <
+        0.01
+  );
+}
+
+function normalizeSummaries(
+  summaries: MonthlySummary[],
+  expenses: ExpenseCategoryRow[],
+  fixedExpenses: FixedExpenseCategoryRow[]
+) {
+  return summaries.map((summary) => {
+    const actualMonthExpenses = expenses.filter(
+      (expense) => expense.occurred_at.slice(0, 7) + "-01" === summary.month
+    );
+    const activeFixedExpenses = activeFixedExpensesForMonth(
+      fixedExpenses,
+      summary.month
+    );
+    const actualTotal = actualMonthExpenses.reduce(
+      (total, expense) => total + Number(expense.amount ?? 0),
+      0
+    );
+    const fixedTotal = activeFixedExpenses.reduce(
+      (total, expense) => total + Number(expense.amount ?? 0),
+      0
+    );
+    const representedFixedTotal = activeFixedExpenses
+      .filter((expense) =>
+        fixedExpenseMatchesMonthExpense(expense, summary.month, expenses)
+      )
+      .reduce((total, expense) => total + Number(expense.amount ?? 0), 0);
+    const unrepresentedFixedTotal = fixedTotal - representedFixedTotal;
+    const summaryIncludesFixedExpenses =
+      fixedTotal > 0 &&
+      Number(summary.total_expenses ?? 0) >= actualTotal + fixedTotal - 0.01;
+    const adjustment = summaryIncludesFixedExpenses
+      ? actualTotal + unrepresentedFixedTotal - Number(summary.total_expenses ?? 0)
+      : unrepresentedFixedTotal;
+
+    return {
+      ...summary,
+      total_expenses: roundCents(Number(summary.total_expenses ?? 0) + adjustment),
+      savings: roundCents(Number(summary.savings ?? 0) - adjustment),
+    };
+  });
+}
+
 export default async function PersonalGlobalOverview() {
   const supabase = await createClient();
   const user = await getCurrentUser();
@@ -120,11 +208,11 @@ export default async function PersonalGlobalOverview() {
       getAllMonthlySummaries(user.id),
       supabase
         .from("expenses")
-        .select("category_id, amount, occurred_at, categories(name, color)")
+        .select("id, name, category_id, amount, occurred_at, categories(name, color)")
         .eq("user_id", user.id),
       supabase
         .from("fixed_expenses")
-        .select("user_id, category_id, amount, active, starts_on, ends_on, created_at, categories(name, color)")
+        .select("id, name, user_id, category_id, amount, active, starts_on, ends_on, created_at, categories(name, color)")
         .eq("user_id", user.id),
       supabase
         .from("investments")
@@ -145,36 +233,50 @@ export default async function PersonalGlobalOverview() {
     );
   }
 
-  const last12 = summaries.slice(-12);
+  const expenseRows = (expenseCategoryRows ?? []) as ExpenseCategoryRow[];
+  const fixedExpenseRowsTyped = (fixedExpenseRows ?? []) as FixedExpenseCategoryRow[];
+  const normalizedSummaries = normalizeSummaries(
+    summaries,
+    expenseRows,
+    fixedExpenseRowsTyped
+  );
+  const last12 = normalizedSummaries.slice(-12);
   const investments = (investmentRows ?? []) as Investment[];
   const investedNow =
-    summaries.length > 0
+    normalizedSummaries.length > 0
       ? investmentActualValueAtMonth(
           investments,
-          summaries[summaries.length - 1].month
+          normalizedSummaries[normalizedSummaries.length - 1].month
         )
       : 0;
   const monthlyInvestment = investmentMonthlyContribution(
     investments,
-    summaries[summaries.length - 1].month
+    normalizedSummaries[normalizedSummaries.length - 1].month
   );
-  const totalIncome = summaries.reduce((s, m) => s + Number(m.total_income), 0);
-  const totalExpenses = summaries.reduce((s, m) => s + Number(m.total_expenses), 0);
+  const totalIncome = normalizedSummaries.reduce(
+    (s, m) => s + Number(m.total_income),
+    0
+  );
+  const totalExpenses = normalizedSummaries.reduce(
+    (s, m) => s + Number(m.total_expenses),
+    0
+  );
   const totalSavings = roundCents(totalIncome - totalExpenses);
   const totalNetWorth = roundCents(totalSavings + investedNow);
   const avgSavings = roundCents(
-    summaries.reduce((s, m) => s + Number(m.savings), 0) / summaries.length
+    normalizedSummaries.reduce((s, m) => s + Number(m.savings), 0) /
+      normalizedSummaries.length
   );
 
-  const bestSavings = [...summaries].sort((a, b) => b.savings - a.savings)[0];
-  const worstExpenses = [...summaries].sort(
+  const bestSavings = [...normalizedSummaries].sort((a, b) => b.savings - a.savings)[0];
+  const worstExpenses = [...normalizedSummaries].sort(
     (a, b) => b.total_expenses - a.total_expenses
   )[0];
 
   const categoryRowsByKey = new Map<string, CategoryTotal>();
-  const summaryMonths = summaries.map((summary) => summary.month);
+  const summaryMonths = normalizedSummaries.map((summary) => summary.month);
 
-  for (const row of (expenseCategoryRows ?? []) as ExpenseCategoryRow[]) {
+  for (const row of expenseRows) {
     addCategoryAmount(categoryRowsByKey, {
       userId: user.id,
       month: row.occurred_at.slice(0, 7) + "-01",
@@ -184,9 +286,12 @@ export default async function PersonalGlobalOverview() {
     });
   }
 
-  for (const expense of (fixedExpenseRows ?? []) as FixedExpenseCategoryRow[]) {
-    for (const month of summaryMonths) {
-      if (!fixedExpenseIsActiveInMonth(expense, month)) continue;
+  for (const month of summaryMonths) {
+    for (const expense of activeFixedExpensesForMonth(
+      fixedExpenseRowsTyped,
+      month
+    )) {
+      if (fixedExpenseMatchesMonthExpense(expense, month, expenseRows)) continue;
       addCategoryAmount(categoryRowsByKey, {
         userId: user.id,
         month,
@@ -402,4 +507,3 @@ export default async function PersonalGlobalOverview() {
     </div>
   );
 }
-

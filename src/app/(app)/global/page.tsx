@@ -84,6 +84,109 @@ function mapRows<T>(rows: T[] | null | undefined) {
   return rows ?? [];
 }
 
+type PersonalExpenseRow = {
+  name: string;
+  amount: number;
+  occurred_at: string;
+};
+
+type PersonalFixedExpenseRow = {
+  name: string;
+  amount: number | null;
+  active: boolean;
+  starts_on: string | null;
+  ends_on: string | null;
+  created_at: string;
+};
+
+function comparableExpenseName(name: string) {
+  return name.trim().toLocaleLowerCase("es-ES");
+}
+
+function personalFixedExpenseIsActiveInMonth(
+  expense: PersonalFixedExpenseRow,
+  month: string
+) {
+  const startsOn = expense.starts_on ?? expense.created_at.slice(0, 10);
+  return (
+    expense.active &&
+    Number(expense.amount ?? 0) > 0 &&
+    startsOn <= month &&
+    (!expense.ends_on || expense.ends_on >= month)
+  );
+}
+
+function activePersonalFixedExpensesForMonth(
+  fixedExpenses: PersonalFixedExpenseRow[],
+  month: string
+) {
+  const activeExpenses = fixedExpenses.filter((expense) =>
+    personalFixedExpenseIsActiveInMonth(expense, month)
+  );
+  const seen = new Set<string>();
+
+  return [...activeExpenses]
+    .sort((a, b) => {
+      const aStart = a.starts_on ?? a.created_at.slice(0, 10);
+      const bStart = b.starts_on ?? b.created_at.slice(0, 10);
+      return bStart.localeCompare(aStart) || b.created_at.localeCompare(a.created_at);
+    })
+    .filter((expense) => {
+      const key = `${comparableExpenseName(expense.name)}:${Number(expense.amount ?? 0)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function normalizePersonalSummaries(
+  summaries: MonthlySummary[],
+  expenses: PersonalExpenseRow[],
+  fixedExpenses: PersonalFixedExpenseRow[]
+) {
+  return summaries.map((summary) => {
+    const monthExpenses = expenses.filter(
+      (expense) => monthKey(expense.occurred_at) === summary.month
+    );
+    const activeFixedExpenses = activePersonalFixedExpensesForMonth(
+      fixedExpenses,
+      summary.month
+    );
+    const actualTotal = monthExpenses.reduce(
+      (total, expense) => total + Number(expense.amount ?? 0),
+      0
+    );
+    const fixedTotal = activeFixedExpenses.reduce(
+      (total, expense) => total + Number(expense.amount ?? 0),
+      0
+    );
+    const representedFixedTotal = activeFixedExpenses
+      .filter((fixedExpense) =>
+        monthExpenses.some(
+          (expense) =>
+            comparableExpenseName(expense.name) ===
+              comparableExpenseName(fixedExpense.name) &&
+            Math.abs(
+              Number(expense.amount ?? 0) - Number(fixedExpense.amount ?? 0)
+            ) < 0.01
+        )
+      )
+      .reduce((total, expense) => total + Number(expense.amount ?? 0), 0);
+    const summaryIncludesFixedExpenses =
+      fixedTotal > 0 &&
+      Number(summary.total_expenses ?? 0) >= actualTotal + fixedTotal - 0.01;
+    const unrepresentedFixedTotal = fixedTotal - representedFixedTotal;
+    const adjustment = summaryIncludesFixedExpenses
+      ? actualTotal + unrepresentedFixedTotal - Number(summary.total_expenses ?? 0)
+      : unrepresentedFixedTotal;
+
+    return {
+      ...summary,
+      total_expenses: roundCents(Number(summary.total_expenses ?? 0) + adjustment),
+    };
+  });
+}
+
 export default async function GlobalPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -94,6 +197,8 @@ export default async function GlobalPage() {
 
   const [
     { data: summaryRows },
+    { data: personalExpenseRows },
+    { data: personalFixedExpenseRows },
     { data: familyExpenseRows },
     { data: familyRecurringRows },
     { data: groupRows },
@@ -104,6 +209,14 @@ export default async function GlobalPage() {
       .select("*")
       .eq("user_id", user.id)
       .order("month", { ascending: true }),
+    supabase
+      .from("expenses")
+      .select("name, amount, occurred_at")
+      .eq("user_id", user.id),
+    supabase
+      .from("fixed_expenses")
+      .select("name, amount, active, starts_on, ends_on, created_at")
+      .eq("user_id", user.id),
     supabase
       .from("family_expenses")
       .select("amount, occurred_at")
@@ -130,6 +243,13 @@ export default async function GlobalPage() {
     : [];
 
   const summaries = mapRows(summaryRows as MonthlySummary[] | null | undefined);
+  const normalizedPersonalSummaries = normalizePersonalSummaries(
+    summaries,
+    mapRows(personalExpenseRows as PersonalExpenseRow[] | null | undefined),
+    mapRows(
+      personalFixedExpenseRows as PersonalFixedExpenseRow[] | null | undefined
+    )
+  );
   const familyExpenses = mapRows(
     familyExpenseRows as Pick<FamilyExpense, "amount" | "occurred_at">[] | null | undefined
   );
@@ -141,7 +261,7 @@ export default async function GlobalPage() {
   );
   const investments = mapRows(investmentRows as Investment[] | null | undefined);
 
-  const personalExpensesTotal = summaries.reduce(
+  const personalExpensesTotal = normalizedPersonalSummaries.reduce(
     (total, month) => total + Number(month.total_expenses ?? 0),
     0
   );

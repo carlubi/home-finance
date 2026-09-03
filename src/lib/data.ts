@@ -16,7 +16,16 @@ export async function getMonthData(userId: string, month: string) {
   const nextMonth = addMonths(month, 1);
   const prevMonth = addMonths(month, -1);
 
-  const [summaries, byCategory, expenses, income, categories, budgets, investments] =
+  const [
+    summaries,
+    byCategory,
+    expenses,
+    previousExpenses,
+    income,
+    categories,
+    budgets,
+    investments,
+  ] =
     await Promise.all([
       supabase
         .from("monthly_summary")
@@ -34,6 +43,13 @@ export async function getMonthData(userId: string, month: string) {
         .eq("user_id", userId)
         .gte("occurred_at", month)
         .lt("occurred_at", nextMonth)
+        .order("occurred_at", { ascending: false }),
+      supabase
+        .from("expenses")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("occurred_at", prevMonth)
+        .lt("occurred_at", month)
         .order("occurred_at", { ascending: false }),
       supabase
         .from("income")
@@ -63,6 +79,7 @@ export async function getMonthData(userId: string, month: string) {
     previous: summaryRows.find((s) => s.month === prevMonth) ?? null,
     byCategory: (byCategory.data ?? []) as CategoryTotal[],
     expenses: (expenses.data ?? []) as Expense[],
+    previousExpenses: (previousExpenses.data ?? []) as Expense[],
     income: (income.data ?? []) as Income[],
     categories: (categories.data ?? []) as Category[],
     budgets: (budgets.data ?? []) as Budget[],

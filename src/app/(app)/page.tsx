@@ -45,7 +45,7 @@ export async function generateMetadata({
 }
 
 function activeFixedExpensesForMonth(fixedExpenses: FixedExpense[], month: string) {
-  return fixedExpenses.filter((expense) => {
+  const activeExpenses = fixedExpenses.filter((expense) => {
     const startsOn = expense.starts_on ?? expense.created_at.slice(0, 10);
     return (
       expense.active &&
@@ -54,6 +54,20 @@ function activeFixedExpensesForMonth(fixedExpenses: FixedExpense[], month: strin
       (!expense.ends_on || expense.ends_on >= month)
     );
   });
+
+  const seen = new Set<string>();
+  return [...activeExpenses]
+    .sort((a, b) => {
+      const aStart = a.starts_on ?? a.created_at.slice(0, 10);
+      const bStart = b.starts_on ?? b.created_at.slice(0, 10);
+      return bStart.localeCompare(aStart) || b.created_at.localeCompare(a.created_at);
+    })
+    .filter((expense) => {
+      const key = `${comparableExpenseName(expense.name)}:${expense.category_id ?? "none"}:${Number(expense.amount ?? 0)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function fixedExpensesTotal(fixedExpenses: FixedExpense[]) {
@@ -61,6 +75,66 @@ function fixedExpensesTotal(fixedExpenses: FixedExpense[]) {
     (total, expense) => total + Number(expense.amount ?? 0),
     0
   );
+}
+
+function comparableExpenseName(name: string) {
+  return name.trim().toLocaleLowerCase("es-ES");
+}
+
+function splitRepresentedFixedExpenses(
+  fixedExpenses: FixedExpense[],
+  expenses: Expense[]
+) {
+  const represented: FixedExpense[] = [];
+  const unrepresented: FixedExpense[] = [];
+  const usedExpenseIds = new Set<string>();
+
+  for (const fixedExpense of fixedExpenses) {
+    const matchingExpense = expenses.find(
+      (expense) =>
+        !usedExpenseIds.has(expense.id) &&
+        comparableExpenseName(expense.name) ===
+          comparableExpenseName(fixedExpense.name) &&
+        Math.abs(
+          Number(expense.amount ?? 0) - Number(fixedExpense.amount ?? 0)
+        ) < 0.01
+    );
+
+    if (matchingExpense) {
+      represented.push(fixedExpense);
+      usedExpenseIds.add(matchingExpense.id);
+    } else {
+      unrepresented.push(fixedExpense);
+    }
+  }
+
+  return { represented, unrepresented };
+}
+
+function categoryTotalsFromExpenses(expenses: Expense[]) {
+  const totals = new Map<string, CategoryTotal>();
+
+  expenses.forEach((expense) => {
+    const key = expense.category_id ?? "none";
+    const current = totals.get(key);
+    if (current) {
+      current.total = roundCents(Number(current.total) + Number(expense.amount ?? 0));
+      current.num_expenses = Number(current.num_expenses ?? 0) + 1;
+      return;
+    }
+
+    totals.set(key, {
+      user_id: expense.user_id,
+      month: expense.occurred_at,
+      category_id: expense.category_id,
+      category_name: expense.categories?.name ?? null,
+      category_color: expense.categories?.color ?? null,
+      total: Number(expense.amount ?? 0),
+      num_expenses: 1,
+    });
+  });
+
+  return [...totals.values()];
 }
 
 function mergeFixedExpensesByCategory(
@@ -176,7 +250,6 @@ export default async function DashboardPage({
   const allFixedExpenses = ((fixedExpenses ?? []) as FixedExpense[]).filter(
     (expense) => expense.active && Number(expense.amount ?? 0) > 0
   );
-  const fixed = allFixedExpenses.filter((expense) => !expense.ends_on);
   const monthFixedExpenses = activeFixedExpensesForMonth(allFixedExpenses, month);
   const prevMonth = new Date(month + "T00:00:00");
   prevMonth.setMonth(prevMonth.getMonth() - 1);
@@ -185,8 +258,24 @@ export default async function DashboardPage({
     allFixedExpenses,
     previousMonthValue
   );
-  const fixedMonthTotal = fixedExpensesTotal(monthFixedExpenses);
-  const fixedPreviousTotal = fixedExpensesTotal(previousFixedExpenses);
+  const fixedForSettings = activeFixedExpensesForMonth(
+    allFixedExpenses,
+    recurrentSettingsMonth
+  );
+  const monthFixedBreakdown = splitRepresentedFixedExpenses(
+    monthFixedExpenses,
+    data.expenses
+  );
+  const previousFixedBreakdown = splitRepresentedFixedExpenses(
+    previousFixedExpenses,
+    data.previousExpenses
+  );
+  const allFixedMonthTotal = fixedExpensesTotal(monthFixedExpenses);
+  const allFixedPreviousTotal = fixedExpensesTotal(previousFixedExpenses);
+  const fixedMonthTotal = fixedExpensesTotal(monthFixedBreakdown.unrepresented);
+  const fixedPreviousTotal = fixedExpensesTotal(
+    previousFixedBreakdown.unrepresented
+  );
   const income = Number(data.current?.total_income ?? 0);
   const previousIncome = Number(data.previous?.total_income ?? 0);
   const rawExpenses = Number(data.current?.total_expenses ?? 0);
@@ -199,13 +288,13 @@ export default async function DashboardPage({
     rawExpenses >= manualExpenseTotal + monthlyInvestment - 0.01
       ? roundCents(rawExpenses - monthlyInvestment)
       : rawExpenses;
-  const summaryAlreadyHasFixedExpenses =
-    fixedMonthTotal > 0 &&
-    rawExpensesWithoutInvestment >= manualExpenseTotal + fixedMonthTotal - 0.01;
-  const shouldAddFixedExpenses = fixedMonthTotal > 0 && !summaryAlreadyHasFixedExpenses;
-  const expenses = shouldAddFixedExpenses
-    ? roundCents(rawExpensesWithoutInvestment + fixedMonthTotal)
+  const summaryIncludesFixedExpenses =
+    allFixedMonthTotal > 0 &&
+    rawExpensesWithoutInvestment >= manualExpenseTotal + allFixedMonthTotal - 0.01;
+  const expenseBase = summaryIncludesFixedExpenses
+    ? manualExpenseTotal
     : rawExpensesWithoutInvestment;
+  const expenses = roundCents(expenseBase + fixedMonthTotal);
   const previousMonthlyInvestment = investmentMonthlyOutflow(
     data.investments,
     previousMonthValue
@@ -216,19 +305,35 @@ export default async function DashboardPage({
     rawPreviousExpenses >= previousMonthlyInvestment - 0.01
       ? roundCents(rawPreviousExpenses - previousMonthlyInvestment)
       : rawPreviousExpenses;
-  const previousExpenses = shouldAddFixedExpenses
-    ? roundCents(rawPreviousExpensesWithoutInvestment + fixedPreviousTotal)
+  const previousManualExpenseTotal = data.previousExpenses.reduce(
+    (total, expense) => total + Number(expense.amount ?? 0),
+    0
+  );
+  const previousSummaryIncludesFixedExpenses =
+    allFixedPreviousTotal > 0 &&
+    rawPreviousExpensesWithoutInvestment >=
+      previousManualExpenseTotal + allFixedPreviousTotal - 0.01;
+  const previousExpenseBase = previousSummaryIncludesFixedExpenses
+    ? previousManualExpenseTotal
     : rawPreviousExpensesWithoutInvestment;
+  const previousExpenses = roundCents(previousExpenseBase + fixedPreviousTotal);
   const savings = roundCents(income - expenses - monthlyInvestment);
   const previousSavings = roundCents(
     previousIncome - previousExpenses - previousMonthlyInvestment
   );
   const savingsPct = income > 0 ? roundCents((savings / income) * 100) : null;
-  const byCategory = shouldAddFixedExpenses
-    ? mergeFixedExpensesByCategory(data.byCategory, monthFixedExpenses)
+  const categoryBase = summaryIncludesFixedExpenses
+    ? categoryTotalsFromExpenses(data.expenses)
     : data.byCategory;
+  const byCategory =
+    fixedMonthTotal > 0
+      ? mergeFixedExpensesByCategory(
+          categoryBase,
+          monthFixedBreakdown.unrepresented
+        )
+      : categoryBase;
   const visibleExpenses = [
-    ...fixedExpensesAsMonthExpenses(monthFixedExpenses, month),
+    ...fixedExpensesAsMonthExpenses(monthFixedBreakdown.unrepresented, month),
     ...data.expenses,
   ];
   const prevLabel = new Date(month + "T00:00:00");
@@ -270,7 +375,7 @@ export default async function DashboardPage({
           </Button>
           <FinancialSettingsDialog
             monthlyIncome={onboarding?.fixed_income_amount ?? null}
-            fixedExpenses={fixed}
+            fixedExpenses={fixedForSettings}
             investments={recurringInvestmentsForSettings as Investment[]}
             categories={expenseCategories}
             currentMonth={recurrentSettingsMonth}
