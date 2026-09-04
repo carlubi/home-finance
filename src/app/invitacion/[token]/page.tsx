@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { acceptInvitation } from "@/app/(app)/compartidos/actions";
+import { acceptFamilyInvitation } from "@/app/(app)/familia/actions";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { InvitationAuthSync } from "./invitation-auth-sync";
@@ -30,14 +31,22 @@ export default async function InvitacionPage({
   const { error } = await searchParams;
 
   const admin = createAdminClient();
-  const { data: member } = await admin
+  const { data: sharedMember } = await admin
     .from("shared_group_members")
     .select("id, group_id, status, email, shared_groups(name)")
     .eq("invite_token", token)
     .single();
 
-  const groupName =
-    (member?.shared_groups as unknown as { name: string } | null)?.name ?? null;
+  const { data: familyMember } = sharedMember ? { data: null } : await admin
+    .from("family_unit_members")
+    .select("id, unit_id, status, email, family_units(name)")
+    .eq("invite_token", token)
+    .maybeSingle();
+  const member = sharedMember ?? familyMember;
+  const isFamilyInvitation = Boolean(familyMember);
+  const groupName = sharedMember
+    ? (sharedMember.shared_groups as unknown as { name: string } | null)?.name ?? null
+    : (familyMember?.family_units as unknown as { name: string } | null)?.name ?? null;
   const invitePath = `/invitacion/${token}`;
   const authQuery = member?.email
     ? { next: invitePath, email: member.email }
@@ -50,8 +59,8 @@ export default async function InvitacionPage({
 
   async function accept() {
     "use server";
-    const result = await acceptInvitation(token);
-    if (result.ok) redirect(`/compartidos/${result.groupId}`);
+    const result = isFamilyInvitation ? await acceptFamilyInvitation(token) : await acceptInvitation(token);
+    if (result.ok) redirect(isFamilyInvitation ? "/familia" : `/compartidos/${"groupId" in result ? result.groupId : ""}`);
     redirect(`/invitacion/${token}?error=1`);
   }
 
@@ -94,7 +103,7 @@ export default async function InvitacionPage({
             <span className="brand-gradient">{groupName}</span>
           </h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-            Te han invitado a compartir gastos y saldos de grupo en Home Finance.
+            Te han invitado a {isFamilyInvitation ? "compartir todos los datos de la unidad familiar" : "compartir gastos y saldos de grupo"} en Home Finance.
             Para continuar, entra con tu cuenta o crea una nueva con el email
             invitado.
           </p>
@@ -159,14 +168,12 @@ export default async function InvitacionPage({
                 <Button
                   render={
                     <Link
-                      href={
-                        member.group_id ? `/compartidos/${member.group_id}` : "/compartidos"
-                      }
+                      href={isFamilyInvitation ? "/familia" : (sharedMember?.group_id ? `/compartidos/${sharedMember.group_id}` : "/compartidos")}
                     />
                   }
                   className="w-full"
                 >
-                  Ver compartidos
+                  {isFamilyInvitation ? "Ver unidad familiar" : "Ver compartidos"}
                   <ArrowRight data-icon="inline-end" />
                 </Button>
               </>

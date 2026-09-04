@@ -15,6 +15,7 @@ import type {
   SharedExpense,
 } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { ChartCard } from "@/components/charts/chart-card";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { StatCard } from "@/components/dashboard/summary-cards";
@@ -192,6 +193,7 @@ export default async function GlobalPage() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   const currentMonth = monthStart(new Date());
   const nextMonth = addMonths(currentMonth, 1);
 
@@ -220,11 +222,11 @@ export default async function GlobalPage() {
     supabase
       .from("family_expenses")
       .select("amount, occurred_at")
-      .eq("user_id", user.id),
+      .eq("family_unit_id", familyUnit?.id ?? ""),
     supabase
       .from("family_recurring_expenses")
       .select("monthly_amount, active, starts_on, ends_on")
-      .eq("user_id", user.id),
+      .eq("family_unit_id", familyUnit?.id ?? ""),
     supabase.from("shared_groups").select("id"),
     supabase
       .from("investments")

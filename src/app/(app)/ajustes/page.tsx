@@ -15,6 +15,7 @@ import {
   BudgetsManager,
   FamilyCategoriesManager,
 } from "./settings-forms";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 
 export const metadata = { title: "Ajustes" };
 
@@ -22,6 +23,8 @@ export default async function AjustesPage() {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  if (!familyUnit) redirect("/login");
 
   const [{ data: categories }, { data: budgets }, { data: familyCategories }] =
     await Promise.all([
@@ -30,7 +33,7 @@ export default async function AjustesPage() {
     supabase
       .from("family_expense_categories")
       .select("id, name, color")
-      .eq("user_id", user.id)
+      .eq("family_unit_id", familyUnit.id)
       .order("name"),
   ]);
 

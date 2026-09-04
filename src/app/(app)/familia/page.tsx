@@ -33,6 +33,8 @@ import { CategoryDonut } from "@/components/charts/category-donut";
 import { FamilyTotalPerPersonCard } from "@/components/family/family-total-per-person-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { FamilyMembersCard } from "@/components/family/family-members-card";
 
 export const metadata: Metadata = { title: "Gastos unidad familiar" };
 
@@ -78,32 +80,36 @@ export default async function FamilyExpensesPage({
   if (!user) redirect("/login");
 
   const supabase = await createClient();
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  if (!familyUnit) redirect("/login");
   const [
     { data: familyExpenseRows },
     { data: recurringRows },
     { data: preferenceRow },
     { data: familyCategoryRows },
+    { data: familyMemberRows },
   ] = await Promise.all([
     supabase
       .from("family_expenses")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("family_unit_id", familyUnit.id)
       .order("occurred_at", { ascending: false }),
     supabase
       .from("family_recurring_expenses")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("family_unit_id", familyUnit.id)
       .order("starts_on", { ascending: false }),
     supabase
       .from("family_expense_preferences")
       .select("people_count")
-      .eq("user_id", user.id)
+      .eq("family_unit_id", familyUnit.id)
       .maybeSingle(),
     supabase
       .from("family_expense_categories")
       .select("id, name, color")
-      .eq("user_id", user.id)
+      .eq("family_unit_id", familyUnit.id)
       .order("name"),
+    supabase.from("family_unit_members").select("id, user_id, email, display_name, role, status").eq("unit_id", familyUnit.id).order("created_at"),
   ]);
 
   const familyExpenses = (familyExpenseRows ?? []) as FamilyExpense[];
@@ -280,6 +286,12 @@ export default async function FamilyExpensesPage({
           </Suspense>
         </div>
       </div>
+
+      <FamilyMembersCard
+        unitId={familyUnit.id}
+        members={(familyMemberRows ?? []) as { id: string; email: string; display_name: string | null; role: "owner" | "member"; status: "invited" | "active" | "removed"; user_id: string | null }[]}
+        isOwner={familyUnit.owner_id === user.id}
+      />
 
       <Tabs defaultValue="month" className="grid gap-4">
         <TabsList className="w-fit">

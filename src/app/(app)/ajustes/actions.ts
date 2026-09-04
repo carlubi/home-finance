@@ -8,6 +8,7 @@ import { syncSalaryIncome } from "@/lib/salary";
 import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
 import type { Investment } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -145,6 +146,8 @@ export async function deleteCategory(id: string) {
 export async function createFamilyCategory(formData: FormData) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  if (!familyUnit) return { error: "No se pudo acceder a la unidad familiar." };
 
   const name = String(formData.get("name") ?? "").trim();
   const color = String(formData.get("color") ?? "#898781");
@@ -161,6 +164,7 @@ export async function createFamilyCategory(formData: FormData) {
 
   const { error } = await supabase.from("family_expense_categories").insert({
     user_id: user.id,
+    family_unit_id: familyUnit.id,
     name,
     color,
   });
@@ -181,12 +185,14 @@ export async function createFamilyCategory(formData: FormData) {
 export async function deleteFamilyCategory(id: string) {
   const { supabase, user } = await requireUser();
   if (!user) return { error: "Sesión caducada." };
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  if (!familyUnit) return { error: "No se pudo acceder a la unidad familiar." };
 
   const { data: category, error: categoryError } = await supabase
     .from("family_expense_categories")
     .select("name")
     .eq("id", id)
-    .eq("user_id", user.id)
+    .eq("family_unit_id", familyUnit.id)
     .maybeSingle();
   if (categoryError) return { error: "No se pudo eliminar la categoría familiar." };
   if (!category) return { ok: true };
@@ -196,12 +202,12 @@ export async function deleteFamilyCategory(id: string) {
       supabase
         .from("family_expenses")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .eq("family_unit_id", familyUnit.id)
         .eq("category", category.name),
       supabase
         .from("family_recurring_expenses")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .eq("family_unit_id", familyUnit.id)
         .eq("category", category.name),
     ]);
   if (expenseError || recurringError) {
@@ -217,7 +223,7 @@ export async function deleteFamilyCategory(id: string) {
     .from("family_expense_categories")
     .delete()
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("family_unit_id", familyUnit.id);
   if (error) return { error: "No se pudo eliminar la categoría familiar." };
 
   revalidatePath("/ajustes");

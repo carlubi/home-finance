@@ -75,11 +75,17 @@ async function activateInvitedAuthUser({
   }
 
   const admin = createAdminClient();
-  const { data: member } = await admin
+  const { data: sharedMember } = await admin
     .from("shared_group_members")
     .select("email, status")
     .eq("invite_token", token)
-    .single();
+    .maybeSingle();
+  const { data: familyMember } = sharedMember ? { data: null } : await admin
+    .from("family_unit_members")
+    .select("email, status")
+    .eq("invite_token", token)
+    .maybeSingle();
+  const member = sharedMember ?? familyMember;
 
   if (!member || member.status !== "invited") {
     return { error: "Esta invitación no está disponible." };

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { FamilyExpenseCategoryOption } from "@/lib/family";
 import type { Category, ExtractedTransaction, ImportedFile } from "@/lib/types";
 import { ReviewTable } from "./review-table";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 
 export const metadata = { title: "Revisar importación" };
 
@@ -16,6 +17,7 @@ export default async function RevisarImportacionPage({
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
 
   const [fileRes, rowsRes, categoriesRes, familyCategoriesRes] = await Promise.all([
     supabase.from("imported_files").select("*").eq("id", importId).single(),
@@ -28,7 +30,7 @@ export default async function RevisarImportacionPage({
     supabase
       .from("family_expense_categories")
       .select("id, name, color")
-      .eq("user_id", user.id)
+      .eq("family_unit_id", familyUnit?.id ?? "")
       .order("name"),
   ]);
 
@@ -59,7 +61,7 @@ export default async function RevisarImportacionPage({
         supabase
           .from("family_expenses")
           .select("amount, occurred_at")
-          .eq("user_id", user.id)
+          .eq("family_unit_id", familyUnit?.id ?? "")
           .in("occurred_at", dates),
       ]);
     const keys = new Set(

@@ -3,15 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isFamilyExpenseCategory } from "@/lib/family";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 
 async function getFamilyCategoryNames(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
+  familyUnitId: string
 ) {
   const { data } = await supabase
     .from("family_expense_categories")
     .select("name")
-    .eq("user_id", userId);
+    .eq("family_unit_id", familyUnitId);
   return (data ?? []).map((category) => category.name);
 }
 
@@ -62,7 +63,7 @@ export async function updateExtractedRow(input: {
 
   const familyCategoryNames =
     importedFile?.import_scope === "family"
-      ? await getFamilyCategoryNames(supabase, user.id)
+      ? await getFamilyCategoryNames(supabase, (await getOrCreateFamilyUnit(supabase, user))?.id ?? "")
       : [];
   const resolvedCategoryFields =
     importedFile?.import_scope === "family"
@@ -167,9 +168,12 @@ export async function confirmImport(importId: string) {
       };
     }
 
-    const familyCategoryNames = await getFamilyCategoryNames(supabase, user.id);
+    const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+    if (!familyUnit) return { error: "No se pudo acceder a la unidad familiar." };
+    const familyCategoryNames = await getFamilyCategoryNames(supabase, familyUnit.id);
     const familyExpenses = rows.map((row) => ({
       user_id: user.id,
+      family_unit_id: familyUnit.id,
       name: row.name,
       category: resolveFamilyCategory(row.suggested_category, familyCategoryNames),
       amount: row.amount,
