@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/components/layout/language-provider";
 import { PwaRegistration } from "@/components/layout/pwa-registration";
 import { Toaster } from "@/components/ui/sonner";
+import { NetworkStatus } from "@/components/layout/network-status";
 import { LANGUAGE_COOKIE, normalizeLanguage } from "@/lib/language";
 import "./globals.css";
 
@@ -43,6 +44,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
     { media: "(prefers-color-scheme: dark)", color: "#171321" },
@@ -68,6 +71,7 @@ export default async function RootLayout({
           <LanguageProvider initialLanguage={language}>
             <PwaRegistration />
             {children}
+            <NetworkStatus />
             <Toaster richColors position="top-center" />
           </LanguageProvider>
         </ThemeProvider>

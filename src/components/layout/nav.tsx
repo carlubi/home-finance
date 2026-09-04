@@ -6,6 +6,7 @@ import {
   ChartPie,
   FileText,
   Home,
+  Menu,
   PiggyBank,
   Settings,
   UserRound,
@@ -13,6 +14,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./brand-logo";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const items = [
   { href: "/", label: "Gastos personales", icon: UserRound },
@@ -64,13 +67,11 @@ export function Sidebar() {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const mobileItems = items.filter((item) =>
-    ["/", "/global", "/presupuestos", "/familia", "/informes"].includes(
-      item.href
-    )
-  );
+  const mobileItems = items.filter((item) => ["/", "/familia", "/global", "/presupuestos"].includes(item.href));
+  const moreItems = items.filter((item) => ["/informes", "/compartidos", "/ajustes"].includes(item.href));
+  const moreActive = moreItems.some((item) => isActive(pathname, item.href));
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background/95 backdrop-blur md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       {mobileItems.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
         return (
@@ -78,7 +79,7 @@ export function BottomNav() {
             key={href}
             href={href}
             className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground transition-colors",
+              "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors",
               active && "font-semibold text-primary"
             )}
           >
@@ -90,10 +91,26 @@ export function BottomNav() {
             >
               <Icon className="size-5" />
             </span>
-            {label}
+            {href === "/" ? "Personal" : href === "/presupuestos" ? "Presup." : label.replace("Gastos unidad ", "")}
           </Link>
         );
       })}
+      <Sheet>
+        <SheetTrigger render={<Button variant="ghost" className="h-auto min-h-14 flex-1 flex-col gap-0.5 rounded-none px-1 py-1.5 text-[10px]" />}>
+          <span className={cn("rounded-full px-3 py-0.5", moreActive && "bg-primary/12 text-primary")}><Menu className="size-5" /></span>
+          Más
+        </SheetTrigger>
+        <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <SheetHeader><SheetTitle>Más opciones</SheetTitle></SheetHeader>
+          <div className="grid gap-2">
+            {moreItems.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href} className={cn("flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors active:bg-accent", isActive(pathname, href) && "bg-primary/10 text-primary")}>
+                <Icon className="size-5" />{label}
+              </Link>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </nav>
   );
 }

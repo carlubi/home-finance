@@ -7,6 +7,12 @@
       "skillPath": "packages/playground/.agents/skills/frontend-design/SKILL.md",
       "computedHash": "537c1df9d0c694ecf9139a911f9ad0bd111a7ebc173a55457568459e543fe75b"
     },
+    "mobile-design": {
+      "source": "sickn33/agentic-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-design/SKILL.md",
+      "computedHash": "135d9ad1b3cc5b7f41f23b6a3e80672ee66307a338fa4e4570b6f5793f73f831"
+    },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",

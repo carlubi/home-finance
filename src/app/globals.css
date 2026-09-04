@@ -128,6 +128,36 @@
     @apply font-sans;
   }
 }
+
+/* Compact phones: preserve the desktop composition while increasing touch
+   targets and preventing horizontal clipping. */
+@media (max-width: 767px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  [data-slot="button"],
+  [data-slot="select-trigger"] {
+    min-height: 44px;
+  }
+
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-checkbox-item"],
+  [data-slot="select-item"] {
+    min-height: 44px;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  [data-slot="popover-content"] {
+    max-width: calc(100vw - 2rem);
+  }
+
+  .row-hover:hover {
+    padding-left: inherit;
+  }
+}
 /* ── Variables de visualización de datos (paleta validada) ── */
 :root {
   --viz-income: #1baf7a;
