@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { FamilyMembersCard } from "@/components/family/family-members-card";
+import { recurringMonthlyAmount } from "@/lib/recurring";
 
 export const metadata: Metadata = { title: "Gastos unidad familiar" };
 
@@ -127,7 +128,9 @@ export default async function FamilyExpensesPage({
       id: `recurring-${expense.id}`,
       name: expense.name,
       category: expense.category,
-      amount: Number(expense.monthly_amount),
+      amount: recurringMonthlyAmount(Number(expense.monthly_amount), expense.frequency ?? "monthly"),
+      entry_kind: expense.entry_kind ?? "expense",
+      frequency: expense.frequency ?? "monthly",
       occurred_at: month,
       people_count: expense.people_count,
       source: "recurring" as const,
@@ -146,7 +149,7 @@ export default async function FamilyExpensesPage({
     if (a.source !== b.source) return a.source === "recurring" ? -1 : 1;
     return b.occurred_at.localeCompare(a.occurred_at);
   });
-  const monthTotal = displayRows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const monthTotal = displayRows.reduce((sum, row) => sum + (row.entry_kind === "income" ? -1 : 1) * Number(row.amount), 0);
 
   const historicalDates = [
     ...familyExpenses
@@ -173,7 +176,7 @@ export default async function FamilyExpensesPage({
     );
     const total =
       punctual.reduce((sum, expense) => sum + Number(expense.amount), 0) +
-      recurring.reduce((sum, expense) => sum + Number(expense.monthly_amount), 0);
+      recurring.reduce((sum, expense) => sum + (expense.entry_kind === "income" ? -1 : 1) * recurringMonthlyAmount(Number(expense.monthly_amount), expense.frequency ?? "monthly"), 0);
     const totalPerPerson =
       punctual.reduce(
         (sum, expense) => sum + perPerson(Number(expense.amount), expense.people_count),
@@ -181,7 +184,7 @@ export default async function FamilyExpensesPage({
       ) +
       recurring.reduce(
         (sum, expense) =>
-          sum + perPerson(Number(expense.monthly_amount), expense.people_count),
+          sum + (expense.entry_kind === "income" ? -1 : 1) * perPerson(recurringMonthlyAmount(Number(expense.monthly_amount), expense.frequency ?? "monthly"), expense.people_count),
         0
       );
     return { month: overviewMonth, total, totalPerPerson };
@@ -200,7 +203,7 @@ export default async function FamilyExpensesPage({
       if (!recurringIsActive(expense, overviewMonth)) continue;
       categoryTotals.set(
         expense.category,
-        (categoryTotals.get(expense.category) ?? 0) + Number(expense.monthly_amount)
+        (categoryTotals.get(expense.category) ?? 0) + (expense.entry_kind === "income" ? -1 : 1) * recurringMonthlyAmount(Number(expense.monthly_amount), expense.frequency ?? "monthly")
       );
     }
   }
@@ -220,7 +223,7 @@ export default async function FamilyExpensesPage({
   displayRows.forEach((row) => {
     monthCategoryTotals.set(
       row.category,
-      (monthCategoryTotals.get(row.category) ?? 0) + Number(row.amount)
+      (monthCategoryTotals.get(row.category) ?? 0) + (row.entry_kind === "income" ? -1 : 1) * Number(row.amount)
     );
   });
   const monthCategoryData: CategoryTotal[] = [...monthCategoryTotals.entries()].map(

@@ -18,6 +18,7 @@ import { CategoryDonut } from "@/components/charts/category-donut";
 import { StatCard } from "@/components/dashboard/summary-cards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { recurringMonthlyAmount } from "@/lib/recurring";
 
 function shortMonth(month: string) {
   return new Date(month + "T00:00:00").toLocaleDateString("es-ES", {
@@ -48,6 +49,8 @@ type FixedExpenseCategoryRow = {
   user_id: string;
   category_id: string | null;
   amount: number | null;
+  entry_kind: "expense" | "income";
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
   active: boolean;
   starts_on: string | null;
   ends_on: string | null;
@@ -103,7 +106,7 @@ function fixedExpenseIsActiveInMonth(
   const startsOn = expense.starts_on ?? expense.created_at.slice(0, 10);
   return (
     expense.active &&
-    Number(expense.amount ?? 0) > 0 &&
+    expense.entry_kind !== "income" && Number(expense.amount ?? 0) > 0 &&
     startsOn <= month &&
     (!expense.ends_on || expense.ends_on >= month)
   );
@@ -169,7 +172,7 @@ function normalizeSummaries(
       0
     );
     const fixedTotal = activeFixedExpenses.reduce(
-      (total, expense) => total + Number(expense.amount ?? 0),
+      (total, expense) => total + recurringMonthlyAmount(Number(expense.amount ?? 0), expense.frequency ?? "monthly"),
       0
     );
     const representedFixedTotal = activeFixedExpenses
@@ -212,7 +215,7 @@ export default async function PersonalGlobalOverview() {
         .eq("user_id", user.id),
       supabase
         .from("fixed_expenses")
-        .select("id, name, user_id, category_id, amount, active, starts_on, ends_on, created_at, categories(name, color)")
+      .select("id, name, user_id, category_id, amount, entry_kind, frequency, active, starts_on, ends_on, created_at, categories(name, color)")
         .eq("user_id", user.id),
       supabase
         .from("investments")
@@ -297,7 +300,7 @@ export default async function PersonalGlobalOverview() {
         month,
         categoryId: expense.category_id,
         category: resolveCategory(expense.categories),
-        amount: Number(expense.amount ?? 0),
+        amount: recurringMonthlyAmount(Number(expense.amount ?? 0), expense.frequency ?? "monthly"),
       });
     }
   }

@@ -14,6 +14,7 @@ import {
   roundCents,
 } from "@/lib/finance";
 import { formatMoney } from "@/lib/format";
+import { recurringMonthlyAmount } from "@/lib/recurring";
 import type { CategoryTotal, Expense, FixedExpense, Investment } from "@/lib/types";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { ChartCard } from "@/components/charts/chart-card";
@@ -72,7 +73,7 @@ function activeFixedExpensesForMonth(fixedExpenses: FixedExpense[], month: strin
 
 function fixedExpensesTotal(fixedExpenses: FixedExpense[]) {
   return fixedExpenses.reduce(
-    (total, expense) => total + Number(expense.amount ?? 0),
+    (total, expense) => total + recurringMonthlyAmount(Number(expense.amount ?? 0), expense.frequency ?? "monthly"),
     0
   );
 }
@@ -96,7 +97,7 @@ function splitRepresentedFixedExpenses(
         comparableExpenseName(expense.name) ===
           comparableExpenseName(fixedExpense.name) &&
         Math.abs(
-          Number(expense.amount ?? 0) - Number(fixedExpense.amount ?? 0)
+          Number(expense.amount ?? 0) - recurringMonthlyAmount(Number(fixedExpense.amount ?? 0), fixedExpense.frequency ?? "monthly")
         ) < 0.01
     );
 
@@ -151,7 +152,7 @@ function mergeFixedExpensesByCategory(
     const key = expense.category_id ?? "none";
     const current = merged.get(key);
     if (current) {
-      current.total = Number(current.total) + Number(expense.amount ?? 0);
+      current.total = Number(current.total) + recurringMonthlyAmount(Number(expense.amount ?? 0), expense.frequency ?? "monthly");
       current.num_expenses = Number(current.num_expenses ?? 0) + 1;
       return;
     }
@@ -162,7 +163,7 @@ function mergeFixedExpensesByCategory(
       category_id: expense.category_id,
       category_name: expense.categories?.name ?? null,
       category_color: expense.categories?.color ?? null,
-      total: Number(expense.amount ?? 0),
+      total: recurringMonthlyAmount(Number(expense.amount ?? 0), expense.frequency ?? "monthly"),
       num_expenses: 1,
     });
   });
@@ -179,7 +180,7 @@ function fixedExpensesAsMonthExpenses(
     user_id: expense.user_id,
     name: expense.name,
     category_id: expense.category_id,
-    amount: Number(expense.amount ?? 0),
+    amount: recurringMonthlyAmount(Number(expense.amount ?? 0), expense.frequency ?? "monthly"),
     occurred_at: month,
     payment_method: null,
     notes: null,
@@ -248,7 +249,7 @@ export default async function DashboardPage({
     month
   );
   const allFixedExpenses = ((fixedExpenses ?? []) as FixedExpense[]).filter(
-    (expense) => expense.active && Number(expense.amount ?? 0) > 0
+    (expense) => expense.active && expense.entry_kind !== "income" && Number(expense.amount ?? 0) > 0
   );
   const monthFixedExpenses = activeFixedExpensesForMonth(allFixedExpenses, month);
   const prevMonth = new Date(month + "T00:00:00");

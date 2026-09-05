@@ -13,6 +13,7 @@ import {
   type FamilyExpenseCategoryOption,
 } from "@/lib/family";
 import { formatDate, formatMoney, formatMonth } from "@/lib/format";
+import { recurringFrequencyLabels } from "@/lib/recurring";
 import type { FamilyDisplayExpense, FamilyExpense } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,9 +66,9 @@ export function FamilyExpenseTable({
   const selectableRows = rows.filter((row) => row.source === "manual");
   const allSelected =
     selectableRows.length > 0 && selected.size === selectableRows.length;
-  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const total = rows.reduce((sum, row) => sum + (row.entry_kind === "income" ? -1 : 1) * Number(row.amount), 0);
   const totalPerPerson = rows.reduce(
-    (sum, row) => sum + perPerson(Number(row.amount), row.people_count),
+    (sum, row) => sum + (row.entry_kind === "income" ? -1 : 1) * perPerson(Number(row.amount), row.people_count),
     0
   );
   const showPerPerson = peopleCount > 1;
@@ -214,7 +215,7 @@ export function FamilyExpenseTable({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{row.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {row.source === "recurring" ? "Cada mes" : formatDate(row.occurred_at)}
+                      {row.source === "recurring" ? `${row.entry_kind === "income" ? "Ingreso" : "Gasto"} · ${recurringFrequencyLabels[row.frequency ?? "monthly"]}` : formatDate(row.occurred_at)}
                       {` · ${row.category}`}
                     </p>
                   </div>
@@ -232,7 +233,7 @@ export function FamilyExpenseTable({
                   >
                     <div className="min-w-20 text-right">
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">€/mes</p>
-                      <p className="text-sm font-semibold tabular-nums">{formatMoney(Number(row.amount))}</p>
+                      <p className={`text-sm font-semibold tabular-nums ${row.entry_kind === "income" ? "text-emerald-600" : ""}`}>{row.entry_kind === "income" ? "+" : ""}{formatMoney(Number(row.amount))}</p>
                     </div>
                     {showPerPerson && (
                       <div className="min-w-24 text-right">
@@ -246,7 +247,7 @@ export function FamilyExpenseTable({
 
                   <div className="flex shrink-0 items-center gap-2 sm:hidden">
                     <div className="text-right">
-                      <p className="text-sm font-semibold tabular-nums">{formatMoney(Number(row.amount))}</p>
+                      <p className={`text-sm font-semibold tabular-nums ${row.entry_kind === "income" ? "text-emerald-600" : ""}`}>{row.entry_kind === "income" ? "+" : ""}{formatMoney(Number(row.amount))}</p>
                       {showPerPerson && (
                         <p className="text-xs text-muted-foreground tabular-nums">
                           Por persona: {formatMoney(perPerson(Number(row.amount), row.people_count))}

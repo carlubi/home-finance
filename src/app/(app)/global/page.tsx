@@ -19,6 +19,7 @@ import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { ChartCard } from "@/components/charts/chart-card";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { StatCard } from "@/components/dashboard/summary-cards";
+import { recurringMonthlyAmount } from "@/lib/recurring";
 
 export const metadata = { title: "Visión global" };
 
@@ -47,7 +48,7 @@ function monthsBetween(start: string, end: string) {
 }
 
 function recurringFamilyTotalUntilNow(
-  expenses: Pick<FamilyRecurringExpense, "monthly_amount" | "active" | "starts_on" | "ends_on">[],
+  expenses: Pick<FamilyRecurringExpense, "monthly_amount" | "entry_kind" | "frequency" | "active" | "starts_on" | "ends_on">[],
   currentMonth: string
 ) {
   return expenses.reduce((total, expense) => {
@@ -59,7 +60,8 @@ function recurringFamilyTotalUntilNow(
       : currentMonth;
 
     if (start > end) return total;
-    return total + Number(expense.monthly_amount ?? 0) * monthsBetween(start, end).length;
+    if (expense.entry_kind === "income") return total;
+    return total + recurringMonthlyAmount(Number(expense.monthly_amount ?? 0), expense.frequency ?? "monthly") * monthsBetween(start, end).length;
   }, 0);
 }
 
@@ -94,6 +96,8 @@ type PersonalExpenseRow = {
 type PersonalFixedExpenseRow = {
   name: string;
   amount: number | null;
+  entry_kind: "expense" | "income";
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
   active: boolean;
   starts_on: string | null;
   ends_on: string | null;
@@ -111,7 +115,7 @@ function personalFixedExpenseIsActiveInMonth(
   const startsOn = expense.starts_on ?? expense.created_at.slice(0, 10);
   return (
     expense.active &&
-    Number(expense.amount ?? 0) > 0 &&
+    expense.entry_kind !== "income" && Number(expense.amount ?? 0) > 0 &&
     startsOn <= month &&
     (!expense.ends_on || expense.ends_on >= month)
   );
@@ -158,7 +162,7 @@ function normalizePersonalSummaries(
       0
     );
     const fixedTotal = activeFixedExpenses.reduce(
-      (total, expense) => total + Number(expense.amount ?? 0),
+      (total, expense) => total + recurringMonthlyAmount(Number(expense.amount ?? 0), expense.frequency ?? "monthly"),
       0
     );
     const representedFixedTotal = activeFixedExpenses
@@ -217,7 +221,7 @@ export default async function GlobalPage() {
       .eq("user_id", user.id),
     supabase
       .from("fixed_expenses")
-      .select("name, amount, active, starts_on, ends_on, created_at")
+      .select("name, amount, entry_kind, frequency, active, starts_on, ends_on, created_at")
       .eq("user_id", user.id),
     supabase
       .from("family_expenses")
@@ -225,7 +229,7 @@ export default async function GlobalPage() {
       .eq("family_unit_id", familyUnit?.id ?? ""),
     supabase
       .from("family_recurring_expenses")
-      .select("monthly_amount, active, starts_on, ends_on")
+      .select("monthly_amount, entry_kind, frequency, active, starts_on, ends_on")
       .eq("family_unit_id", familyUnit?.id ?? ""),
     supabase.from("shared_groups").select("id"),
     supabase
@@ -256,7 +260,7 @@ export default async function GlobalPage() {
     familyExpenseRows as Pick<FamilyExpense, "amount" | "occurred_at">[] | null | undefined
   );
   const familyRecurringExpenses = mapRows(
-    familyRecurringRows as Pick<FamilyRecurringExpense, "monthly_amount" | "active" | "starts_on" | "ends_on">[] | null | undefined
+    familyRecurringRows as Pick<FamilyRecurringExpense, "monthly_amount" | "entry_kind" | "frequency" | "active" | "starts_on" | "ends_on">[] | null | undefined
   );
   const sharedExpenses = mapRows(
     sharedExpenseRows as Pick<SharedExpense, "total_amount" | "occurred_at">[] | null | undefined

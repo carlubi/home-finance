@@ -9,6 +9,7 @@ import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
 import type { Investment } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { readRecurringEntryKind, readRecurringFrequency } from "@/lib/recurring";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -275,10 +276,12 @@ export async function saveFixedExpense(formData: FormData) {
   const categoryIdRaw = String(formData.get("category_id") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "").trim();
   const amount = parseMoneyInput(amountRaw);
+  const entryKind = readRecurringEntryKind(formData.get("entry_kind"));
+  const frequency = readRecurringFrequency(formData.get("frequency"));
   const changeScope = readChangeScope(formData);
   const effectiveMonth = readEffectiveMonth(formData);
 
-  if (!name) return { error: "El nombre del gasto fijo es obligatorio." };
+  if (!name) return { error: "El concepto recurrente es obligatorio." };
   if (amount === null || amount <= 0) {
     return { error: "El importe debe ser mayor que 0." };
   }
@@ -288,6 +291,8 @@ export async function saveFixedExpense(formData: FormData) {
     name,
     category_id: categoryIdRaw && categoryIdRaw !== "none" ? categoryIdRaw : null,
     amount,
+    entry_kind: entryKind,
+    frequency,
     active: true,
   };
   let error;
@@ -350,7 +355,7 @@ export async function saveFixedExpense(formData: FormData) {
     });
     error = result.error;
   }
-  if (error) return { error: "No se pudo guardar el gasto fijo." };
+  if (error) return { error: "No se pudo guardar el movimiento recurrente." };
 
   revalidatePath("/", "layout");
   revalidatePath("/ajustes");

@@ -43,11 +43,11 @@ export function FinancialSettingsDialog({
         <Settings2 className="size-4" />
         Ajustes recurrentes
       </DialogTrigger>
-      <DialogContent className="max-h-[min(820px,calc(100vh-2rem))] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[72rem]">
+      <DialogContent className="max-h-[min(820px,calc(100vh-2rem))] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[76rem]">
         <DialogHeader>
-          <DialogTitle>Ingreso, gastos e inversión recurrente</DialogTitle>
+          <DialogTitle>Ingresos, gastos e inversión recurrentes</DialogTitle>
           <DialogDescription>
-            Configura tu ingreso mensual, pagos recurrentes y aportaciones a
+            Configura tu salario, ingresos y gastos recurrentes, y aportaciones a
             inversión desde el resumen.
           </DialogDescription>
         </DialogHeader>
@@ -68,10 +68,10 @@ export function FinancialSettingsDialog({
 
         <section className="grid gap-3 rounded-lg border p-3">
           <div className="grid gap-1">
-            <h2 className="text-sm font-medium">Gastos mensuales fijos</h2>
+            <h2 className="text-sm font-medium">Ingresos y gastos recurrentes</h2>
             <p className="text-xs text-muted-foreground">
-              Añade, edita o elimina pagos recurrentes como alquiler, seguros o
-              suministros.
+              Registra cada concepto como gasto o ingreso, con frecuencia diaria,
+              semanal, mensual, trimestral o anual.
             </p>
           </div>
           <FixedExpensesManager

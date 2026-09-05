@@ -11,6 +11,16 @@ import {
   simplifyDebts,
   splitAmount,
 } from "./finance";
+import { recurringMonthlyAmount } from "./recurring";
+
+describe("recurring monthly equivalents", () => {
+  it("normaliza todas las frecuencias al presupuesto mensual", () => {
+    expect(recurringMonthlyAmount(10, "monthly")).toBe(10);
+    expect(recurringMonthlyAmount(120, "yearly")).toBe(10);
+    expect(recurringMonthlyAmount(30, "quarterly")).toBe(10);
+    expect(recurringMonthlyAmount(10, "weekly")).toBeCloseTo(43.33, 2);
+  });
+});
 
 describe("splitAmount", () => {
   it("reparte en partes iguales exactas", () => {

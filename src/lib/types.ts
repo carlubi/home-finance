@@ -87,6 +87,8 @@ export interface FixedExpense {
   name: string;
   category_id: string | null;
   amount: number | null;
+  entry_kind: "expense" | "income";
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
   active: boolean;
   starts_on: string | null;
   ends_on: string | null;
@@ -114,6 +116,8 @@ export interface FamilyRecurringExpense {
   name: string;
   category: string;
   monthly_amount: number;
+  entry_kind: "expense" | "income";
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
   people_count: number;
   active: boolean;
   starts_on: string;
@@ -128,6 +132,8 @@ export interface FamilyDisplayExpense {
   name: string;
   category: string;
   amount: number;
+  entry_kind?: "expense" | "income";
+  frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
   occurred_at: string;
   people_count: number;
   source: "manual" | "recurring";

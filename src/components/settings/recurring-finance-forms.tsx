@@ -33,6 +33,7 @@ import {
   saveInvestment,
   updateMonthlyIncome,
 } from "@/app/(app)/ajustes/actions";
+import { recurringFrequencyLabels } from "@/lib/recurring";
 
 function ChangeScopeFields({
   currentMonth,
@@ -268,11 +269,11 @@ export function FixedExpensesManager({
         ref={formRef}
         onInput={() => setNewSaved(false)}
         onChange={() => setNewSaved(false)}
-        action={(formData) => runSave(formData, "Gasto fijo añadido.")}
-        className="grid gap-3 lg:grid-cols-[minmax(11rem,1fr)_minmax(11rem,1fr)_9rem_auto]"
+        action={(formData) => runSave(formData, "Movimiento recurrente añadido.")}
+        className="grid gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_8rem_8rem_8rem_auto]"
       >
         <input type="hidden" name="effective_month" value={currentMonth} />
-        <Input name="name" placeholder="Nombre del gasto fijo" required />
+        <Input name="name" placeholder="Concepto recurrente" required />
         <Select
           name="category_id"
           defaultValue="none"
@@ -295,6 +296,14 @@ export function FixedExpensesManager({
               </SelectItem>
             ))}
           </SelectContent>
+        </Select>
+        <Select name="entry_kind" defaultValue="expense" items={[{ value: "expense", label: "Gasto" }, { value: "income", label: "Ingreso" }]}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="expense">Gasto</SelectItem><SelectItem value="income">Ingreso</SelectItem></SelectContent>
+        </Select>
+        <Select name="frequency" defaultValue="monthly" items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
         </Select>
         <SuffixedInput
           name="amount"
@@ -325,8 +334,8 @@ export function FixedExpensesManager({
                   return next;
                 })
               }
-              action={(formData) => runSave(formData, "Gasto fijo actualizado.")}
-              className="grid gap-2 rounded-lg border bg-muted/20 p-3 xl:grid-cols-[minmax(11rem,1.2fr)_minmax(11rem,1fr)_9rem_13rem_auto_auto]"
+              action={(formData) => runSave(formData, "Movimiento recurrente actualizado.")}
+              className="grid gap-2 rounded-lg border bg-muted/20 p-3 xl:grid-cols-[minmax(10rem,1.2fr)_minmax(10rem,1fr)_8rem_8rem_9rem_13rem_auto_auto]"
             >
               <input type="hidden" name="id" value={expense.id} />
               <Input
@@ -359,6 +368,14 @@ export function FixedExpensesManager({
                   ))}
                 </SelectContent>
               </Select>
+              <Select name="entry_kind" defaultValue={expense.entry_kind ?? "expense"} items={[{ value: "expense", label: "Gasto" }, { value: "income", label: "Ingreso" }]}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="expense">Gasto</SelectItem><SelectItem value="income">Ingreso</SelectItem></SelectContent>
+              </Select>
+              <Select name="frequency" defaultValue={expense.frequency ?? "monthly"} items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+              </Select>
               <SuffixedInput
                 key={`${expense.id}-amount-${expense.amount ?? "empty"}`}
                 name="amount"
@@ -388,7 +405,7 @@ export function FixedExpensesManager({
         </div>
       ) : (
         <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Aún no tienes gastos mensuales fijos.
+          Aún no tienes movimientos recurrentes.
         </p>
       )}
 
@@ -400,7 +417,7 @@ export function FixedExpensesManager({
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar este gasto recurrente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará «{confirmDelete?.name}» de los ajustes mensuales. Esta
+              Se eliminará «{confirmDelete?.name}» de los ajustes recurrentes. Esta
               acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>

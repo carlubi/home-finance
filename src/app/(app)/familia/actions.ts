@@ -7,6 +7,7 @@ import { monthStart, parseMoneyInput } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/config";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { readRecurringEntryKind, readRecurringFrequency } from "@/lib/recurring";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -262,6 +263,8 @@ export async function saveFamilyRecurringExpense(formData: FormData) {
   }
 
   const id = String(formData.get("id") ?? "").trim();
+  const entryKind = readRecurringEntryKind(formData.get("entry_kind"));
+  const frequency = readRecurringFrequency(formData.get("frequency"));
   const overlapping = await recurringExpenseOverlaps(supabase, familyUnit.id, {
     id: id || undefined,
     name: fields.name,
@@ -281,6 +284,8 @@ export async function saveFamilyRecurringExpense(formData: FormData) {
     name: fields.name,
     category: fields.category,
     monthly_amount: fields.amount,
+    entry_kind: entryKind,
+    frequency,
     people_count: fields.peopleCount,
     active: true,
     starts_on: startsOn,
