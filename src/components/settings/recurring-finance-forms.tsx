@@ -34,6 +34,7 @@ import {
   updateMonthlyIncome,
 } from "@/app/(app)/ajustes/actions";
 import { recurringFrequencyLabels, recurringMonthLabels } from "@/lib/recurring";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const INVESTMENT_TYPES = [
   { value: "fixed_income", label: "Fondos de renta fija" }, { value: "equity", label: "Fondos de renta variable" },
@@ -41,8 +42,9 @@ const INVESTMENT_TYPES = [
   { value: "crypto", label: "Criptomonedas" }, { value: "real_estate", label: "Fondos inmobiliarios" },
 ];
 
-export function CustomMonthsFields({ months = [] }: { months?: number[] | null }) {
-  return <div className="grid gap-1"><Label className="text-xs">Meses (si es personalizado)</Label><div className="flex flex-wrap gap-1">{recurringMonthLabels.map((label, index) => <label key={label} className="cursor-pointer rounded border px-1.5 py-0.5 text-xs"><input className="mr-1" type="checkbox" name="custom_months" value={index + 1} defaultChecked={months?.includes(index + 1)} />{label}</label>)}</div></div>;
+export function FrequencySelect({ defaultValue = "monthly", months = [] }: { defaultValue?: string; months?: number[] | null }) {
+  const [frequency, setFrequency] = useState(defaultValue); const [customMonths, setCustomMonths] = useState<number[]>(months ?? []); const [open, setOpen] = useState(false);
+  return <><Select name="frequency" value={frequency} onValueChange={(value) => { const next = value ?? "monthly"; setFrequency(next); if (next === "custom") setOpen(true); }} items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label: value === "custom" ? "Personalizar…" : label }))}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{value === "custom" ? "Personalizar…" : label}</SelectItem>)}</SelectContent></Select>{customMonths.map((month) => <input key={month} type="hidden" name="custom_months" value={month} />)}<Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Meses personalizados</DialogTitle></DialogHeader><div className="grid grid-cols-3 gap-2">{recurringMonthLabels.map((label, index) => { const month = index + 1; const selected = customMonths.includes(month); return <Button key={label} type="button" variant={selected ? "default" : "outline"} onClick={() => setCustomMonths((current) => selected ? current.filter((value) => value !== month) : [...current, month])}>{label}</Button>; })}</div><Button type="button" onClick={() => setOpen(false)}>Confirmar</Button></DialogContent></Dialog></>;
 }
 
 function ChangeScopeFields({
@@ -316,11 +318,7 @@ export function FixedExpensesManager({
             ))}
           </SelectContent>
         </Select>
-        <Select name="frequency" defaultValue="monthly" items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-        </Select>
-        <CustomMonthsFields />
+        <FrequencySelect />
         <SuffixedInput
           name="amount"
           inputMode="decimal"
@@ -384,11 +382,7 @@ export function FixedExpensesManager({
                   ))}
                 </SelectContent>
               </Select>
-              <Select name="frequency" defaultValue={expense.frequency ?? "monthly"} items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-              </Select>
-              <CustomMonthsFields months={expense.custom_months} />
+              <FrequencySelect defaultValue={expense.frequency ?? "monthly"} months={expense.custom_months} />
               <SuffixedInput
                 key={`${expense.id}-amount-${expense.amount ?? "empty"}`}
                 name="amount"
@@ -519,11 +513,7 @@ export function InvestmentsManager({
           placeholder="Ej. 300,00"
           required
         />
-        <Select name="frequency" defaultValue="monthly" items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="Frecuencia" /></SelectTrigger>
-          <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-        </Select>
-        <CustomMonthsFields />
+        <FrequencySelect />
         <Select name="investment_type" items={INVESTMENT_TYPES}>
           <SelectTrigger className="w-full"><SelectValue placeholder="Tipo de inversión" /></SelectTrigger>
           <SelectContent>{INVESTMENT_TYPES.map((type) => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}</SelectContent>
@@ -582,11 +572,7 @@ export function InvestmentsManager({
                 suffix="€"
                 placeholder="Ej. 300,00"
               />
-              <Select name="frequency" defaultValue={investment.frequency ?? "monthly"} items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-              </Select>
-              <CustomMonthsFields months={investment.custom_months} />
+              <FrequencySelect defaultValue={investment.frequency ?? "monthly"} months={investment.custom_months} />
               <Select name="investment_type" defaultValue={investment.investment_type ?? undefined} items={INVESTMENT_TYPES}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Tipo de inversión" /></SelectTrigger>
                 <SelectContent>{INVESTMENT_TYPES.map((type) => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}</SelectContent>

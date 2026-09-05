@@ -41,7 +41,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CustomMonthsFields } from "@/components/settings/recurring-finance-forms";
+import { FrequencySelect } from "@/components/settings/recurring-finance-forms";
 
 const INVESTMENT_TYPES = [
   { value: "fixed_income", label: "Fondos de renta fija" },
@@ -247,13 +247,9 @@ export function InvestmentList({
             {!editingOneOff && editScope !== "month" && (
               <div className="grid gap-2">
                 <Label>Frecuencia</Label>
-                <Select name="frequency" defaultValue={editing?.frequency ?? "monthly"} items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-                </Select>
+                <FrequencySelect defaultValue={editing?.frequency ?? "monthly"} months={editing?.custom_months} />
               </div>
             )}
-            {!editingOneOff && editScope !== "month" && <CustomMonthsFields months={editing?.custom_months} />}
 
             <div className="grid gap-2">
               <Label>Tipo de inversión</Label>
