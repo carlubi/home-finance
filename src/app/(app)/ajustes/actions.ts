@@ -9,7 +9,7 @@ import { FAMILY_EXPENSE_CATEGORIES } from "@/lib/family";
 import type { Investment } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
-import { readRecurringEntryKind, readRecurringFrequency } from "@/lib/recurring";
+import { readRecurringEntryKind, readRecurringFrequency, readRecurringMonths } from "@/lib/recurring";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -27,7 +27,7 @@ function readChangeScope(formData: FormData): ChangeScope {
 
 function readEffectiveMonth(formData: FormData) {
   const raw = String(formData.get("effective_month") ?? "").trim();
-  if (/^\d{4}-\d{2}-01$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw.slice(0, 7)}-01`;
   if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
   return monthStart(new Date());
 }
@@ -278,6 +278,8 @@ export async function saveFixedExpense(formData: FormData) {
   const amount = parseMoneyInput(amountRaw);
   const entryKind = readRecurringEntryKind(formData.get("entry_kind"));
   const frequency = readRecurringFrequency(formData.get("frequency"));
+  const customMonths = readRecurringMonths(formData);
+  if (frequency === "custom" && customMonths.length === 0) return { error: "Selecciona al menos un mes." };
   const changeScope = readChangeScope(formData);
   const effectiveMonth = readEffectiveMonth(formData);
 
@@ -293,6 +295,7 @@ export async function saveFixedExpense(formData: FormData) {
     amount,
     entry_kind: entryKind,
     frequency,
+    custom_months: customMonths,
     active: true,
   };
   let error;
@@ -406,6 +409,13 @@ export async function saveInvestment(formData: FormData) {
     : null;
   const entryType =
     formData.get("investment_entry_type") === "one_off" ? "one_off" : "recurring";
+  const frequency = readRecurringFrequency(formData.get("frequency"));
+  const customMonths = readRecurringMonths(formData);
+  if (frequency === "custom" && customMonths.length === 0) return { error: "Selecciona al menos un mes." };
+  const investmentType = ["fixed_income", "equity", "mixed", "money_market", "crypto", "real_estate"].includes(String(formData.get("investment_type")))
+    ? String(formData.get("investment_type"))
+    : null;
+  const categoryId = String(formData.get("category_id") ?? "").trim() || null;
 
   if (!name) return { error: "El fondo o inversión es obligatorio." };
   if (monthlyAmountRaw && (monthlyAmount === null || monthlyAmount <= 0)) {
@@ -442,6 +452,10 @@ export async function saveInvestment(formData: FormData) {
     one_off_amount: entryType === "one_off" ? oneOffAmount : null,
     accumulated_capital: accumulatedCapital,
     expected_annual_return_pct: expectedAnnualReturnPct,
+    frequency,
+    investment_type: investmentType,
+    custom_months: customMonths,
+    category_id: categoryId,
   };
   let error;
   if (id && changeScope === "from_month") {
@@ -544,5 +558,80 @@ export async function deleteInvestment(id: string) {
   revalidatePath("/ajustes");
   revalidatePath("/global");
   revalidatePath("/informes");
+  return { ok: true };
+}
+
+async function splitInvestmentAtMonth(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  investment: Investment,
+  month: string,
+  monthAmount: number | null
+) {
+  const previousMonth = addMonths(month, -1);
+  const nextMonth = addMonths(month, 1);
+  const startsOn = investment.starts_on ?? investment.created_at.slice(0, 10);
+  const capitalBeforeMonth = investmentActualValueAtMonth([investment], previousMonth);
+
+  const closeResult = startsOn < month
+    ? await supabase.from("investments").update({ ends_on: previousMonth }).eq("id", investment.id).eq("user_id", userId)
+    : await supabase.from("investments").delete().eq("id", investment.id).eq("user_id", userId);
+  if (closeResult.error) return closeResult.error;
+
+  if (monthAmount !== null) {
+    const { error } = await supabase.from("investments").insert({
+      user_id: userId,
+      name: investment.name,
+      monthly_amount: null,
+      one_off_amount: monthAmount,
+      accumulated_capital: 0,
+      expected_annual_return_pct: investment.expected_annual_return_pct,
+      frequency: investment.frequency ?? "monthly",
+      investment_type: investment.investment_type ?? null,
+      starts_on: month,
+      ends_on: month,
+    });
+    if (error) return error;
+  }
+
+  const { error } = await supabase.from("investments").insert({
+    user_id: userId,
+    name: investment.name,
+    monthly_amount: investment.monthly_amount,
+    one_off_amount: null,
+    accumulated_capital: capitalBeforeMonth + (monthAmount ?? 0),
+    expected_annual_return_pct: investment.expected_annual_return_pct,
+    frequency: investment.frequency ?? "monthly",
+    investment_type: investment.investment_type ?? null,
+    starts_on: nextMonth,
+    ends_on: investment.ends_on,
+  });
+  return error;
+}
+
+export async function saveInvestmentMonthOverride(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+  const id = String(formData.get("id") ?? "").trim();
+  const month = readEffectiveMonth(formData);
+  const amount = parseMoneyInput(String(formData.get("monthly_amount") ?? "").trim());
+  if (!id || amount === null || amount <= 0) return { error: "El importe debe ser mayor que 0." };
+  const { data, error: readError } = await supabase.from("investments").select("*").eq("id", id).eq("user_id", user.id).single();
+  if (readError || !data) return { error: "No se pudo encontrar la inversión recurrente." };
+  const error = await splitInvestmentAtMonth(supabase, user.id, data as Investment, month, amount);
+  if (error) return { error: "No se pudo guardar la excepción de este mes." };
+  revalidatePath("/", "layout"); revalidatePath("/ajustes"); revalidatePath("/global"); revalidatePath("/informes");
+  return { ok: true };
+}
+
+export async function skipInvestmentForMonth(id: string, month: string) {
+  const { supabase, user } = await requireUser();
+  if (!user) return { error: "Sesión caducada." };
+  if (!/^\d{4}-\d{2}-01$/.test(month)) return { error: "Mes no válido." };
+  const { data, error: readError } = await supabase.from("investments").select("*").eq("id", id).eq("user_id", user.id).single();
+  if (readError || !data) return { error: "No se pudo encontrar la inversión recurrente." };
+  const error = await splitInvestmentAtMonth(supabase, user.id, data as Investment, month, null);
+  if (error) return { error: "No se pudo eliminar esta inversión del mes." };
+  revalidatePath("/", "layout"); revalidatePath("/ajustes"); revalidatePath("/global"); revalidatePath("/informes");
   return { ok: true };
 }

@@ -35,7 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { FamilyMembersCard } from "@/components/family/family-members-card";
-import { recurringMonthlyAmount } from "@/lib/recurring";
+import { recurringMonthlyAmount, recurringOccursInMonth } from "@/lib/recurring";
 
 export const metadata: Metadata = { title: "Gastos unidad familiar" };
 
@@ -52,6 +52,7 @@ function recurringIsActive(expense: FamilyRecurringExpense, month: string) {
     expense.active &&
     expense.starts_on <= month &&
     (!expense.ends_on || expense.ends_on >= month)
+    && recurringOccursInMonth(expense.frequency ?? "monthly", expense.custom_months, month)
   );
 }
 
@@ -89,6 +90,7 @@ export default async function FamilyExpensesPage({
     { data: preferenceRow },
     { data: familyCategoryRows },
     { data: familyMemberRows },
+    { data: recurringSkipRows },
   ] = await Promise.all([
     supabase
       .from("family_expenses")
@@ -111,6 +113,7 @@ export default async function FamilyExpensesPage({
       .eq("family_unit_id", familyUnit.id)
       .order("name"),
     supabase.from("family_unit_members").select("id, user_id, email, display_name, role, status").eq("unit_id", familyUnit.id).order("created_at"),
+    supabase.from("family_recurring_expense_skips").select("recurring_expense_id, month").eq("family_unit_id", familyUnit.id),
   ]);
 
   const familyExpenses = (familyExpenseRows ?? []) as FamilyExpense[];
@@ -122,7 +125,12 @@ export default async function FamilyExpensesPage({
   );
   const preferredPeopleCount = Number(preferenceRow?.people_count ?? 1);
   const monthExpenses = familyExpenses.filter((expense) => monthKey(expense.occurred_at) === month);
-  const activeRecurring = recurringExpenses.filter((expense) => recurringIsActive(expense, month));
+  const recurringIsOverridden = (recurringId: string, targetMonth: string) =>
+    familyExpenses.some((expense) => expense.recurring_expense_id === recurringId && monthKey(expense.occurred_at) === targetMonth) ||
+    (recurringSkipRows ?? []).some((skip) => skip.recurring_expense_id === recurringId && skip.month === targetMonth);
+  const activeRecurring = recurringExpenses.filter(
+    (expense) => recurringIsActive(expense, month) && !recurringIsOverridden(expense.id, month)
+  );
   const displayRows: FamilyDisplayExpense[] = [
     ...activeRecurring.map((expense) => ({
       id: `recurring-${expense.id}`,
@@ -172,7 +180,7 @@ export default async function FamilyExpensesPage({
       (expense) => monthKey(expense.occurred_at) === overviewMonth
     );
     const recurring = recurringExpenses.filter((expense) =>
-      recurringIsActive(expense, overviewMonth)
+      recurringIsActive(expense, overviewMonth) && !recurringIsOverridden(expense.id, overviewMonth)
     );
     const total =
       punctual.reduce((sum, expense) => sum + Number(expense.amount), 0) +
@@ -200,7 +208,7 @@ export default async function FamilyExpensesPage({
       );
     }
     for (const expense of recurringExpenses) {
-      if (!recurringIsActive(expense, overviewMonth)) continue;
+      if (!recurringIsActive(expense, overviewMonth) || recurringIsOverridden(expense.id, overviewMonth)) continue;
       categoryTotals.set(
         expense.category,
         (categoryTotals.get(expense.category) ?? 0) + (expense.entry_kind === "income" ? -1 : 1) * recurringMonthlyAmount(Number(expense.monthly_amount), expense.frequency ?? "monthly")
@@ -327,6 +335,7 @@ export default async function FamilyExpensesPage({
             month={month}
             rows={displayRows}
             manualExpenses={monthExpenses}
+            recurringExpenses={recurringExpenses}
             peopleCount={preferredPeopleCount}
             categories={familyCategories}
           />

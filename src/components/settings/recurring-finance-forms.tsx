@@ -33,7 +33,17 @@ import {
   saveInvestment,
   updateMonthlyIncome,
 } from "@/app/(app)/ajustes/actions";
-import { recurringFrequencyLabels } from "@/lib/recurring";
+import { recurringFrequencyLabels, recurringMonthLabels } from "@/lib/recurring";
+
+const INVESTMENT_TYPES = [
+  { value: "fixed_income", label: "Fondos de renta fija" }, { value: "equity", label: "Fondos de renta variable" },
+  { value: "mixed", label: "Fondos de renta mixta" }, { value: "money_market", label: "Fondos monetarios" },
+  { value: "crypto", label: "Criptomonedas" }, { value: "real_estate", label: "Fondos inmobiliarios" },
+];
+
+export function CustomMonthsFields({ months = [] }: { months?: number[] | null }) {
+  return <div className="grid gap-1"><Label className="text-xs">Meses (si es personalizado)</Label><div className="flex flex-wrap gap-1">{recurringMonthLabels.map((label, index) => <label key={label} className="cursor-pointer rounded border px-1.5 py-0.5 text-xs"><input className="mr-1" type="checkbox" name="custom_months" value={index + 1} defaultChecked={months?.includes(index + 1)} />{label}</label>)}</div></div>;
+}
 
 function ChangeScopeFields({
   currentMonth,
@@ -224,10 +234,12 @@ export function FixedExpensesManager({
   fixedExpenses,
   categories,
   currentMonth,
+  entryKind = "expense",
 }: {
   fixedExpenses: FixedExpense[];
   categories: Category[];
   currentMonth: string;
+  entryKind?: "expense" | "income";
 }) {
   const [pending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState<FixedExpense | null>(null);
@@ -235,6 +247,8 @@ export function FixedExpensesManager({
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
+  const entries = fixedExpenses.filter((expense) => expense.entry_kind === entryKind);
+  const entryLabel = entryKind === "income" ? "Ingreso" : "Gasto";
 
   function runSave(formData: FormData, successMessage: string) {
     startTransition(async () => {
@@ -270,10 +284,15 @@ export function FixedExpensesManager({
         onInput={() => setNewSaved(false)}
         onChange={() => setNewSaved(false)}
         action={(formData) => runSave(formData, "Movimiento recurrente añadido.")}
-        className="grid gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_8rem_8rem_8rem_auto]"
+        className="grid min-w-0 grid-flow-col auto-cols-[minmax(7rem,1fr)] items-end gap-2"
       >
         <input type="hidden" name="effective_month" value={currentMonth} />
-        <Input name="name" placeholder="Concepto recurrente" required />
+        <input type="hidden" name="entry_kind" value={entryKind} />
+        {entryKind === "income" ? (
+          <Input id="recurring-income-name" name="name" placeholder="Concepto" required />
+        ) : (
+          <Input name="name" placeholder={`Concepto de ${entryLabel.toLowerCase()} recurrente`} required />
+        )}
         <Select
           name="category_id"
           defaultValue="none"
@@ -297,14 +316,11 @@ export function FixedExpensesManager({
             ))}
           </SelectContent>
         </Select>
-        <Select name="entry_kind" defaultValue="expense" items={[{ value: "expense", label: "Gasto" }, { value: "income", label: "Ingreso" }]}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="expense">Gasto</SelectItem><SelectItem value="income">Ingreso</SelectItem></SelectContent>
-        </Select>
         <Select name="frequency" defaultValue="monthly" items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
         </Select>
+        <CustomMonthsFields />
         <SuffixedInput
           name="amount"
           inputMode="decimal"
@@ -315,9 +331,9 @@ export function FixedExpensesManager({
         <SaveStatusButton saved={newSaved} pending={pending} label="Añadir" />
       </form>
 
-      {fixedExpenses.length > 0 ? (
+      {entries.length > 0 ? (
         <div className="grid gap-2">
-          {fixedExpenses.map((expense) => (
+          {entries.map((expense) => (
             <form
               key={expense.id}
               onInput={() =>
@@ -335,15 +351,15 @@ export function FixedExpensesManager({
                 })
               }
               action={(formData) => runSave(formData, "Movimiento recurrente actualizado.")}
-              className="grid gap-2 rounded-lg border bg-muted/20 p-3 xl:grid-cols-[minmax(10rem,1.2fr)_minmax(10rem,1fr)_8rem_8rem_9rem_13rem_auto_auto]"
+              className="grid min-w-0 grid-flow-col auto-cols-[minmax(7rem,1fr)] items-end gap-2 rounded-lg border bg-muted/20 p-3"
             >
               <input type="hidden" name="id" value={expense.id} />
-              <Input
-                key={`${expense.id}-name-${expense.name}`}
-                name="name"
-                defaultValue={expense.name}
-                required
-              />
+              <input type="hidden" name="entry_kind" value={entryKind} />
+              {entryKind === "income" ? (
+                <Input id={`recurring-income-name-${expense.id}`} key={`${expense.id}-name-${expense.name}`} name="name" placeholder="Concepto" defaultValue={expense.name} required />
+              ) : (
+                <Input key={`${expense.id}-name-${expense.name}`} name="name" defaultValue={expense.name} required />
+              )}
               <Select
                 key={`${expense.id}-category-${expense.category_id ?? "none"}`}
                 name="category_id"
@@ -368,14 +384,11 @@ export function FixedExpensesManager({
                   ))}
                 </SelectContent>
               </Select>
-              <Select name="entry_kind" defaultValue={expense.entry_kind ?? "expense"} items={[{ value: "expense", label: "Gasto" }, { value: "income", label: "Ingreso" }]}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="expense">Gasto</SelectItem><SelectItem value="income">Ingreso</SelectItem></SelectContent>
-              </Select>
               <Select name="frequency" defaultValue={expense.frequency ?? "monthly"} items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
               </Select>
+              <CustomMonthsFields months={expense.custom_months} />
               <SuffixedInput
                 key={`${expense.id}-amount-${expense.amount ?? "empty"}`}
                 name="amount"
@@ -405,7 +418,7 @@ export function FixedExpensesManager({
         </div>
       ) : (
         <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Aún no tienes movimientos recurrentes.
+          Aún no tienes {entryLabel.toLowerCase()}s recurrentes.
         </p>
       )}
 
@@ -495,7 +508,7 @@ export function InvestmentsManager({
         onInput={() => setNewSaved(false)}
         onChange={() => setNewSaved(false)}
         action={(formData) => runSave(formData, "Inversión recurrente añadida.")}
-        className="grid gap-3 lg:grid-cols-[minmax(12rem,1fr)_9rem_9rem_9rem_auto]"
+        className="grid min-w-0 grid-flow-col auto-cols-[minmax(7rem,1fr)] items-end gap-2"
       >
         <input type="hidden" name="effective_month" value={currentMonth} />
         <Input name="name" placeholder="Fondo o inversión" required />
@@ -506,6 +519,15 @@ export function InvestmentsManager({
           placeholder="Ej. 300,00"
           required
         />
+        <Select name="frequency" defaultValue="monthly" items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="Frecuencia" /></SelectTrigger>
+          <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+        </Select>
+        <CustomMonthsFields />
+        <Select name="investment_type" items={INVESTMENT_TYPES}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="Tipo de inversión" /></SelectTrigger>
+          <SelectContent>{INVESTMENT_TYPES.map((type) => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}</SelectContent>
+        </Select>
         <SuffixedInput
           name="expected_annual_return_pct"
           inputMode="decimal"
@@ -543,7 +565,7 @@ export function InvestmentsManager({
               action={(formData) =>
                 runSave(formData, "Inversión recurrente actualizada.")
               }
-              className="grid gap-2 rounded-lg border bg-muted/20 p-3 xl:grid-cols-[minmax(12rem,1fr)_9rem_9rem_9rem_13rem_auto_auto]"
+              className="grid min-w-0 grid-flow-col auto-cols-[minmax(7rem,1fr)] items-end gap-2 rounded-lg border bg-muted/20 p-3"
             >
               <input type="hidden" name="id" value={investment.id} />
               <Input
@@ -560,6 +582,15 @@ export function InvestmentsManager({
                 suffix="€"
                 placeholder="Ej. 300,00"
               />
+              <Select name="frequency" defaultValue={investment.frequency ?? "monthly"} items={Object.entries(recurringFrequencyLabels).map(([value, label]) => ({ value, label }))}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(recurringFrequencyLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+              </Select>
+              <CustomMonthsFields months={investment.custom_months} />
+              <Select name="investment_type" defaultValue={investment.investment_type ?? undefined} items={INVESTMENT_TYPES}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Tipo de inversión" /></SelectTrigger>
+                <SelectContent>{INVESTMENT_TYPES.map((type) => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}</SelectContent>
+              </Select>
               <SuffixedInput
                 key={`${investment.id}-return-${investment.expected_annual_return_pct ?? "empty"}`}
                 name="expected_annual_return_pct"

@@ -15,6 +15,7 @@ interface TransactionInput {
   notes: string | null;
   attachment_path?: string | null;
   tags?: string[];
+  fixed_expense_id?: string | null;
 }
 
 function table(kind: "expense" | "income") {
@@ -47,10 +48,12 @@ export async function saveTransaction(input: TransactionInput) {
           payment_method: input.payment_method ?? null,
           attachment_path: input.attachment_path ?? null,
           tags: input.tags ?? [],
+          fixed_expense_id: input.fixed_expense_id ?? null,
         }
       : {
           ...base,
           is_recurring: input.is_recurring ?? false,
+          fixed_expense_id: input.fixed_expense_id ?? null,
           // Editar un salario automático lo "desengancha" de Ajustes: se
           // convierte en un ingreso normal y los cambios futuros del
           // ingreso mensual ya no tocan este mes.
@@ -104,6 +107,21 @@ export async function deleteTransaction(kind: "expense" | "income", id: string) 
     .eq("user_id", user.id);
   if (error) return { error: "No se pudo eliminar." };
 
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function skipFixedExpenseForMonth(fixedExpenseId: string, month: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sesión caducada." };
+  if (!/^\d{4}-\d{2}-01$/.test(month)) return { error: "Mes no válido." };
+
+  const { error } = await supabase.from("fixed_expense_skips").upsert(
+    { user_id: user.id, fixed_expense_id: fixedExpenseId, month },
+    { onConflict: "fixed_expense_id,month" }
+  );
+  if (error) return { error: "No se pudo eliminar este gasto del mes." };
   revalidatePath("/", "layout");
   return { ok: true };
 }

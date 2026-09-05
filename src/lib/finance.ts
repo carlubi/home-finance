@@ -1,4 +1,5 @@
 // Lógica de cálculo financiero pura (testeable sin Supabase)
+import { recurringMonthlyAmount, recurringOccursInMonth } from "./recurring";
 
 export interface MemberBalance {
   memberId: string;
@@ -150,6 +151,8 @@ export interface InvestmentLike {
   starts_on?: string | null;
   ends_on?: string | null;
   created_at: string;
+  frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+  custom_months?: number[] | null;
 }
 
 function monthIndex(month: string): number {
@@ -186,7 +189,7 @@ export function investmentMonthlyContribution(
   return roundCents(
     investments.reduce((total, investment) => {
       if (month && activeInvestmentMonths(investment, month) === 0) return total;
-      return total + Number(investment.monthly_amount ?? 0);
+      return total + recurringMonthlyAmount(Number(investment.monthly_amount ?? 0), investment.frequency ?? "monthly", investment.custom_months ?? []);
     }, 0)
   );
 }
@@ -197,13 +200,13 @@ export function investmentMonthlyOutflow(
 ): number {
   return roundCents(
     investments.reduce((total, investment) => {
-      if (activeInvestmentMonths(investment, month) === 0) return total;
+      if (activeInvestmentMonths(investment, month) === 0 || !recurringOccursInMonth(investment.frequency ?? "monthly", investment.custom_months, month)) return total;
       const startsThisMonth =
         monthIndex(investmentStartMonth(investment)) === monthIndex(month);
 
       return (
         total +
-        Number(investment.monthly_amount ?? 0) +
+        recurringMonthlyAmount(Number(investment.monthly_amount ?? 0), investment.frequency ?? "monthly", investment.custom_months ?? []) +
         (startsThisMonth ? Number(investment.one_off_amount ?? 0) : 0)
       );
     }, 0)
@@ -222,7 +225,7 @@ export function investmentActualValueAtMonth(
         total +
         Number(investment.accumulated_capital ?? 0) +
         Number(investment.one_off_amount ?? 0) +
-        Number(investment.monthly_amount ?? 0) * months
+        recurringMonthlyAmount(Number(investment.monthly_amount ?? 0), investment.frequency ?? "monthly", investment.custom_months ?? []) * months
       );
     }, 0)
   );
@@ -240,7 +243,7 @@ export function investmentProjectedValueAtMonth(
       const startingCapital =
         Number(investment.accumulated_capital ?? 0) +
         Number(investment.one_off_amount ?? 0);
-      const monthlyAmount = Number(investment.monthly_amount ?? 0);
+      const monthlyAmount = recurringMonthlyAmount(Number(investment.monthly_amount ?? 0), investment.frequency ?? "monthly", investment.custom_months ?? []);
       const annualReturn = Number(investment.expected_annual_return_pct ?? 0) / 100;
       const monthlyReturn =
         annualReturn > -1 ? Math.pow(1 + annualReturn, 1 / 12) - 1 : 0;

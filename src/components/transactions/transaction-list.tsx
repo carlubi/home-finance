@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -16,9 +16,11 @@ import {
 import {
   deleteTransaction,
   deleteTransactions,
+  skipFixedExpenseForMonth,
 } from "@/app/(app)/transactions/actions";
+import { updateMonthlyIncome } from "@/app/(app)/ajustes/actions";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { Category, Expense, Income } from "@/lib/types";
+import type { Category, Expense, FixedExpense, Income } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,10 +41,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TransactionDialog } from "./transaction-dialog";
+import { FixedExpenseDialog } from "@/components/settings/fixed-expense-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Tx = (Expense | Income) & {
   categories?: Category | null;
   readOnlyReason?: string;
+  recurringExpense?: FixedExpense;
 };
 
 export function TransactionList({
@@ -67,6 +74,9 @@ export function TransactionList({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingRecurring, setEditingRecurring] = useState<FixedExpense | null>(null);
+  const [editingSalary, setEditingSalary] = useState<Income | null>(null);
+  const [savingSalary, startSalaryTransition] = useTransition();
 
   const selectableItems = items.filter((item) => !item.readOnlyReason);
   const allSelected =
@@ -118,6 +128,26 @@ export function TransactionList({
       setDeleting(false);
       setConfirmBulk(false);
     }
+  }
+
+  async function skipRecurring(expense: FixedExpense) {
+    const label = kind === "income" ? "ingreso" : "gasto";
+    if (!window.confirm(`¿Eliminar «${expense.name}» solo de este mes?`)) return;
+    const result = await skipFixedExpenseForMonth(expense.id, defaultDate);
+    if (result.error) toast.error(result.error);
+    else { toast.success(`${label[0].toUpperCase()}${label.slice(1)} recurrente eliminado de este mes.`); router.refresh(); }
+  }
+
+  function saveSalary(formData: FormData) {
+    startSalaryTransition(async () => {
+      const result = await updateMonthlyIncome(formData);
+      if (result.error) toast.error(result.error);
+      else {
+        toast.success("Ingreso recurrente actualizado.");
+        setEditingSalary(null);
+        router.refresh();
+      }
+    });
   }
 
   return (
@@ -260,13 +290,9 @@ export function TransactionList({
                     : ""}
                 </p>
               </div>
-              {"auto_salary" in tx && tx.auto_salary && (
-                <Badge
-                  variant="secondary"
-                  className="hidden sm:inline-flex"
-                  title="Generado por el ingreso mensual de Ajustes. Si lo editas, este mes se personaliza y deja de sincronizarse."
-                >
-                  Automático
+              {(tx.recurringExpense || ("is_recurring" in tx && tx.is_recurring)) && (
+                <Badge className="hidden border-transparent bg-muted text-muted-foreground hover:bg-muted sm:inline-flex">
+                  Recurrente
                 </Badge>
               )}
               {tx.source === "import" && (
@@ -283,11 +309,29 @@ export function TransactionList({
                 {kind === "expense" ? "−" : "+"}
                 {formatMoney(tx.amount)}
               </span>
-              {!tx.readOnlyReason && (
+              {tx.recurringExpense ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8 cursor-pointer" aria-label={`Editar ${tx.name}`}><MoreVertical className="size-4" /></Button>} />
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuItem onClick={() => setEditingRecurring(tx.recurringExpense ?? null)}><Pencil />Editar recurrente</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setEditing(tx); setDialogOpen(true); }}><Pencil />Editar este gasto</DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" onClick={() => tx.recurringExpense && skipRecurring(tx.recurringExpense)}><Trash2 />Eliminar este gasto</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : ("auto_salary" in tx && tx.auto_salary) ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8 cursor-pointer" aria-label={`Editar ${tx.name}`}><MoreVertical className="size-4" /></Button>} />
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuItem onClick={() => setEditingSalary(tx as Income)}><Pencil />Editar recurrente</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setEditing(tx); setDialogOpen(true); }}><Pencil />Editar este ingreso</DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(tx)}><Trash2 />Eliminar este ingreso</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : !tx.readOnlyReason && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button variant="ghost" size="icon" className="size-8">
+                      <Button variant="ghost" size="icon" className="size-8 cursor-pointer">
                         <MoreVertical className="size-4" />
                       </Button>
                     }
@@ -325,7 +369,30 @@ export function TransactionList({
         initial={editing}
         userId={userId}
         defaultDate={defaultDate}
+        recurringExpenseId={editing?.recurringExpense?.id}
+        minimalIncomeEdit={kind === "income" && Boolean(editing && "auto_salary" in editing && editing.auto_salary)}
       />
+      <FixedExpenseDialog
+        expense={editingRecurring}
+        categories={categories}
+        currentMonth={defaultDate}
+        open={editingRecurring !== null}
+        onOpenChange={(open) => !open && setEditingRecurring(null)}
+      />
+      <Dialog open={editingSalary !== null} onOpenChange={(open) => !open && setEditingSalary(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar ingreso recurrente</DialogTitle></DialogHeader>
+          <form action={saveSalary} className="grid gap-4">
+            <input type="hidden" name="change_scope" value="global" />
+            <input type="hidden" name="effective_month" value={defaultDate} />
+            <div className="grid gap-2">
+              <Label htmlFor="recurring-income-amount">Importe mensual</Label>
+              <Input id="recurring-income-amount" name="monthly_income" type="number" min="0.01" step="0.01" required defaultValue={editingSalary?.amount ?? ""} />
+            </div>
+            <Button type="submit" disabled={savingSalary}>{savingSalary ? "Guardando…" : "Guardar cambios"}</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={confirmDelete !== null}

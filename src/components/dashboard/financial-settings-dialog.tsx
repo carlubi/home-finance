@@ -14,20 +14,19 @@ import {
 import {
   FixedExpensesManager,
   InvestmentsManager,
-  MonthlyIncomeForm,
 } from "@/components/settings/recurring-finance-forms";
 
 export function FinancialSettingsDialog({
-  monthlyIncome,
   fixedExpenses,
   investments,
   categories,
+  incomeCategories,
   currentMonth,
 }: {
-  monthlyIncome: number | null;
   fixedExpenses: FixedExpense[];
   investments: Investment[];
   categories: Category[];
+  incomeCategories: Category[];
   currentMonth: string;
 }) {
   return (
@@ -43,7 +42,7 @@ export function FinancialSettingsDialog({
         <Settings2 className="size-4" />
         Ajustes recurrentes
       </DialogTrigger>
-      <DialogContent className="max-h-[min(820px,calc(100vh-2rem))] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[76rem]">
+      <DialogContent className="max-h-[min(820px,calc(100vh-2rem))] w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-[76rem]">
         <DialogHeader>
           <DialogTitle>Ingresos, gastos e inversión recurrentes</DialogTitle>
           <DialogDescription>
@@ -54,23 +53,9 @@ export function FinancialSettingsDialog({
 
         <section className="grid gap-3 rounded-lg border p-3">
           <div className="grid gap-1">
-            <h2 className="text-sm font-medium">Ingreso mensual</h2>
+            <h2 className="text-sm font-medium">Gastos recurrentes</h2>
             <p className="text-xs text-muted-foreground">
-              Este valor se refleja como salario automático en los ingresos del
-              año.
-            </p>
-          </div>
-          <MonthlyIncomeForm
-            monthlyIncome={monthlyIncome}
-            currentMonth={currentMonth}
-          />
-        </section>
-
-        <section className="grid gap-3 rounded-lg border p-3">
-          <div className="grid gap-1">
-            <h2 className="text-sm font-medium">Ingresos y gastos recurrentes</h2>
-            <p className="text-xs text-muted-foreground">
-              Registra cada concepto como gasto o ingreso, con frecuencia diaria,
+              Registra cada gasto con frecuencia diaria,
               semanal, mensual, trimestral o anual.
             </p>
           </div>
@@ -78,6 +63,19 @@ export function FinancialSettingsDialog({
             fixedExpenses={fixedExpenses}
             categories={categories}
             currentMonth={currentMonth}
+          />
+        </section>
+
+        <section className="grid gap-3 rounded-lg border p-3">
+          <div className="grid gap-1">
+            <h2 className="text-sm font-medium">Ingresos recurrentes</h2>
+            <p className="text-xs text-muted-foreground">Configura ingresos con su propia frecuencia.</p>
+          </div>
+          <FixedExpensesManager
+            fixedExpenses={fixedExpenses}
+            categories={incomeCategories}
+            currentMonth={currentMonth}
+            entryKind="income"
           />
         </section>
 

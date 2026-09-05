@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   deleteFamilyExpense,
   deleteFamilyExpenses,
+  skipFamilyRecurringExpenseForMonth,
 } from "@/app/(app)/familia/actions";
 import {
   familyCategoryColor,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/family";
 import { formatDate, formatMoney, formatMonth } from "@/lib/format";
 import { recurringFrequencyLabels } from "@/lib/recurring";
-import type { FamilyDisplayExpense, FamilyExpense } from "@/lib/types";
+import type { FamilyDisplayExpense, FamilyExpense, FamilyRecurringExpense } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FamilyExpenseDialog } from "./family-expense-dialog";
+import { FamilyRecurringExpenseDialog } from "./family-recurring-expense-dialog";
 
 function perPerson(amount: number, people: number) {
   return amount / people;
@@ -45,12 +47,14 @@ export function FamilyExpenseTable({
   month,
   rows,
   manualExpenses,
+  recurringExpenses,
   peopleCount,
   categories,
 }: {
   month: string;
   rows: FamilyDisplayExpense[];
   manualExpenses: FamilyExpense[];
+  recurringExpenses: FamilyRecurringExpense[];
   peopleCount: number;
   categories: FamilyExpenseCategoryOption[];
 }) {
@@ -61,8 +65,11 @@ export function FamilyExpenseTable({
   const [editing, setEditing] = useState<FamilyExpense | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingRecurring, setEditingRecurring] = useState<FamilyRecurringExpense | null>(null);
+  const [editingThisRecurring, setEditingThisRecurring] = useState<FamilyRecurringExpense | null>(null);
 
   const manualById = new Map(manualExpenses.map((expense) => [expense.id, expense]));
+  const recurringById = new Map(recurringExpenses.map((expense) => [expense.id, expense]));
   const selectableRows = rows.filter((row) => row.source === "manual");
   const allSelected =
     selectableRows.length > 0 && selected.size === selectableRows.length;
@@ -122,6 +129,13 @@ export function FamilyExpenseTable({
       setDeleting(false);
       setConfirmBulk(false);
     }
+  }
+
+  async function skipRecurring(expense: FamilyRecurringExpense) {
+    if (!window.confirm(`¿Eliminar «${expense.name}» solo de este mes?`)) return;
+    const result = await skipFamilyRecurringExpenseForMonth(expense.id, month);
+    if (result.error) toast.error(result.error);
+    else { toast.success("Gasto recurrente eliminado de este mes."); router.refresh(); }
   }
 
   return (
@@ -184,6 +198,9 @@ export function FamilyExpenseTable({
           <div className="divide-y rounded-md border">
             {rows.map((row) => {
               const manual = row.source === "manual" ? manualById.get(row.id) : null;
+              const recurring = row.source === "recurring" && row.recurring_id
+                ? recurringById.get(row.recurring_id)
+                : null;
               const selectedRow = selected.has(row.id);
               return (
                 <div
@@ -225,6 +242,11 @@ export function FamilyExpenseTable({
                       Importado
                     </Badge>
                   )}
+                  {(row.source === "recurring" || manual?.recurring_expense_id) && (
+                    <Badge className="hidden shrink-0 border-transparent bg-muted text-muted-foreground hover:bg-muted sm:inline-flex">
+                      Recurrente
+                    </Badge>
+                  )}
 
                   <div
                     className={`hidden shrink-0 items-center gap-6 sm:grid ${
@@ -263,7 +285,7 @@ export function FamilyExpenseTable({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8 shrink-0"
+                            className="size-8 shrink-0 cursor-pointer"
                             aria-label={`Más opciones para ${row.name}`}
                           >
                             <MoreVertical className="size-4" />
@@ -284,11 +306,16 @@ export function FamilyExpenseTable({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  ) : (
-                    <Badge variant="outline" className="hidden shrink-0 sm:inline-flex">
-                      Ajustes
-                    </Badge>
-                  )}
+                  ) : recurring ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8 shrink-0 cursor-pointer" aria-label={`Editar ${row.name}`}><MoreVertical className="size-4" /></Button>} />
+                      <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuItem onClick={() => setEditingRecurring(recurring)}><Pencil />Editar recurrente</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingThisRecurring(recurring)}><Pencil />Editar este gasto</DropdownMenuItem>
+                        <DropdownMenuItem variant="destructive" onClick={() => skipRecurring(recurring)}><Trash2 />Eliminar este gasto</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
                 </div>
               );
             })}
@@ -308,6 +335,33 @@ export function FamilyExpenseTable({
             </div>
           </div>
         )}
+
+        <FamilyRecurringExpenseDialog
+          expense={editingRecurring}
+          categories={categories}
+          open={editingRecurring !== null}
+          onOpenChange={(open) => !open && setEditingRecurring(null)}
+        />
+        <FamilyExpenseDialog
+          defaultDate={month}
+          initial={editingThisRecurring ? {
+            id: `recurring-${editingThisRecurring.id}`,
+            user_id: editingThisRecurring.user_id,
+            name: editingThisRecurring.name,
+            category: editingThisRecurring.category,
+            amount: editingThisRecurring.monthly_amount,
+            occurred_at: month,
+            people_count: editingThisRecurring.people_count,
+            notes: editingThisRecurring.notes,
+            import_id: null,
+            created_at: editingThisRecurring.created_at,
+            updated_at: editingThisRecurring.updated_at,
+          } : null}
+          recurringExpenseId={editingThisRecurring?.id}
+          categories={categories}
+          open={editingThisRecurring !== null}
+          onOpenChange={(open) => !open && setEditingThisRecurring(null)}
+        />
       </CardContent>
 
       <FamilyExpenseDialog

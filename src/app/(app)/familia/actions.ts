@@ -7,7 +7,7 @@ import { monthStart, parseMoneyInput } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/config";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
-import { readRecurringEntryKind, readRecurringFrequency } from "@/lib/recurring";
+import { readRecurringEntryKind, readRecurringFrequency, readRecurringMonths } from "@/lib/recurring";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -198,6 +198,7 @@ export async function saveFamilyExpense(formData: FormData) {
     occurred_at: occurredAt,
     people_count: fields.peopleCount,
     notes: String(formData.get("notes") ?? "").trim() || null,
+    recurring_expense_id: String(formData.get("recurring_expense_id") ?? "").trim() || null,
   };
 
   const result = id
@@ -265,6 +266,8 @@ export async function saveFamilyRecurringExpense(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const entryKind = readRecurringEntryKind(formData.get("entry_kind"));
   const frequency = readRecurringFrequency(formData.get("frequency"));
+  const customMonths = readRecurringMonths(formData);
+  if (frequency === "custom" && customMonths.length === 0) return { error: "Selecciona al menos un mes." };
   const overlapping = await recurringExpenseOverlaps(supabase, familyUnit.id, {
     id: id || undefined,
     name: fields.name,
@@ -286,6 +289,7 @@ export async function saveFamilyRecurringExpense(formData: FormData) {
     monthly_amount: fields.amount,
     entry_kind: entryKind,
     frequency,
+    custom_months: customMonths,
     people_count: fields.peopleCount,
     active: true,
     starts_on: startsOn,
@@ -321,5 +325,18 @@ export async function deleteFamilyRecurringExpense(id: string) {
 
   revalidatePath("/familia");
   revalidatePath("/global");
+  return { ok: true };
+}
+
+export async function skipFamilyRecurringExpenseForMonth(id: string, month: string) {
+  const { supabase, familyUnit } = await requireFamilyUnit();
+  if (!familyUnit) return { error: "Sesión caducada." };
+  if (!/^\d{4}-\d{2}-01$/.test(month)) return { error: "Mes no válido." };
+  const { error } = await supabase.from("family_recurring_expense_skips").upsert(
+    { family_unit_id: familyUnit.id, recurring_expense_id: id, month },
+    { onConflict: "recurring_expense_id,month" }
+  );
+  if (error) return { error: "No se pudo eliminar este gasto del mes." };
+  revalidatePath("/familia"); revalidatePath("/global");
   return { ok: true };
 }

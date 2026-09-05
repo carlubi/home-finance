@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -35,21 +34,6 @@ const PAYMENT_METHODS = [
   "Otro",
 ];
 
-function SuffixedInput({
-  suffix,
-  className,
-  ...props
-}: ComponentProps<typeof Input> & { suffix: string }) {
-  return (
-    <div className="relative">
-      <Input className={className ?? "pr-8"} {...props} />
-      <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">
-        {suffix}
-      </span>
-    </div>
-  );
-}
-
 export function TransactionDialog({
   kind,
   categories,
@@ -58,6 +42,8 @@ export function TransactionDialog({
   initial,
   userId,
   defaultDate,
+  recurringExpenseId,
+  minimalIncomeEdit = false,
 }: {
   kind: "expense" | "income";
   categories: Category[];
@@ -66,6 +52,8 @@ export function TransactionDialog({
   initial?: (Expense & Income) | Expense | Income | null;
   userId: string;
   defaultDate: string;
+  recurringExpenseId?: string | null;
+  minimalIncomeEdit?: boolean;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -96,7 +84,7 @@ export function TransactionDialog({
 
       const categoryValue = String(form.get("category") ?? "");
       const result = await saveTransaction({
-        id: initial?.id,
+        id: recurringExpenseId ? undefined : initial?.id,
         kind,
         name: String(form.get("name") ?? ""),
         category_id: categoryValue || null,
@@ -106,6 +94,7 @@ export function TransactionDialog({
         is_recurring: !isExpense ? form.get("is_recurring") === "on" : undefined,
         notes: String(form.get("notes") ?? "") || null,
         attachment_path: attachmentPath,
+        fixed_expense_id: recurringExpenseId ?? initialExpense?.fixed_expense_id ?? null,
       });
 
       if (result.error) {
@@ -148,16 +137,7 @@ export function TransactionDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label htmlFor="amount">Importe (€)</Label>
-              <SuffixedInput
-                id="amount"
-                name="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                required
-                suffix="€"
-                defaultValue={initial?.amount ?? ""}
-              />
+              <div className="relative"><Input id="amount" name="amount" type="number" min="0.01" step="0.01" required className="pr-7" placeholder="0,00" defaultValue={initial?.amount ?? ""} /><span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">€</span></div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="occurred_at">Fecha real</Label>
@@ -170,7 +150,7 @@ export function TransactionDialog({
               />
             </div>
           </div>
-          <div className="grid gap-2">
+          {!minimalIncomeEdit && <div className="grid gap-2">
             <Label>Categoría</Label>
             <Select
               name="category"
@@ -188,7 +168,7 @@ export function TransactionDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
           {isExpense ? (
             <>
               <div className="grid gap-2">
@@ -215,7 +195,7 @@ export function TransactionDialog({
                 <Input id="attachment" name="attachment" type="file" />
               </div>
             </>
-          ) : (
+          ) : !minimalIncomeEdit ? (
             <div className="flex items-center justify-between rounded-md border p-3">
               <Label htmlFor="is_recurring" className="font-normal">
                 Ingreso recurrente (se repite cada mes)
@@ -226,12 +206,12 @@ export function TransactionDialog({
                 defaultChecked={initialIncome?.is_recurring ?? false}
               />
             </div>
-          )}
-          <div className="grid gap-2">
+          ) : null}
+          {!minimalIncomeEdit && <div className="grid gap-2">
             <Label htmlFor="notes">Notas (opcional)</Label>
             <Textarea id="notes" name="notes" defaultValue={initial?.notes ?? ""} />
-          </div>
-          {!isExpense && initialIncome?.auto_salary && (
+          </div>}
+          {!minimalIncomeEdit && !isExpense && initialIncome?.auto_salary && (
             <p className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
               Este ingreso viene del ingreso mensual de Ajustes. Al guardar,
               <strong> este mes queda personalizado</strong>: futuros cambios en

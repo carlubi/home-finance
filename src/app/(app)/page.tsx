@@ -14,8 +14,8 @@ import {
   roundCents,
 } from "@/lib/finance";
 import { formatMoney } from "@/lib/format";
-import { recurringMonthlyAmount } from "@/lib/recurring";
-import type { CategoryTotal, Expense, FixedExpense, Investment } from "@/lib/types";
+import { recurringMonthlyAmount, recurringOccursInMonth } from "@/lib/recurring";
+import type { CategoryTotal, Expense, FixedExpense, Income, Investment } from "@/lib/types";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { ChartCard } from "@/components/charts/chart-card";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
@@ -53,6 +53,7 @@ function activeFixedExpensesForMonth(fixedExpenses: FixedExpense[], month: strin
       Number(expense.amount ?? 0) > 0 &&
       startsOn <= month &&
       (!expense.ends_on || expense.ends_on >= month)
+      && recurringOccursInMonth(expense.frequency ?? "monthly", expense.custom_months, month)
     );
   });
 
@@ -82,9 +83,9 @@ function comparableExpenseName(name: string) {
   return name.trim().toLocaleLowerCase("es-ES");
 }
 
-function splitRepresentedFixedExpenses(
+function splitRepresentedFixedExpenses<T extends { id: string; name: string; category_id: string | null; amount: number; fixed_expense_id?: string | null }>(
   fixedExpenses: FixedExpense[],
-  expenses: Expense[]
+  expenses: T[]
 ) {
   const represented: FixedExpense[] = [];
   const unrepresented: FixedExpense[] = [];
@@ -94,11 +95,12 @@ function splitRepresentedFixedExpenses(
     const matchingExpense = expenses.find(
       (expense) =>
         !usedExpenseIds.has(expense.id) &&
-        comparableExpenseName(expense.name) ===
+        (expense.fixed_expense_id === fixedExpense.id || (
+          comparableExpenseName(expense.name) ===
           comparableExpenseName(fixedExpense.name) &&
         Math.abs(
           Number(expense.amount ?? 0) - recurringMonthlyAmount(Number(fixedExpense.amount ?? 0), fixedExpense.frequency ?? "monthly")
-        ) < 0.01
+        ) < 0.01))
     );
 
     if (matchingExpense) {
@@ -174,7 +176,7 @@ function mergeFixedExpensesByCategory(
 function fixedExpensesAsMonthExpenses(
   fixedExpenses: FixedExpense[],
   month: string
-): (Expense & { readOnlyReason: string })[] {
+): (Expense & { recurringExpense: FixedExpense })[] {
   return fixedExpenses.map((expense) => ({
     id: `fixed-${expense.id}-${month}`,
     user_id: expense.user_id,
@@ -190,8 +192,29 @@ function fixedExpensesAsMonthExpenses(
     import_id: null,
     created_at: expense.created_at,
     categories: expense.categories,
-    readOnlyReason:
-      "Gasto recurrente gestionado desde Ajustes recurrentes.",
+    recurringExpense: expense,
+  }));
+}
+
+function fixedIncomesAsMonthIncome(
+  fixedIncomes: FixedExpense[],
+  month: string
+): (Income & { recurringExpense: FixedExpense })[] {
+  return fixedIncomes.map((income) => ({
+    id: `fixed-${income.id}-${month}`,
+    user_id: income.user_id,
+    name: income.name,
+    category_id: income.category_id,
+    amount: recurringMonthlyAmount(Number(income.amount ?? 0), income.frequency ?? "monthly"),
+    occurred_at: month,
+    is_recurring: true,
+    notes: null,
+    source: "manual",
+    import_id: null,
+    fixed_expense_id: income.id,
+    created_at: income.created_at,
+    categories: income.categories,
+    recurringExpense: income,
   }));
 }
 
@@ -209,20 +232,20 @@ export default async function DashboardPage({
   const supabase = await createClient();
   const [
     data,
-    { data: onboarding },
     { data: fixedExpenses },
+    { data: skippedFixedExpenses },
   ] = await Promise.all([
     getMonthData(user.id, month),
-    supabase
-      .from("onboarding_answers")
-      .select("fixed_income_amount")
-      .eq("user_id", user.id)
-      .single(),
     supabase
       .from("fixed_expenses")
       .select("*, categories(*)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("fixed_expense_skips")
+      .select("fixed_expense_id")
+      .eq("user_id", user.id)
+      .eq("month", month),
   ]);
   const recurrentSettingsMonth = monthStart(new Date());
   const recurringInvestmentsForSettings = data.investments.filter(
@@ -248,10 +271,17 @@ export default async function DashboardPage({
     data.investments,
     month
   );
-  const allFixedExpenses = ((fixedExpenses ?? []) as FixedExpense[]).filter(
+  const allRecurringEntries = (fixedExpenses ?? []) as FixedExpense[];
+  const allFixedExpenses = allRecurringEntries.filter(
     (expense) => expense.active && expense.entry_kind !== "income" && Number(expense.amount ?? 0) > 0
   );
-  const monthFixedExpenses = activeFixedExpensesForMonth(allFixedExpenses, month);
+  const allFixedIncomes = allRecurringEntries.filter(
+    (income) => income.active && income.entry_kind === "income" && Number(income.amount ?? 0) > 0
+  );
+  const skippedFixedExpenseIds = new Set((skippedFixedExpenses ?? []).map((skip) => skip.fixed_expense_id));
+  const allMonthFixedExpenses = activeFixedExpensesForMonth(allFixedExpenses, month);
+  const monthFixedExpenses = allMonthFixedExpenses
+    .filter((expense) => !skippedFixedExpenseIds.has(expense.id));
   const prevMonth = new Date(month + "T00:00:00");
   prevMonth.setMonth(prevMonth.getMonth() - 1);
   const previousMonthValue = monthStart(prevMonth);
@@ -259,25 +289,32 @@ export default async function DashboardPage({
     allFixedExpenses,
     previousMonthValue
   );
+  const monthFixedIncomes = activeFixedExpensesForMonth(allFixedIncomes, month)
+    .filter((income) => !skippedFixedExpenseIds.has(income.id));
   const fixedForSettings = activeFixedExpensesForMonth(
-    allFixedExpenses,
+    allRecurringEntries,
     recurrentSettingsMonth
   );
   const monthFixedBreakdown = splitRepresentedFixedExpenses(
     monthFixedExpenses,
     data.expenses
   );
+  const monthFixedIncomeBreakdown = splitRepresentedFixedExpenses(monthFixedIncomes, data.income);
   const previousFixedBreakdown = splitRepresentedFixedExpenses(
     previousFixedExpenses,
     data.previousExpenses
   );
-  const allFixedMonthTotal = fixedExpensesTotal(monthFixedExpenses);
+  const allFixedMonthTotal = fixedExpensesTotal(allMonthFixedExpenses);
   const allFixedPreviousTotal = fixedExpensesTotal(previousFixedExpenses);
   const fixedMonthTotal = fixedExpensesTotal(monthFixedBreakdown.unrepresented);
   const fixedPreviousTotal = fixedExpensesTotal(
     previousFixedBreakdown.unrepresented
   );
-  const income = Number(data.current?.total_income ?? 0);
+  const rawIncome = Number(data.current?.total_income ?? 0);
+  const manualIncomeTotal = data.income.reduce((total, entry) => total + Number(entry.amount ?? 0), 0);
+  const allFixedIncomeTotal = fixedExpensesTotal(activeFixedExpensesForMonth(allFixedIncomes, month));
+  const summaryIncludesFixedIncome = allFixedIncomeTotal > 0 && rawIncome >= manualIncomeTotal + allFixedIncomeTotal - 0.01;
+  const income = roundCents((summaryIncludesFixedIncome ? manualIncomeTotal : rawIncome) + fixedExpensesTotal(monthFixedIncomeBreakdown.unrepresented));
   const previousIncome = Number(data.previous?.total_income ?? 0);
   const rawExpenses = Number(data.current?.total_expenses ?? 0);
   const manualExpenseTotal = data.expenses.reduce(
@@ -327,6 +364,10 @@ export default async function DashboardPage({
     ...fixedExpensesAsMonthExpenses(monthFixedBreakdown.unrepresented, month),
     ...data.expenses,
   ];
+  const visibleIncome = [
+    ...fixedIncomesAsMonthIncome(monthFixedIncomeBreakdown.unrepresented, month),
+    ...data.income,
+  ];
   const prevLabel = new Date(month + "T00:00:00");
   prevLabel.setMonth(prevLabel.getMonth() - 1);
 
@@ -342,6 +383,7 @@ export default async function DashboardPage({
 
   const expenseCategories = data.categories.filter((c) => c.kind === "expense");
   const incomeCategories = data.categories.filter((c) => c.kind === "income");
+  const investmentCategories = data.categories.filter((c) => c.kind === "investment");
 
   return (
     <div className="grid gap-4">
@@ -365,10 +407,10 @@ export default async function DashboardPage({
             Importar documentos
           </Button>
           <FinancialSettingsDialog
-            monthlyIncome={onboarding?.fixed_income_amount ?? null}
             fixedExpenses={fixedForSettings}
             investments={recurringInvestmentsForSettings as Investment[]}
             categories={expenseCategories}
+            incomeCategories={incomeCategories}
             currentMonth={recurrentSettingsMonth}
           />
           <Suspense>
@@ -465,7 +507,7 @@ export default async function DashboardPage({
           <Tabs defaultValue="gastos">
             <TabsList>
               <TabsTrigger value="gastos">Gastos ({visibleExpenses.length})</TabsTrigger>
-              <TabsTrigger value="ingresos">Ingresos ({data.income.length})</TabsTrigger>
+              <TabsTrigger value="ingresos">Ingresos ({visibleIncome.length})</TabsTrigger>
               <TabsTrigger value="inversion">
                 Inversión ({monthInvestmentMovements.length})
               </TabsTrigger>
@@ -483,7 +525,7 @@ export default async function DashboardPage({
             <TabsContent value="ingresos">
               <TransactionList
                 kind="income"
-                items={data.income}
+                items={visibleIncome}
                 categories={incomeCategories}
                 userId={user.id}
                 emptyLabel="No hay ingresos registrados este mes. Añade el primero."
@@ -491,7 +533,7 @@ export default async function DashboardPage({
               />
             </TabsContent>
             <TabsContent value="inversion">
-              <InvestmentList month={month} investments={monthInvestmentMovements} />
+              <InvestmentList month={month} investments={monthInvestmentMovements} categories={investmentCategories} />
             </TabsContent>
           </Tabs>
         </TabsContent>

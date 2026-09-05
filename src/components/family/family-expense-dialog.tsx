@@ -35,6 +35,7 @@ export function FamilyExpenseDialog({
   open,
   onOpenChange,
   categories,
+  recurringExpenseId,
 }: {
   defaultDate: string;
   initial?: FamilyExpense | null;
@@ -42,6 +43,7 @@ export function FamilyExpenseDialog({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   categories?: FamilyExpenseCategoryOption[];
+  recurringExpenseId?: string | null;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -82,7 +84,9 @@ export function FamilyExpenseDialog({
           <DialogTitle>{initial ? "Editar gasto familiar" : "Nuevo gasto familiar"}</DialogTitle>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
-          {initial && <input type="hidden" name="id" value={initial.id} />}
+          {initial && !recurringExpenseId && <input type="hidden" name="id" value={initial.id} />}
+          {recurringExpenseId && <input type="hidden" name="recurring_expense_id" value={recurringExpenseId} />}
+          {initial?.recurring_expense_id && !recurringExpenseId && <input type="hidden" name="recurring_expense_id" value={initial.recurring_expense_id} />}
           <div className="grid gap-2">
             <Label htmlFor="family-expense-name">Concepto</Label>
             <Input

@@ -1,6 +1,6 @@
 // Tipos de dominio (espejo del esquema de Supabase)
 
-export type CategoryKind = "expense" | "income";
+export type CategoryKind = "expense" | "income" | "investment";
 export type ImportScope = "personal" | "family";
 
 export interface Category {
@@ -25,6 +25,7 @@ export interface Expense {
   tags: string[];
   source: "manual" | "import";
   import_id: string | null;
+  fixed_expense_id?: string | null;
   created_at: string;
   categories?: Category | null;
 }
@@ -40,6 +41,7 @@ export interface Income {
   notes: string | null;
   source: "manual" | "import";
   import_id: string | null;
+  fixed_expense_id?: string | null;
   /** true si lo genera el ingreso mensual configurado en Resumen */
   auto_salary?: boolean;
   created_at: string;
@@ -88,7 +90,8 @@ export interface FixedExpense {
   category_id: string | null;
   amount: number | null;
   entry_kind: "expense" | "income";
-  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+  custom_months?: number[] | null;
   active: boolean;
   starts_on: string | null;
   ends_on: string | null;
@@ -108,6 +111,7 @@ export interface FamilyExpense {
   created_at: string;
   updated_at: string;
   import_id: string | null;
+  recurring_expense_id?: string | null;
 }
 
 export interface FamilyRecurringExpense {
@@ -117,7 +121,8 @@ export interface FamilyRecurringExpense {
   category: string;
   monthly_amount: number;
   entry_kind: "expense" | "income";
-  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+  custom_months?: number[] | null;
   people_count: number;
   active: boolean;
   starts_on: string;
@@ -133,7 +138,8 @@ export interface FamilyDisplayExpense {
   category: string;
   amount: number;
   entry_kind?: "expense" | "income";
-  frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+  frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+  custom_months?: number[] | null;
   occurred_at: string;
   people_count: number;
   source: "manual" | "recurring";
@@ -144,10 +150,14 @@ export interface Investment {
   id: string;
   user_id: string;
   name: string;
+  category_id?: string | null;
   monthly_amount: number | null;
   one_off_amount: number | null;
   accumulated_capital: number | null;
   expected_annual_return_pct: number | null;
+  frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+  custom_months?: number[] | null;
+  investment_type?: "fixed_income" | "equity" | "mixed" | "money_market" | "crypto" | "real_estate" | null;
   starts_on: string | null;
   ends_on: string | null;
   notes: string | null;
@@ -197,7 +207,7 @@ export interface ExtractedTransaction {
   id: string;
   import_id: string;
   user_id: string;
-  kind: CategoryKind;
+  kind: "expense" | "income";
   name: string;
   suggested_category_id: string | null;
   suggested_category: string | null;

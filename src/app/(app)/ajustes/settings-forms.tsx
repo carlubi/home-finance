@@ -72,6 +72,7 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
         <Select name="kind" defaultValue="expense" items={[
           { value: "expense", label: "Gasto" },
           { value: "income", label: "Ingreso" },
+          { value: "investment", label: "Inversión" },
         ]}>
           <SelectTrigger>
             <SelectValue />
@@ -111,7 +112,7 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
               />
               {c.name}
               <Badge variant="outline">
-                {c.kind === "expense" ? "Gasto" : "Ingreso"}
+                {c.kind === "expense" ? "Gasto" : c.kind === "income" ? "Ingreso" : "Inversión"}
               </Badge>
               <Button
                 variant="ghost"

@@ -17,7 +17,7 @@ import {
 } from "./settings-forms";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 
-export const metadata = { title: "Ajustes" };
+export const metadata = { title: "Personaliza" };
 
 export default async function AjustesPage() {
   const supabase = await createClient();
@@ -42,7 +42,7 @@ export default async function AjustesPage() {
 
   return (
     <div className="grid w-full gap-4">
-      <h1 className="text-2xl font-semibold">Ajustes</h1>
+      <h1 className="text-2xl font-semibold">Personaliza</h1>
 
       <Card>
         <CardHeader>
@@ -77,7 +77,7 @@ export default async function AjustesPage() {
         <CardHeader>
           <CardTitle className="text-base">Categorías personalizadas</CardTitle>
           <CardDescription>
-            Además de las categorías estándar puedes crear las tuyas.
+            Crea categorías de gastos, ingresos e inversiones.
           </CardDescription>
         </CardHeader>
         <CardContent>

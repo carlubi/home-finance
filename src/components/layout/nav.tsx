@@ -24,7 +24,7 @@ const items = [
   { href: "/presupuestos", label: "Presupuestos", icon: PiggyBank },
   { href: "/informes", label: "Informes", icon: FileText },
   { href: "/compartidos", label: "Compartidos", icon: Users },
-  { href: "/ajustes", label: "Ajustes", icon: Settings },
+  { href: "/ajustes", label: "Personaliza", icon: Settings },
 ];
 
 function isActive(pathname: string, href: string) {
