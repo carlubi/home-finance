@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Landmark, Receipt, Wallet } from "lucide-react";
+import { Landmark, PiggyBank, Receipt, Wallet } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { addMonths, formatMoney, monthStart } from "@/lib/format";
 import {
@@ -294,6 +294,7 @@ export default async function GlobalPage() {
     )
     .filter((item) => item.total > 0);
   const totalExpenses = sectionData.reduce((total, item) => total + Number(item.total), 0);
+  const totalSavings = totalIncome - personalExpensesTotal;
 
   const investmentData = investments
     .map((investment, index) =>
@@ -321,9 +322,10 @@ export default async function GlobalPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Gastos totales" value={formatMoney(totalExpenses)} icon={Receipt} />
         <StatCard label="Ingresos totales" value={formatMoney(totalIncome)} icon={Wallet} />
+        <StatCard label="Ahorro total" value={formatMoney(totalSavings)} icon={PiggyBank} />
         <StatCard label="Inversiones realizadas" value={formatMoney(totalInvestments)} icon={Landmark} />
       </div>
 
