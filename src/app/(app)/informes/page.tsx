@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import type { Category, MonthlyReport, ReportGenerationUsage } from "@/lib/types";
 import { ExportPanel } from "./export-panel";
 import { ReportsView } from "./reports-view";
@@ -22,6 +23,7 @@ export default async function InformesPage() {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   const quotaMonth = currentQuotaMonth();
 
   const [
@@ -41,6 +43,7 @@ export default async function InformesPage() {
       supabase
         .from("monthly_budget_plans")
         .select("month")
+        .eq("family_unit_id", familyUnit?.id ?? "")
         .order("month", { ascending: true }),
       supabase.from("categories").select("*").order("name"),
       supabase

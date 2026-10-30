@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { monthStart } from "@/lib/format";
 import { syncSalaryIncome } from "@/lib/salary";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import type { MortgageDraft } from "@/lib/mortgage-config";
+import { storeMortgageForUnit } from "@/lib/mortgage-store";
 
 export interface OnboardingData {
   goal: string;
@@ -25,6 +28,7 @@ export interface OnboardingData {
   sharedExpenseTypes: string[];
   statementPath: string | null;
   statementName: string | null;
+  mortgage: MortgageDraft | null;
 }
 
 export async function completeOnboarding(data: OnboardingData) {
@@ -34,6 +38,13 @@ export async function completeOnboarding(data: OnboardingData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   const currentMonth = monthStart(new Date());
+
+  if (data.mortgage) {
+    const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+    if (!familyUnit) return { error: "No se pudo preparar la unidad familiar para la hipoteca." };
+    const result = await storeMortgageForUnit(supabase, familyUnit.id, data.mortgage, true);
+    if (result.error) return result;
+  }
 
   const { error: answersError } = await supabase.from("onboarding_answers").upsert({
     user_id: user.id,

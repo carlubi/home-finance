@@ -6,7 +6,7 @@ import { Import } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getMonthData } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { formatMonth, monthStart } from "@/lib/format";
+import { addMonths, formatMonth, monthStart } from "@/lib/format";
 import {
   investmentActualValueAtMonth,
   investmentMonthlyOutflow,
@@ -24,6 +24,10 @@ import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { InvestmentList } from "@/components/investments/investment-list";
 import PersonalGlobalOverview from "@/components/dashboard/personal-global-overview";
+import { getGoalSnapshots } from "@/lib/goal-data";
+import { GoalStatusStrip } from "@/components/goals/goal-status";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { SharedPersonalPanel, type SharedPersonalMember } from "@/components/dashboard/shared-personal-panel";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -228,8 +232,46 @@ export default async function DashboardPage({
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const personalGoals = await getGoalSnapshots("personal", user.id);
 
   const supabase = await createClient();
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  const [{ data: membershipRows }, { data: sharingRows }] = familyUnit ? await Promise.all([
+    supabase.from("family_unit_members").select("user_id, display_name, email").eq("unit_id", familyUnit.id).eq("status", "active"),
+    supabase.from("family_personal_sharing").select("user_id, enabled").eq("family_unit_id", familyUnit.id),
+  ]) : [{ data: [] }, { data: [] }];
+  const sharedIds = new Set((sharingRows ?? []).filter((row) => row.enabled).map((row) => row.user_id));
+  const sharedPartners = (membershipRows ?? []).filter((member) => member.user_id && member.user_id !== user.id && sharedIds.has(member.user_id));
+  const partnerPanels: SharedPersonalMember[] = await Promise.all(sharedPartners.map(async (partner) => {
+    const [{ data: summaries }, { data: expenses }, { data: incomeRows }, { data: fixed }, { data: skips }, { data: investments }] = await Promise.all([
+      supabase.from("monthly_summary").select("total_income,total_expenses").eq("user_id", partner.user_id!).eq("month", month).maybeSingle(),
+      supabase.from("expenses").select("id,name,amount,fixed_expense_id,categories(name)").eq("user_id", partner.user_id!).gte("occurred_at", month).lt("occurred_at", addMonths(month, 1)).order("occurred_at", { ascending: false }),
+      supabase.from("income").select("id,name,amount,fixed_expense_id,categories(name)").eq("user_id", partner.user_id!).gte("occurred_at", month).lt("occurred_at", addMonths(month, 1)).order("occurred_at", { ascending: false }),
+      supabase.from("fixed_expenses").select("id,name,amount,active,entry_kind,starts_on,ends_on,created_at,frequency,custom_months,categories(name)").eq("user_id", partner.user_id!),
+      supabase.from("fixed_expense_skips").select("fixed_expense_id").eq("user_id", partner.user_id!).eq("month", month),
+      supabase.from("investments").select("*").eq("user_id", partner.user_id!),
+    ]);
+    const categoryName = (value: { name: string } | { name: string }[] | null) => Array.isArray(value) ? value[0]?.name ?? null : value?.name ?? null;
+    const manualExpenses = (expenses ?? []).map((expense) => ({ id: expense.id, name: expense.name, amount: Number(expense.amount), category: categoryName(expense.categories) }));
+    const manualIncome = (incomeRows ?? []).map((entry) => ({ id: entry.id, name: entry.name, amount: Number(entry.amount), category: categoryName(entry.categories) }));
+    const skipped = new Set((skips ?? []).map((skip) => skip.fixed_expense_id));
+    const activeFixed = (fixed ?? []).filter((item) => item.active && !skipped.has(item.id)
+      && (item.starts_on ?? item.created_at.slice(0, 10)) <= month && (!item.ends_on || item.ends_on >= month)
+      && recurringOccursInMonth(item.frequency ?? "monthly", item.custom_months, month));
+    const recurringEntries = (kind: "expense" | "income", manualRows: typeof expenses) => activeFixed
+      .filter((item) => (item.entry_kind === "income" ? "income" : "expense") === kind
+        && !(manualRows ?? []).some((entry) => entry.fixed_expense_id === item.id || (comparableExpenseName(entry.name) === comparableExpenseName(item.name) && Math.abs(Number(entry.amount) - recurringMonthlyAmount(Number(item.amount), item.frequency ?? "monthly", item.custom_months ?? undefined)) < 0.01)))
+      .map((item) => ({ id: `fixed-${item.id}`, name: item.name, amount: recurringMonthlyAmount(Number(item.amount), item.frequency ?? "monthly", item.custom_months ?? undefined), category: categoryName(item.categories) }));
+    const partnerInvestments = (investments ?? []) as Investment[];
+    const investmentItems = partnerInvestments.map((item) => ({ id: item.id, name: item.name, amount: investmentMonthlyOutflow([item], month), category: null })).filter((item) => item.amount > 0);
+    return {
+      id: partner.user_id!, name: partner.display_name || partner.email,
+      income: Number(summaries?.total_income ?? 0), expenses: Number(summaries?.total_expenses ?? 0), investment: investmentMonthlyOutflow(partnerInvestments, month),
+      expenseItems: [...recurringEntries("expense", expenses), ...manualExpenses],
+      incomeItems: [...recurringEntries("income", incomeRows), ...manualIncome],
+      investmentItems,
+    };
+  }));
   const [
     data,
     { data: fixedExpenses },
@@ -419,6 +461,7 @@ export default async function DashboardPage({
         </div>
       </div>
 
+      <GoalStatusStrip snapshots={personalGoals} scope="personal" />
       <Tabs defaultValue="monthly" className="grid gap-4">
         <TabsList className="w-fit">
           <TabsTrigger value="monthly">Vista mensual</TabsTrigger>
@@ -521,6 +564,7 @@ export default async function DashboardPage({
                 emptyLabel="No hay gastos registrados este mes. Añade el primero."
                 defaultDate={month}
               />
+              <SharedPersonalPanel members={partnerPanels} kind="expense" />
             </TabsContent>
             <TabsContent value="ingresos">
               <TransactionList
@@ -531,9 +575,11 @@ export default async function DashboardPage({
                 emptyLabel="No hay ingresos registrados este mes. Añade el primero."
                 defaultDate={month}
               />
+              <SharedPersonalPanel members={partnerPanels} kind="income" />
             </TabsContent>
             <TabsContent value="inversion">
               <InvestmentList month={month} investments={monthInvestmentMovements} categories={investmentCategories} />
+              <SharedPersonalPanel members={partnerPanels} kind="investment" />
             </TabsContent>
           </Tabs>
         </TabsContent>

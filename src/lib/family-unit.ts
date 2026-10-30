@@ -38,6 +38,8 @@ export async function getOrCreateFamilyUnit(
     .select("family_units(id, owner_id, name)")
     .eq("user_id", user.id)
     .eq("status", "active")
+    .order("joined_at", { ascending: false, nullsFirst: false })
+    .limit(1)
     .maybeSingle();
   const existing = membership?.family_units as unknown as FamilyUnit | null;
   if (existing) return existing;

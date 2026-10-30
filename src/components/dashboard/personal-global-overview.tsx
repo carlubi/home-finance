@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getAllMonthlySummaries } from "@/lib/data";
-import { formatMoney, formatMonth } from "@/lib/format";
+import { formatMoney, formatMonth, monthStart } from "@/lib/format";
 import {
   investmentActualValueAtMonth,
   investmentMonthlyContribution,
+  investmentMonthlyOutflow,
   investmentProjectedValueAtMonth,
   roundCents,
 } from "@/lib/finance";
@@ -15,6 +16,9 @@ import { CategoryExpenseTrend } from "@/components/charts/category-expense-trend
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
 import { SavingsTrend } from "@/components/charts/savings-trend";
 import { CategoryDonut } from "@/components/charts/category-donut";
+import { IncomeAllocation, type AllocationGroup } from "@/components/charts/income-allocation";
+import { summarizeIncomeAllocation, type AllocationLine } from "@/lib/income-allocation";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { StatCard } from "@/components/dashboard/summary-cards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -116,6 +120,10 @@ function comparableExpenseName(name: string) {
   return name.trim().toLocaleLowerCase("es-ES");
 }
 
+function isMortgageExpense(name: string, category: string | null | undefined) {
+  return /hipoteca/i.test(name) || /hipoteca/i.test(category ?? "");
+}
+
 function activeFixedExpensesForMonth(
   fixedExpenses: FixedExpenseCategoryRow[],
   month: string
@@ -200,6 +208,12 @@ export default async function PersonalGlobalOverview() {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  const [{ data: mortgageRow }, { data: mortgagePayments }, { data: ownProfile }] = familyUnit ? await Promise.all([
+    supabase.from("family_mortgages").select("started_on, fixed_payment, current_payment, rate_kind, variable_from, first_share_percent, first_borrower, second_borrower").eq("family_unit_id", familyUnit.id).maybeSingle(),
+    supabase.from("family_mortgage_payments").select("month,payment").eq("family_unit_id", familyUnit.id),
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+  ]) : [{ data: null }, { data: [] }, { data: null }];
 
   const [
     summaries,
@@ -371,6 +385,63 @@ export default async function PersonalGlobalOverview() {
     };
   });
 
+  const currentMonth = monthStart(new Date());
+  const allocationMonths = normalizedSummaries
+    .filter((summary) => summary.month <= currentMonth && Number(summary.total_income) > 0)
+    .slice(-12);
+  const recordedMortgage = new Map<string, number>((mortgagePayments ?? []).map((payment) => [payment.month.slice(0, 7), Number(payment.payment)]));
+  const lastMortgageMonth = [...recordedMortgage.keys()].sort().at(-1) ?? "";
+  const ownName = (ownProfile?.full_name ?? "").toLocaleLowerCase("es-ES");
+  const firstName = (mortgageRow?.first_borrower ?? "").toLocaleLowerCase("es-ES");
+  const secondName = (mortgageRow?.second_borrower ?? "").toLocaleLowerCase("es-ES");
+  const mortgageShare = !secondName ? 1 : firstName && ownName.includes(firstName) ? Number(mortgageRow?.first_share_percent ?? 50) / 100 : ownName.includes(secondName) ? (100 - Number(mortgageRow?.first_share_percent ?? 50)) / 100 : 0.5;
+  const allocation = summarizeIncomeAllocation(allocationMonths.map((summary) => {
+    const expenses: AllocationLine[] = expenseRows
+      .filter((row) => row.occurred_at.slice(0, 7) === summary.month.slice(0, 7))
+      .map((row) => {
+        const category = resolveCategory(row.categories)?.name ?? null;
+        return {
+          name: category ?? "Sin categoría",
+          amount: Number(row.amount),
+          mortgage: isMortgageExpense(row.name, category),
+        };
+      });
+    for (const fixed of activeFixedExpensesForMonth(fixedExpenseRowsTyped, summary.month)) {
+      if (fixedExpenseMatchesMonthExpense(fixed, summary.month, expenseRows)) continue;
+      const category = resolveCategory(fixed.categories)?.name ?? null;
+      expenses.push({
+        name: category ?? "Sin categoría",
+        amount: recurringMonthlyAmount(Number(fixed.amount ?? 0), fixed.frequency ?? "monthly"),
+        mortgage: isMortgageExpense(fixed.name, category),
+      });
+    }
+    const month = summary.month.slice(0, 7);
+    const mortgagePayment = recordedMortgage.get(month) ?? (
+      mortgageRow && month >= mortgageRow.started_on.slice(0, 7)
+        && (lastMortgageMonth ? month > lastMortgageMonth : month === currentMonth.slice(0, 7))
+        ? mortgageRow.rate_kind === "fixed" || (mortgageRow.rate_kind === "mixed" && month < mortgageRow.variable_from.slice(0, 7))
+          ? Number(mortgageRow.fixed_payment)
+          : Number(mortgageRow.current_payment ?? mortgageRow.fixed_payment)
+        : 0
+    );
+    return {
+      income: Number(summary.total_income),
+      expenseTotal: Number(summary.total_expenses),
+      expenses,
+      investments: investments.map((investment) => ({
+        name: investment.name,
+        amount: investmentMonthlyOutflow([investment], summary.month),
+      })).filter((investment) => investment.amount > 0),
+      mortgageFallback: mortgageRow ? mortgagePayment * mortgageShare : 0,
+    };
+  }));
+  const allocationGroups: AllocationGroup[] = [
+    { key: "investment", label: "Inversión", amount: allocation.investment, color: "#1baf7a", details: allocation.investmentDetails },
+    { key: "expenses", label: "Gastos Personales", amount: allocation.expenses, color: "#eb6834", details: allocation.expenseDetails },
+    { key: "mortgage", label: "Gastos Casa · hipoteca", amount: allocation.mortgage, color: "#4a3aa7" },
+    { key: "savings", label: "Ahorro", amount: allocation.savings, color: "#2a78d6" },
+  ];
+
   return (
     <div className="grid gap-4">
       <h1 className="text-2xl font-semibold">Visión global</h1>
@@ -404,6 +475,19 @@ export default async function PersonalGlobalOverview() {
           value={worstExpenses ? formatMonth(worstExpenses.month) : "—"}
         />
       </div>
+
+      <ChartCard
+        title="¿A dónde van tus ingresos?"
+        description="Porcentaje del ingreso medio mensual · últimos 12 meses con ingresos"
+        fileName="reparto-medio-ingresos"
+      >
+        <IncomeAllocation
+          income={allocation.income}
+          groups={allocationGroups}
+          months={allocation.months}
+          estimatedMortgage={allocation.estimatedMortgage}
+        />
+      </ChartCard>
 
       <ChartCard
         title="Evolución de mis finanzas"

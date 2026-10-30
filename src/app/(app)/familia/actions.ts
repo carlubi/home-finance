@@ -52,6 +52,22 @@ export async function removeFamilyMember(unitId: string, memberId: string) {
   return { ok: true };
 }
 
+export async function setPersonalSharing(enabled: boolean) {
+  const { supabase, user, familyUnit } = await requireFamilyUnit();
+  if (!user || !familyUnit) return { error: "Sesión caducada." };
+  const { error } = await supabase.from("family_personal_sharing").upsert({
+    user_id: user.id,
+    family_unit_id: familyUnit.id,
+    enabled,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+  if (error) return { error: "No se pudo cambiar la visibilidad de tus finanzas personales." };
+  revalidatePath("/");
+  revalidatePath("/global");
+  revalidatePath("/familia");
+  return { ok: true };
+}
+
 export async function acceptFamilyInvitation(token: string) {
   const { user } = await requireUser();
   if (!user) return { error: "Debes iniciar sesión para aceptar la invitación." };
@@ -60,8 +76,6 @@ export async function acceptFamilyInvitation(token: string) {
   if (!member) return { error: "Invitación no encontrada." };
   if (member.status === "active") return { ok: true };
   if (user.email?.toLowerCase() !== member.email.toLowerCase()) return { error: "Usa el email al que se envió la invitación." };
-  const { data: existing } = await admin.from("family_unit_members").select("id").eq("user_id", user.id).eq("status", "active").maybeSingle();
-  if (existing) return { error: "Ya formas parte de otra unidad familiar." };
   const { data: profile } = await admin.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
   const { error } = await admin.from("family_unit_members").update({ user_id: user.id, display_name: profile?.full_name ?? null, status: "active", joined_at: new Date().toISOString() }).eq("id", member.id);
   if (error) return { error: "No se pudo aceptar la invitación." };

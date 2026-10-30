@@ -146,7 +146,7 @@ export function buildBudgetCategoryTotals({
 
   for (const month of months) {
     for (const item of month.items) {
-      const key = item.category_id ?? "none";
+      const key = item.category_id ?? item.category_name ?? "none";
       const existing = totals.get(key);
       if (existing) {
         existing.total = Number(existing.total) + Number(item.planned_amount);
@@ -155,7 +155,7 @@ export function buildBudgetCategoryTotals({
         totals.set(key, {
           user_id: userId,
           month: month.month,
-          category_id: item.category_id,
+          category_id: item.category_id ?? item.category_name ?? null,
           category_name: item.categories?.name ?? null,
           category_color: item.categories?.color ?? null,
           total: Number(item.planned_amount),

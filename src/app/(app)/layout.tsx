@@ -7,6 +7,9 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { LanguageMenuButton } from "@/components/layout/language-switcher";
+import { FamilyLiveRefresh } from "@/components/layout/family-live-refresh";
+import { createClient } from "@/lib/supabase/server";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 
 export default async function AppLayout({
   children,
@@ -24,6 +27,7 @@ export default async function AppLayout({
   if (profile && !profile.onboarding_completed) {
     redirect("/onboarding");
   }
+  const familyUnit = await getOrCreateFamilyUnit(await createClient(), user);
 
   return (
     <div className="flex h-svh w-full overflow-hidden">
@@ -50,6 +54,7 @@ export default async function AppLayout({
       </div>
       <BottomNav />
       <NotificationsPermissionPrompt />
+      {familyUnit && <FamilyLiveRefresh familyUnitId={familyUnit.id} />}
     </div>
   );
 }

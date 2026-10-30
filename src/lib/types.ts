@@ -83,6 +83,20 @@ export interface Budget {
   categories?: Category | null;
 }
 
+export interface FinancialGoal {
+  id: string;
+  owner_id: string;
+  family_unit_id: string | null;
+  scope: "personal" | "family";
+  kind: "target_amount" | "savings_rate" | "expense_limit";
+  title: string;
+  target_value: number;
+  initial_amount: number;
+  starts_on: string;
+  due_on: string;
+  created_at: string;
+}
+
 export interface FixedExpense {
   id: string;
   user_id: string;
@@ -171,6 +185,9 @@ export interface MonthlyBudgetItem {
   user_id: string;
   plan_id: string;
   category_id: string | null;
+  category_name?: string | null;
+  category_color?: string | null;
+  source_item_id?: string | null;
   name: string;
   planned_amount: number;
   notes: string | null;
@@ -182,6 +199,7 @@ export interface MonthlyBudgetItem {
 export interface MonthlyBudgetPlan {
   id: string;
   user_id: string;
+  family_unit_id?: string | null;
   month: string;
   outcome: MonthlyBudgetOutcome | null;
   notes: string | null;

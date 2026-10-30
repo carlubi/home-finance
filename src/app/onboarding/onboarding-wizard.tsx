@@ -20,6 +20,8 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { parseMoneyInput } from "@/lib/format";
+import { MortgageFields } from "@/components/mortgage/mortgage-fields";
+import { emptyMortgageDraft, parseMortgageDraft } from "@/lib/mortgage-config";
 
 const GOALS = [
   ["ahorrar", "Ahorrar más"],
@@ -62,7 +64,7 @@ const SHARED_TYPES = [
   "Otros",
 ];
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -134,6 +136,8 @@ export function OnboardingWizard({ userId }: { userId: string }) {
   const [habits, setHabits] = useState<string[]>([]);
   const [fixedIncomeAmount, setFixedIncomeAmount] = useState("");
   const [fixedExpenseTypes, setFixedExpenseTypes] = useState<string[]>([]);
+  const [hasMortgage, setHasMortgage] = useState<boolean | null>(null);
+  const [mortgageDraft, setMortgageDraft] = useState({ ...emptyMortgageDraft });
   const [invests, setInvests] = useState<boolean | null>(null);
   const [investmentName, setInvestmentName] = useState("");
   const [investmentMonthly, setInvestmentMonthly] = useState("");
@@ -188,6 +192,7 @@ export function OnboardingWizard({ userId }: { userId: string }) {
       sharedExpenseTypes,
       statementPath,
       statementName,
+      mortgage: hasMortgage ? mortgageDraft : null,
     };
     startTransition(async () => {
       const result = await completeOnboarding(data);
@@ -273,6 +278,12 @@ export function OnboardingWizard({ userId }: { userId: string }) {
         />
       ),
       canContinue: true,
+    },
+    {
+      title: "¿Tienes una hipoteca?",
+      description: "Es opcional. Puedes configurarla ahora o más adelante en la página Hipoteca.",
+      content: <div className="grid gap-5"><YesNo value={hasMortgage} onChange={setHasMortgage} />{hasMortgage && <MortgageFields value={mortgageDraft} onChange={setMortgageDraft} idPrefix="onboarding-mortgage" />}{hasMortgage && parseMortgageDraft(mortgageDraft).error && <p className="text-sm text-muted-foreground">{parseMortgageDraft(mortgageDraft).error}</p>}</div>,
+      canContinue: hasMortgage !== true || Boolean(parseMortgageDraft(mortgageDraft).data),
     },
     {
       title: "¿Inviertes actualmente?",

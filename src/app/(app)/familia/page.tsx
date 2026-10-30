@@ -34,6 +34,8 @@ import { FamilyTotalPerPersonCard } from "@/components/family/family-total-per-p
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getGoalSnapshots } from "@/lib/goal-data";
+import { GoalStatusStrip } from "@/components/goals/goal-status";
 import { FamilyMembersCard } from "@/components/family/family-members-card";
 import { recurringMonthlyAmount, recurringOccursInMonth } from "@/lib/recurring";
 
@@ -84,6 +86,7 @@ export default async function FamilyExpensesPage({
   const supabase = await createClient();
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   if (!familyUnit) redirect("/login");
+  const familyGoals = await getGoalSnapshots("family", user.id, familyUnit.id);
   const [
     { data: familyExpenseRows },
     { data: recurringRows },
@@ -91,6 +94,7 @@ export default async function FamilyExpensesPage({
     { data: familyCategoryRows },
     { data: familyMemberRows },
     { data: recurringSkipRows },
+    { data: ownSharing },
   ] = await Promise.all([
     supabase
       .from("family_expenses")
@@ -114,6 +118,7 @@ export default async function FamilyExpensesPage({
       .order("name"),
     supabase.from("family_unit_members").select("id, user_id, email, display_name, role, status").eq("unit_id", familyUnit.id).order("created_at"),
     supabase.from("family_recurring_expense_skips").select("recurring_expense_id, month").eq("family_unit_id", familyUnit.id),
+    supabase.from("family_personal_sharing").select("enabled").eq("family_unit_id", familyUnit.id).eq("user_id", user.id).maybeSingle(),
   ]);
 
   const familyExpenses = (familyExpenseRows ?? []) as FamilyExpense[];
@@ -302,7 +307,10 @@ export default async function FamilyExpensesPage({
         unitId={familyUnit.id}
         members={(familyMemberRows ?? []) as { id: string; email: string; display_name: string | null; role: "owner" | "member"; status: "invited" | "active" | "removed"; user_id: string | null }[]}
         isOwner={familyUnit.owner_id === user.id}
+        initialSharingEnabled={Boolean(ownSharing?.enabled)}
       />
+
+      <GoalStatusStrip snapshots={familyGoals} scope="family" />
 
       <Tabs defaultValue="month" className="grid gap-4">
         <TabsList className="w-fit">
