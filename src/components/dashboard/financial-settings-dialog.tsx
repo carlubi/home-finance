@@ -15,6 +15,8 @@ import {
   FixedExpensesManager,
   InvestmentsManager,
 } from "@/components/settings/recurring-finance-forms";
+import { SavingsAccountSettings } from "@/app/(app)/ajustes/savings-account-settings";
+import type { SavingsAccount, SavingsInterestRate } from "@/lib/savings-account";
 
 export function FinancialSettingsDialog({
   fixedExpenses,
@@ -22,12 +24,18 @@ export function FinancialSettingsDialog({
   categories,
   incomeCategories,
   currentMonth,
+  savingsAccount,
+  savingsRates,
+  monthlyInterest,
 }: {
   fixedExpenses: FixedExpense[];
   investments: Investment[];
   categories: Category[];
   incomeCategories: Category[];
   currentMonth: string;
+  savingsAccount: SavingsAccount | null;
+  savingsRates: SavingsInterestRate[];
+  monthlyInterest: number;
 }) {
   return (
     <Dialog>
@@ -44,10 +52,9 @@ export function FinancialSettingsDialog({
       </DialogTrigger>
       <DialogContent className="max-h-[min(820px,calc(100vh-2rem))] w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-[76rem]">
         <DialogHeader>
-          <DialogTitle>Ingresos, gastos e inversión recurrentes</DialogTitle>
+          <DialogTitle>Ingresos, gastos, inversión y cuenta remunerada</DialogTitle>
           <DialogDescription>
-            Configura tu salario, ingresos y gastos recurrentes, y aportaciones a
-            inversión desde el resumen.
+            Configura tus movimientos recurrentes y los intereses de tu cuenta remunerada.
           </DialogDescription>
         </DialogHeader>
 
@@ -77,6 +84,14 @@ export function FinancialSettingsDialog({
             currentMonth={currentMonth}
             entryKind="income"
           />
+        </section>
+
+        <section className="grid gap-3 rounded-lg border p-3">
+          <div className="grid gap-1">
+            <h2 className="text-sm font-medium">Cuenta remunerada</h2>
+            <p className="text-xs text-muted-foreground">Registra el saldo y los tipos de interés aplicados en cada periodo.</p>
+          </div>
+          <SavingsAccountSettings account={savingsAccount} rates={savingsRates} currentMonth={currentMonth} monthlyInterest={monthlyInterest} />
         </section>
 
         <section className="grid gap-3 rounded-lg border p-3">

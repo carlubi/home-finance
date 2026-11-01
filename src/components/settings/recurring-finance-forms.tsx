@@ -67,7 +67,7 @@ function ChangeScopeFields({
             { value: "global", label: "Todos los meses" },
           ]}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full min-w-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -496,13 +496,13 @@ export function InvestmentsManager({
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4 overflow-x-auto">
       <form
         ref={formRef}
         onInput={() => setNewSaved(false)}
         onChange={() => setNewSaved(false)}
         action={(formData) => runSave(formData, "Inversión recurrente añadida.")}
-        className="grid min-w-0 grid-flow-col auto-cols-[minmax(7rem,1fr)] items-end gap-2"
+        className="grid w-full min-w-[68rem] grid-cols-[repeat(6,minmax(0,1fr))_6.5rem] items-end gap-2"
       >
         <input type="hidden" name="effective_month" value={currentMonth} />
         <Input name="name" placeholder="Fondo o inversión" required />
@@ -534,7 +534,7 @@ export function InvestmentsManager({
       </form>
 
       {investments.length > 0 ? (
-        <div className="grid gap-2">
+        <div className="grid min-w-[68rem] gap-2">
           {investments.map((investment) => (
             <form
               key={investment.id}
@@ -555,7 +555,7 @@ export function InvestmentsManager({
               action={(formData) =>
                 runSave(formData, "Inversión recurrente actualizada.")
               }
-              className="grid min-w-0 grid-flow-col auto-cols-[minmax(7rem,1fr)] items-end gap-2 rounded-lg border bg-muted/20 p-3"
+              className="grid w-full grid-cols-[minmax(8.5rem,1.1fr)_minmax(7.5rem,1fr)_minmax(7.5rem,1fr)_minmax(8.5rem,1.1fr)_minmax(6.5rem,0.8fr)_minmax(7.5rem,1fr)_minmax(9.5rem,1.2fr)_6.5rem_2.5rem] items-end gap-2 rounded-lg border bg-muted/20 p-3"
             >
               <input type="hidden" name="id" value={investment.id} />
               <Input
@@ -603,7 +603,9 @@ export function InvestmentsManager({
               <Button
                 type="button"
                 variant="ghost"
+                size="icon"
                 disabled={pending}
+                aria-label={`Eliminar ${investment.name}`}
                 onClick={() => setConfirmDelete(investment)}
               >
                 <Trash2 className="size-4" />

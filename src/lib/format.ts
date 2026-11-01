@@ -58,6 +58,16 @@ export function monthStart(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+/** Mes vigente según la zona horaria de la aplicación. */
+export function currentMadridMonth(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Madrid", year: "numeric", month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return `${year}-${month}-01`;
+}
+
 /** Suma n meses a un YYYY-MM-01 */
 export function addMonths(month: string, n: number): string {
   const [y, m] = month.split("-").map(Number);

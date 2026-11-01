@@ -285,6 +285,7 @@ export function TransactionList({
                 <p className="truncate text-xs text-muted-foreground">
                   {formatDate(tx.occurred_at)}
                   {tx.categories?.name ? ` · ${tx.categories.name}` : ""}
+                  {tx.readOnlyReason && tx.notes ? ` · ${tx.notes}` : ""}
                   {"payment_method" in tx && tx.payment_method
                     ? ` · ${tx.payment_method}`
                     : ""}

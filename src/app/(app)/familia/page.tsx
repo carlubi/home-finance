@@ -15,7 +15,7 @@ import {
   familyCategoryOptions,
   type FamilyExpenseCategoryOption,
 } from "@/lib/family";
-import { addMonths, formatMoney, formatMonth, monthStart } from "@/lib/format";
+import { addMonths, currentMadridMonth, formatMoney, formatMonth, monthStart } from "@/lib/format";
 import type {
   CategoryTotal,
   FamilyDisplayExpense,
@@ -79,7 +79,9 @@ export default async function FamilyExpensesPage({
 }) {
   const { mes } = await searchParams;
   const month = monthFromSearchParam(mes);
-  const currentMonth = monthStart(new Date());
+  const currentMonth = currentMadridMonth();
+  const year = currentMonth.slice(0, 4);
+  const firstYearMonth = `${year}-01-01`;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -164,21 +166,7 @@ export default async function FamilyExpensesPage({
   });
   const monthTotal = displayRows.reduce((sum, row) => sum + (row.entry_kind === "income" ? -1 : 1) * Number(row.amount), 0);
 
-  const historicalDates = [
-    ...familyExpenses
-      .filter((expense) => expense.occurred_at <= addMonths(currentMonth, 1))
-      .map((expense) => monthKey(expense.occurred_at)),
-    ...recurringExpenses
-      .filter((expense) => expense.starts_on <= currentMonth)
-      .map((expense) => expense.starts_on),
-  ];
-  const firstMonth = historicalDates.length > 0
-    ? historicalDates.sort()[0]
-    : currentMonth;
-  const overviewMonths = monthsBetween(
-    firstMonth <= currentMonth ? firstMonth : currentMonth,
-    currentMonth
-  );
+  const overviewMonths = monthsBetween(firstYearMonth, currentMonth);
 
   const monthlyOverview = overviewMonths.map((overviewMonth) => {
     const punctual = familyExpenses.filter(
@@ -262,8 +250,7 @@ export default async function FamilyExpensesPage({
     preferredPeopleCount > 1
       ? "Media de Gasto Mensual (por persona)"
       : "Media de Gasto Mensual";
-  const mostExpensiveMonth = [...monthlyOverview].sort((a, b) => b.total - a.total)[0];
-  const last12Months = monthlyOverview.slice(-12);
+  const mostExpensiveMonth = monthlyOverview.filter((item) => item.total > 0).sort((a, b) => b.total - a.total)[0];
 
   return (
     <div className="grid gap-5">
@@ -350,9 +337,10 @@ export default async function FamilyExpensesPage({
         </TabsContent>
 
         <TabsContent value="global" className="grid gap-4">
+          <p className="text-sm text-muted-foreground">De enero a {formatMonth(currentMonth).toLocaleLowerCase("es-ES")}.</p>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard label="Gastado hasta ahora" value={formatMoney(totalUntilNow)} icon={Receipt} />
-            <StatCard label="Coste por persona" value={formatMoney(totalCostPerPerson)} icon={Users} />
+            <StatCard label={`Gastado en ${year}`} value={formatMoney(totalUntilNow)} icon={Receipt} />
+            <StatCard label={`Coste por persona en ${year}`} value={formatMoney(totalCostPerPerson)} icon={Users} />
             <StatCard
               label={averageMonthlyExpenseLabel}
               value={formatMoney(averageMonthlyExpenseValue)}
@@ -366,7 +354,7 @@ export default async function FamilyExpensesPage({
             />
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Gasto por categoría" description="Acumulado hasta ahora" fileName="gastos-familiares-categoria">
+            <ChartCard title="Gasto por categoría" description={`Acumulado de ${year}`} fileName="gastos-familiares-categoria">
               <CategoryDonut
                 data={globalCategoryData}
                 emptyLabel="Todavía no hay gastos familiares."
@@ -374,9 +362,9 @@ export default async function FamilyExpensesPage({
                 showAllCategories
               />
             </ChartCard>
-            <ChartCard title="Evolución del gasto" description="Últimos 12 meses" fileName="evolucion-gastos-familiares">
+            <ChartCard title="Evolución del gasto" description={`Meses de ${year}`} fileName="evolucion-gastos-familiares">
               <FamilyExpenseTrend
-                data={last12Months.map((item) => ({
+                data={monthlyOverview.map((item) => ({
                   label: new Date(`${item.month}T00:00:00`).toLocaleDateString("es-ES", {
                     month: "short",
                     year: "2-digit",

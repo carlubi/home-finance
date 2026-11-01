@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getAllMonthlySummaries } from "@/lib/data";
-import { formatMoney, formatMonth, monthStart } from "@/lib/format";
+import { getYearMonthlySummaries } from "@/lib/data";
+import { addMonths, currentMadridMonth, formatMoney, formatMonth } from "@/lib/format";
 import {
-  investmentActualValueAtMonth,
-  investmentMonthlyContribution,
   investmentMonthlyOutflow,
-  investmentProjectedValueAtMonth,
   roundCents,
 } from "@/lib/finance";
 import type { CategoryTotal, Investment, MonthlySummary } from "@/lib/types";
@@ -208,6 +205,9 @@ export default async function PersonalGlobalOverview() {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const currentMonth = currentMadridMonth();
+  const firstMonth = `${currentMonth.slice(0, 4)}-01-01`;
+  const year = currentMonth.slice(0, 4);
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   const [{ data: mortgageRow }, { data: mortgagePayments }, { data: ownProfile }] = familyUnit ? await Promise.all([
     supabase.from("family_mortgages").select("started_on, fixed_payment, current_payment, rate_kind, variable_from, first_share_percent, first_borrower, second_borrower").eq("family_unit_id", familyUnit.id).maybeSingle(),
@@ -222,11 +222,13 @@ export default async function PersonalGlobalOverview() {
     { data: investmentRows },
   ] =
     await Promise.all([
-      getAllMonthlySummaries(user.id),
+      getYearMonthlySummaries(user.id, firstMonth, currentMonth),
       supabase
         .from("expenses")
         .select("id, name, category_id, amount, occurred_at, categories(name, color)")
-        .eq("user_id", user.id),
+        .eq("user_id", user.id)
+        .gte("occurred_at", firstMonth)
+        .lt("occurred_at", addMonths(currentMonth, 1)),
       supabase
         .from("fixed_expenses")
       .select("id, name, user_id, category_id, amount, entry_kind, frequency, active, starts_on, ends_on, created_at, categories(name, color)")
@@ -243,8 +245,7 @@ export default async function PersonalGlobalOverview() {
       <div className="grid gap-2">
         <h1 className="text-2xl font-semibold">Visión global</h1>
         <p className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
-          Aún no hay datos suficientes. Registra gastos e ingresos para ver tu
-          evolución anual.
+          Aún no hay datos de {year}. Registra gastos e ingresos para ver tu evolución anual.
         </p>
       </div>
     );
@@ -257,29 +258,14 @@ export default async function PersonalGlobalOverview() {
     expenseRows,
     fixedExpenseRowsTyped
   );
-  const last12 = normalizedSummaries.slice(-12);
+  const yearSummaries = normalizedSummaries;
   const investments = (investmentRows ?? []) as Investment[];
-  const investedNow =
-    normalizedSummaries.length > 0
-      ? investmentActualValueAtMonth(
-          investments,
-          normalizedSummaries[normalizedSummaries.length - 1].month
-        )
-      : 0;
-  const monthlyInvestment = investmentMonthlyContribution(
-    investments,
-    normalizedSummaries[normalizedSummaries.length - 1].month
-  );
-  const totalIncome = normalizedSummaries.reduce(
-    (s, m) => s + Number(m.total_income),
-    0
-  );
-  const totalExpenses = normalizedSummaries.reduce(
-    (s, m) => s + Number(m.total_expenses),
-    0
-  );
-  const totalSavings = roundCents(totalIncome - totalExpenses);
-  const totalNetWorth = roundCents(totalSavings + investedNow);
+  const investedThisYear = roundCents(yearSummaries.reduce((sum, summary) =>
+    sum + Number(summary.total_income) - Number(summary.total_expenses) - Number(summary.savings), 0
+  ));
+  const monthlyInvestment = investmentMonthlyOutflow(investments, currentMonth);
+  const totalSavings = roundCents(normalizedSummaries.reduce((sum, m) => sum + Number(m.savings), 0));
+  const annualAvailable = roundCents(totalSavings + investedThisYear);
   const avgSavings = roundCents(
     normalizedSummaries.reduce((s, m) => s + Number(m.savings), 0) /
       normalizedSummaries.length
@@ -321,7 +307,7 @@ export default async function PersonalGlobalOverview() {
 
   const categoryRows = [...categoryRowsByKey.values()];
 
-  // Agregado histórico por categoría (para "dónde más gastas")
+  // Agregado del año vigente por categoría (para "dónde más gastas")
   const byCategory = new Map<string, CategoryTotal>();
   for (const row of categoryRows) {
     const key = row.category_id ?? "none";
@@ -333,13 +319,13 @@ export default async function PersonalGlobalOverview() {
     }
   }
   const topCategories = [...byCategory.values()];
-  const last12MonthKeys = new Set(last12.map((m) => m.month));
-  const last12CategoryRows = categoryRows.filter((row) =>
-    last12MonthKeys.has(row.month)
+  const yearMonthKeys = new Set(yearSummaries.map((m) => m.month));
+  const yearCategoryRows = categoryRows.filter((row) =>
+    yearMonthKeys.has(row.month)
   );
   const categoryTrendTotals = new Map<string, CategoryTotal>();
 
-  for (const row of last12CategoryRows) {
+  for (const row of yearCategoryRows) {
     const key = row.category_id ?? "none";
     const existing = categoryTrendTotals.get(key);
     if (existing) {
@@ -363,7 +349,7 @@ export default async function PersonalGlobalOverview() {
     }));
 
   const categoryTrendByMonth = new Map<string, Map<string, number>>();
-  for (const row of last12CategoryRows) {
+  for (const row of yearCategoryRows) {
     const key = row.category_id ?? "none";
     if (!categoryTrendByMonth.has(row.month)) {
       categoryTrendByMonth.set(row.month, new Map());
@@ -372,7 +358,7 @@ export default async function PersonalGlobalOverview() {
       .get(row.month)!
       .set(key, Number(row.total));
   }
-  const categoryTrendData = last12.map((monthRow) => {
+  const categoryTrendData = yearSummaries.map((monthRow) => {
     const values = categoryTrendByMonth.get(monthRow.month);
     return {
       label: shortMonth(monthRow.month),
@@ -385,10 +371,7 @@ export default async function PersonalGlobalOverview() {
     };
   });
 
-  const currentMonth = monthStart(new Date());
-  const allocationMonths = normalizedSummaries
-    .filter((summary) => summary.month <= currentMonth && Number(summary.total_income) > 0)
-    .slice(-12);
+  const allocationMonths = normalizedSummaries.filter((summary) => Number(summary.total_income) > 0);
   const recordedMortgage = new Map<string, number>((mortgagePayments ?? []).map((payment) => [payment.month.slice(0, 7), Number(payment.payment)]));
   const lastMortgageMonth = [...recordedMortgage.keys()].sort().at(-1) ?? "";
   const ownName = (ownProfile?.full_name ?? "").toLocaleLowerCase("es-ES");
@@ -444,24 +427,24 @@ export default async function PersonalGlobalOverview() {
 
   return (
     <div className="grid gap-4">
-      <h1 className="text-2xl font-semibold">Visión global</h1>
+      <h1 className="text-2xl font-semibold">Visión global · {year}</h1>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Ahorro medio mensual" value={formatMoney(avgSavings)} />
-        <StatCard label="Ahorro total" value={formatMoney(totalSavings)} />
+        <StatCard label={`Ahorro en ${year}`} value={formatMoney(totalSavings)} />
         <StatCard
-          label="Inversión acumulada"
-          value={formatMoney(investedNow)}
+          label={`Aportado a inversión en ${year}`}
+          value={formatMoney(investedThisYear)}
           helper={
             monthlyInvestment > 0
-              ? `${formatMoney(monthlyInvestment)} recurrentes al mes`
+              ? `${formatMoney(monthlyInvestment)} aportados este mes`
               : undefined
           }
         />
         <StatCard
-          label="Patrimonio Total"
-          value={formatMoney(totalNetWorth)}
-          helper="Ahorro + inversión"
+          label={`Ahorro + inversión en ${year}`}
+          value={formatMoney(annualAvailable)}
+          helper="Suma de ahorro y aportaciones del año"
         />
       </div>
 
@@ -478,7 +461,7 @@ export default async function PersonalGlobalOverview() {
 
       <ChartCard
         title="¿A dónde van tus ingresos?"
-        description="Porcentaje del ingreso medio mensual · últimos 12 meses con ingresos"
+        description={`Porcentaje del ingreso medio mensual · meses con ingresos de ${year}`}
         fileName="reparto-medio-ingresos"
       >
         <IncomeAllocation
@@ -491,7 +474,7 @@ export default async function PersonalGlobalOverview() {
 
       <ChartCard
         title="Evolución de mis finanzas"
-        description="Últimos 12 meses"
+        description={`Meses de ${year}`}
         fileName="evolucion-mis-finanzas"
       >
         <Tabs defaultValue="ahorro">
@@ -501,7 +484,7 @@ export default async function PersonalGlobalOverview() {
           </TabsList>
           <TabsContent value="ahorro">
             <SavingsTrend
-              data={last12.map((m) => {
+              data={yearSummaries.map((m) => {
                 const base = {
                   label: shortMonth(m.month),
                   Ahorro: Number(m.savings),
@@ -511,14 +494,7 @@ export default async function PersonalGlobalOverview() {
 
                 return {
                   ...base,
-                  "Ahorro + inversión": roundCents(
-                    Number(m.savings) +
-                      investmentActualValueAtMonth(investments, m.month)
-                  ),
-                  "Con rentabilidad": roundCents(
-                    Number(m.savings) +
-                      investmentProjectedValueAtMonth(investments, m.month)
-                  ),
+                  "Ahorro + inversión": roundCents(Number(m.total_income) - Number(m.total_expenses)),
                 };
               })}
             />
@@ -534,11 +510,11 @@ export default async function PersonalGlobalOverview() {
 
       <ChartCard
         title="Ingresos vs gastos"
-        description="Últimos 12 meses"
+        description={`Meses de ${year}`}
         fileName="evolucion-ingresos-gastos"
       >
         <IncomeExpenseBars
-          data={last12.map((m) => ({
+          data={yearSummaries.map((m) => ({
             label: shortMonth(m.month),
             Ingresos: Number(m.total_income),
             Gastos: Number(m.total_expenses),
@@ -549,7 +525,7 @@ export default async function PersonalGlobalOverview() {
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Dónde más gastas"
-          description="Acumulado histórico por categoría"
+          description={`Acumulado de ${year} por categoría`}
           fileName="top-categorias"
         >
           <CategoryDonut data={topCategories} />
@@ -571,7 +547,7 @@ export default async function PersonalGlobalOverview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...summaries].reverse().map((m) => (
+                  {[...normalizedSummaries].reverse().map((m) => (
                     <tr key={m.month} className="border-t">
                       <td className="py-1.5">{formatMonth(m.month)}</td>
                       <td className="py-1.5 text-right tabular-nums">
