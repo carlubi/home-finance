@@ -94,6 +94,7 @@ export function SummaryCards({
   savingsDelta,
   monthlyInvestment,
   accumulatedInvestment,
+  accumulatedSavingsInterest,
 }: {
   income: number;
   expenses: number;
@@ -104,9 +105,10 @@ export function SummaryCards({
   savingsDelta: number | null;
   monthlyInvestment?: number;
   accumulatedInvestment?: number;
+  accumulatedSavingsInterest?: number;
 }) {
   return (
-    <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
       <StatCard
         label="Ingresos"
         value={formatMoney(income)}
@@ -139,6 +141,13 @@ export function SummaryCards({
             : undefined
         }
         icon={Landmark}
+        iconClass="bg-[oklch(0.72_0.16_95/0.16)] text-[oklch(0.48_0.13_95)] dark:text-[oklch(0.8_0.13_95)]"
+      />
+      <StatCard
+        label="Dinero acumulado por la cuenta remunerada"
+        value={formatMoney(accumulatedSavingsInterest ?? 0)}
+        helper="Intereses generados hasta este mes"
+        icon={PiggyBank}
         iconClass="bg-[oklch(0.72_0.16_95/0.16)] text-[oklch(0.48_0.13_95)] dark:text-[oklch(0.8_0.13_95)]"
       />
       <StatCard

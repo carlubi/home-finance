@@ -22,6 +22,7 @@ export const SERIES = {
   income: "var(--viz-income)",
   expense: "var(--viz-expense)",
   savings: "var(--viz-savings)",
+  savingsWithInterest: "var(--viz-green)",
   savingsWithInvestment: "var(--viz-income)",
   projectedInvestment: "var(--viz-yellow)",
   grid: "var(--viz-grid)",

@@ -17,6 +17,7 @@ import { ChartTooltip } from "./chart-tooltip";
 export interface TrendDatum {
   label: string;
   Ahorro: number;
+  "Ahorro + cuenta remunerada"?: number;
   "Ahorro + inversión"?: number;
   "Con rentabilidad"?: number;
 }
@@ -28,6 +29,7 @@ const compact = new Intl.NumberFormat("es-ES", {
 
 export function SavingsTrend({ data }: { data: TrendDatum[] }) {
   const hasInvestment = data.some((item) => item["Ahorro + inversión"] != null);
+  const hasSavingsInterest = data.some((item) => item["Ahorro + cuenta remunerada"] != null);
   const hasProjection = data.some((item) => item["Con rentabilidad"] != null);
 
   return (
@@ -69,6 +71,16 @@ export function SavingsTrend({ data }: { data: TrendDatum[] }) {
               }}
               isAnimationActive={false}
             />
+            {hasSavingsInterest && (
+              <Line
+                type="monotone"
+                dataKey="Ahorro + cuenta remunerada"
+                stroke={SERIES.savingsWithInterest}
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: SERIES.savingsWithInterest }}
+                isAnimationActive={false}
+              />
+            )}
             {hasInvestment && (
               <Line
                 type="monotone"
@@ -92,6 +104,11 @@ export function SavingsTrend({ data }: { data: TrendDatum[] }) {
             )}
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-2"><span className="size-2.5 rounded-full" style={{ background: SERIES.savings }} />Ahorro total sin intereses</span>
+        {hasSavingsInterest && <span className="flex items-center gap-2"><span className="size-2.5 rounded-full" style={{ background: SERIES.savingsWithInterest }} />Ahorro total + cuenta remunerada</span>}
+        {hasInvestment && <span className="flex items-center gap-2"><span className="size-2.5 rounded-full" style={{ background: SERIES.savingsWithInvestment }} />Ahorro total + inversión</span>}
       </div>
     </div>
   );

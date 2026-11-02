@@ -92,14 +92,14 @@ export function ExportData({ categories }: { categories: Category[] }) {
           }
         }
         if (category === "all" && (kind === "both" || kind === "income")) {
-          let interestQuery = supabase.from("savings_interest_monthly")
-            .select("month, amount, balance, annual_rate_pct").order("month");
+          let interestQuery = supabase.from("savings_interest_by_account_monthly")
+            .select("account_name, month, amount, balance, annual_rate_pct").order("month");
           if (range) interestQuery = interestQuery.gte("month", range.from).lt("month", range.to);
           const { data: interests, error: interestError } = await interestQuery;
           if (interestError) throw interestError;
           for (const interest of interests ?? []) rows.push({
             Tipo: "Ingreso",
-            Concepto: "Intereses cuenta remunerada",
+            Concepto: `Intereses ${interest.account_name}`,
             Categoría: "",
             Fecha: interest.month,
             Importe: Number(interest.amount),

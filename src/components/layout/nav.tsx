@@ -26,7 +26,7 @@ const items = [
   { href: "/presupuestos", label: "Presupuestos", icon: PiggyBank },
   { href: "/informes", label: "Informes", icon: FileText },
   { href: "/compartidos", label: "Compartidos", icon: Users },
-  { href: "/ajustes", label: "Personaliza", icon: Settings },
+  { href: "/ajustes", label: "Configuración", icon: Settings },
 ];
 
 const primaryItems = items.slice(0, 4);

@@ -87,14 +87,13 @@ export async function getMonthData(userId: string, month: string) {
   };
 }
 
-/** Serie mensual del año vigente para la visión global personal. */
-export async function getYearMonthlySummaries(userId: string, firstMonth: string, currentMonth: string) {
+/** Serie mensual histórica para calcular el ahorro total y la visión global. */
+export async function getMonthlySummariesThrough(userId: string, currentMonth: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("monthly_summary")
     .select("*")
     .eq("user_id", userId)
-    .gte("month", firstMonth)
     .lte("month", currentMonth)
     .order("month", { ascending: true });
   return (data ?? []) as MonthlySummary[];

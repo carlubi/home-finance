@@ -16,7 +16,7 @@ import {
   InvestmentsManager,
 } from "@/components/settings/recurring-finance-forms";
 import { SavingsAccountSettings } from "@/app/(app)/ajustes/savings-account-settings";
-import type { SavingsAccount, SavingsInterestRate } from "@/lib/savings-account";
+import type { RemuneratedAccount, SavingsAccountInterest } from "@/lib/savings-account";
 
 export function FinancialSettingsDialog({
   fixedExpenses,
@@ -24,18 +24,16 @@ export function FinancialSettingsDialog({
   categories,
   incomeCategories,
   currentMonth,
-  savingsAccount,
-  savingsRates,
-  monthlyInterest,
+  remuneratedAccounts,
+  accountInterests,
 }: {
   fixedExpenses: FixedExpense[];
   investments: Investment[];
   categories: Category[];
   incomeCategories: Category[];
   currentMonth: string;
-  savingsAccount: SavingsAccount | null;
-  savingsRates: SavingsInterestRate[];
-  monthlyInterest: number;
+  remuneratedAccounts: RemuneratedAccount[];
+  accountInterests: SavingsAccountInterest[];
 }) {
   return (
     <Dialog>
@@ -52,9 +50,9 @@ export function FinancialSettingsDialog({
       </DialogTrigger>
       <DialogContent className="max-h-[min(820px,calc(100vh-2rem))] w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-[76rem]">
         <DialogHeader>
-          <DialogTitle>Ingresos, gastos, inversión y cuenta remunerada</DialogTitle>
+          <DialogTitle>Ingresos, gastos, inversión y cuentas remuneradas</DialogTitle>
           <DialogDescription>
-            Configura tus movimientos recurrentes y los intereses de tu cuenta remunerada.
+            Configura tus movimientos recurrentes y los intereses de cada cuenta remunerada.
           </DialogDescription>
         </DialogHeader>
 
@@ -88,10 +86,10 @@ export function FinancialSettingsDialog({
 
         <section className="grid gap-3 rounded-lg border p-3">
           <div className="grid gap-1">
-            <h2 className="text-sm font-medium">Cuenta remunerada</h2>
-            <p className="text-xs text-muted-foreground">Registra el saldo y los tipos de interés aplicados en cada periodo.</p>
+            <h2 className="text-sm font-medium">Cuentas remuneradas</h2>
+            <p className="text-xs text-muted-foreground">Añade cada banco y los tipos de interés e importes aplicados en cada periodo.</p>
           </div>
-          <SavingsAccountSettings account={savingsAccount} rates={savingsRates} currentMonth={currentMonth} monthlyInterest={monthlyInterest} />
+          <SavingsAccountSettings accounts={remuneratedAccounts} currentMonth={currentMonth} interests={accountInterests} />
         </section>
 
         <section className="grid gap-3 rounded-lg border p-3">

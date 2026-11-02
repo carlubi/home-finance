@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getYearMonthlySummaries } from "@/lib/data";
+import { getMonthlySummariesThrough } from "@/lib/data";
 import { addMonths, currentMadridMonth, formatMoney, formatMonth } from "@/lib/format";
 import {
   investmentMonthlyOutflow,
@@ -11,7 +11,7 @@ import type { CategoryTotal, Investment, MonthlySummary } from "@/lib/types";
 import { ChartCard } from "@/components/charts/chart-card";
 import { CategoryExpenseTrend } from "@/components/charts/category-expense-trend";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
-import { SavingsTrend } from "@/components/charts/savings-trend";
+import { SavingsTrend, type TrendDatum } from "@/components/charts/savings-trend";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { IncomeAllocation, type AllocationGroup } from "@/components/charts/income-allocation";
 import { summarizeIncomeAllocation, type AllocationLine } from "@/lib/income-allocation";
@@ -216,13 +216,15 @@ export default async function PersonalGlobalOverview() {
   ]) : [{ data: null }, { data: [] }, { data: null }];
 
   const [
-    summaries,
+    lifetimeSummaries,
     { data: expenseCategoryRows },
     { data: fixedExpenseRows },
     { data: investmentRows },
+    { data: savingsInterestRows },
+    { data: startingBalance },
   ] =
     await Promise.all([
-      getYearMonthlySummaries(user.id, firstMonth, currentMonth),
+      getMonthlySummariesThrough(user.id, currentMonth),
       supabase
         .from("expenses")
         .select("id, name, category_id, amount, occurred_at, categories(name, color)")
@@ -238,8 +240,19 @@ export default async function PersonalGlobalOverview() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true }),
+      supabase
+        .from("savings_interest_monthly")
+        .select("month,amount")
+        .eq("user_id", user.id)
+        .lte("month", currentMonth)
+        .order("month"),
+      supabase.from("personal_starting_balances")
+        .select("starts_on,amount")
+        .eq("user_id", user.id)
+        .maybeSingle(),
     ]);
 
+  const summaries = lifetimeSummaries.filter((summary) => summary.month >= firstMonth);
   if (summaries.length === 0) {
     return (
       <div className="grid gap-2">
@@ -259,17 +272,49 @@ export default async function PersonalGlobalOverview() {
     fixedExpenseRowsTyped
   );
   const yearSummaries = normalizedSummaries;
+  const interestByMonth = new Map((savingsInterestRows ?? []).map((row) => [row.month, Number(row.amount)]));
+  const accumulatedSavingsInterest = roundCents((savingsInterestRows ?? []).reduce((sum, row) => sum + Number(row.amount), 0));
+  const openingMonth = startingBalance?.starts_on ?? null;
+  const openingAmount = openingMonth && openingMonth <= currentMonth ? Number(startingBalance?.amount ?? 0) : 0;
+  const priorSummaries = lifetimeSummaries.filter((summary) => summary.month < firstMonth);
+  const priorInterest = roundCents((savingsInterestRows ?? []).filter((row) => row.month < firstMonth).reduce((sum, row) => sum + Number(row.amount), 0));
   const investments = (investmentRows ?? []) as Investment[];
   const investedThisYear = roundCents(yearSummaries.reduce((sum, summary) =>
     sum + Number(summary.total_income) - Number(summary.total_expenses) - Number(summary.savings), 0
   ));
   const monthlyInvestment = investmentMonthlyOutflow(investments, currentMonth);
-  const totalSavings = roundCents(normalizedSummaries.reduce((sum, m) => sum + Number(m.savings), 0));
-  const annualAvailable = roundCents(totalSavings + investedThisYear);
+  const annualSavings = roundCents(normalizedSummaries.reduce((sum, m) => sum + Number(m.savings), 0));
+  const totalSavings = roundCents(openingAmount + priorSummaries.reduce((sum, m) => sum + Number(m.savings), 0) + annualSavings);
+  const annualAvailable = roundCents(annualSavings + investedThisYear);
   const avgSavings = roundCents(
     normalizedSummaries.reduce((s, m) => s + Number(m.savings), 0) /
       normalizedSummaries.length
   );
+  const priorSavingsWithoutInterest = roundCents(
+    priorSummaries.reduce((sum, m) => sum + Number(m.savings), 0)
+    - priorInterest + (openingMonth && openingMonth < firstMonth ? openingAmount : 0)
+  );
+  const priorInvestment = roundCents(priorSummaries.reduce((sum, m) =>
+    sum + Number(m.total_income) - Number(m.total_expenses) - Number(m.savings), 0
+  ));
+  const cumulativeSavingsTrend = yearSummaries.reduce((state, m) => {
+    const interest = interestByMonth.get(m.month) ?? 0;
+    const savingsWithoutInterest = roundCents(state.savingsWithoutInterest + Number(m.savings) - interest + (openingMonth === m.month ? openingAmount : 0));
+    const earnedInterest = roundCents(state.earnedInterest + interest);
+    const accumulatedInvestment = roundCents(state.accumulatedInvestment + Number(m.total_income) - Number(m.total_expenses) - Number(m.savings));
+    const savingsWithInterest = roundCents(savingsWithoutInterest + earnedInterest);
+    return {
+      savingsWithoutInterest,
+      earnedInterest,
+      accumulatedInvestment,
+      data: [...state.data, {
+        label: shortMonth(m.month),
+        Ahorro: savingsWithoutInterest,
+        ...((savingsInterestRows ?? []).length > 0 ? { "Ahorro + cuenta remunerada": savingsWithInterest } : {}),
+        ...(investments.length > 0 ? { "Ahorro + inversión": roundCents(savingsWithInterest + accumulatedInvestment) } : {}),
+      }],
+    };
+  }, { savingsWithoutInterest: priorSavingsWithoutInterest, earnedInterest: priorInterest, accumulatedInvestment: priorInvestment, data: [] as TrendDatum[] }).data;
 
   const bestSavings = [...normalizedSummaries].sort((a, b) => b.savings - a.savings)[0];
   const worstExpenses = [...normalizedSummaries].sort(
@@ -429,9 +474,10 @@ export default async function PersonalGlobalOverview() {
     <div className="grid gap-4">
       <h1 className="text-2xl font-semibold">Visión global · {year}</h1>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Ahorro medio mensual" value={formatMoney(avgSavings)} />
-        <StatCard label={`Ahorro en ${year}`} value={formatMoney(totalSavings)} />
+        <StatCard label={`Ahorro en ${year}`} value={formatMoney(annualSavings)} />
+        <StatCard label="Ahorro total acumulado" value={formatMoney(totalSavings)} helper={openingAmount > 0 ? `Incluye ${formatMoney(openingAmount)} de saldo inicial` : "Desde el primer mes registrado"} />
         <StatCard
           label={`Aportado a inversión en ${year}`}
           value={formatMoney(investedThisYear)}
@@ -446,6 +492,7 @@ export default async function PersonalGlobalOverview() {
           value={formatMoney(annualAvailable)}
           helper="Suma de ahorro y aportaciones del año"
         />
+        <StatCard label="Dinero acumulado por la cuenta remunerada" value={formatMoney(accumulatedSavingsInterest)} helper="Intereses generados hasta hoy" />
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -474,7 +521,7 @@ export default async function PersonalGlobalOverview() {
 
       <ChartCard
         title="Evolución de mis finanzas"
-        description={`Meses de ${year}`}
+        description={`Ahorro total acumulado hasta cada mes de ${year}`}
         fileName="evolucion-mis-finanzas"
       >
         <Tabs defaultValue="ahorro">
@@ -484,19 +531,7 @@ export default async function PersonalGlobalOverview() {
           </TabsList>
           <TabsContent value="ahorro">
             <SavingsTrend
-              data={yearSummaries.map((m) => {
-                const base = {
-                  label: shortMonth(m.month),
-                  Ahorro: Number(m.savings),
-                };
-
-                if (investments.length === 0) return base;
-
-                return {
-                  ...base,
-                  "Ahorro + inversión": roundCents(Number(m.total_income) - Number(m.total_expenses)),
-                };
-              })}
+              data={cumulativeSavingsTrend}
             />
           </TabsContent>
           <TabsContent value="categorias">

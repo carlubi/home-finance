@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { SavingsInterestRate } from "@/lib/savings-account";
+import type { RemuneratedAccount, SavingsAccountInterest } from "@/lib/savings-account";
 
 function monthFromSearchParam(mes?: string) {
   return /^\d{4}-\d{2}$/.test(mes ?? "")
@@ -280,8 +280,7 @@ export default async function DashboardPage({
     data,
     { data: fixedExpenses },
     { data: skippedFixedExpenses },
-    { data: savingsAccount },
-    { data: savingsRates },
+    { data: remuneratedAccounts },
     { data: savingsInterestRows },
   ] = await Promise.all([
     getMonthData(user.id, month),
@@ -295,11 +294,15 @@ export default async function DashboardPage({
       .select("fixed_expense_id")
       .eq("user_id", user.id)
       .eq("month", month),
-    supabase.from("savings_accounts").select("is_remunerated,balance").eq("user_id", user.id).maybeSingle(),
-    supabase.from("savings_interest_rates").select("id,starts_on,annual_rate_pct,payout_frequency").eq("user_id", user.id).order("starts_on", { ascending: false }),
-    supabase.from("savings_interest_monthly").select("month,amount,balance,annual_rate_pct").eq("user_id", user.id).in("month", [...new Set([month, addMonths(month, -1), recurrentSettingsMonth])]),
+    supabase.from("remunerated_accounts")
+      .select("id,name,allocation_mode,active,remunerated_account_rates(id,account_id,starts_on,ends_on,annual_rate_pct),remunerated_account_amounts(id,account_id,starts_on,amount)")
+      .eq("user_id", user.id).order("created_at"),
+    supabase.from("savings_interest_by_account_monthly")
+      .select("account_id,account_name,month,amount,balance,annual_rate_pct")
+      .eq("user_id", user.id).lte("month", month > recurrentSettingsMonth ? month : recurrentSettingsMonth).order("month"),
   ]);
-  const interestThisMonth = (savingsInterestRows ?? []).find((row) => row.month === month);
+  const interestThisMonth = (savingsInterestRows ?? []).filter((row) => row.month === month);
+  const accumulatedSavingsInterest = roundCents((savingsInterestRows ?? []).filter((row) => row.month <= month).reduce((total, row) => total + Number(row.amount), 0));
   const recurringInvestmentsForSettings = data.investments.filter(
     (investment) =>
       Number(investment.monthly_amount ?? 0) > 0 &&
@@ -365,7 +368,7 @@ export default async function DashboardPage({
   const rawIncome = Number(data.current?.total_income ?? 0);
   const manualIncomeTotal = data.income.reduce((total, entry) => total + Number(entry.amount ?? 0), 0);
   const allFixedIncomeTotal = fixedExpensesTotal(activeFixedExpensesForMonth(allFixedIncomes, month));
-  const interestAmount = Number(interestThisMonth?.amount ?? 0);
+  const interestAmount = roundCents(interestThisMonth.reduce((total, row) => total + Number(row.amount), 0));
   const summaryIncludesFixedIncome = allFixedIncomeTotal > 0 && rawIncome >= manualIncomeTotal + interestAmount + allFixedIncomeTotal - 0.01;
   const income = roundCents((summaryIncludesFixedIncome ? manualIncomeTotal + interestAmount : rawIncome) + fixedExpensesTotal(monthFixedIncomeBreakdown.unrepresented));
   const previousIncome = Number(data.previous?.total_income ?? 0);
@@ -419,20 +422,20 @@ export default async function DashboardPage({
   ];
   const visibleIncome = [
     ...fixedIncomesAsMonthIncome(monthFixedIncomeBreakdown.unrepresented, month),
-    ...(interestThisMonth ? [{
-      id: `savings-interest-${month}`,
+    ...interestThisMonth.map((interest) => ({
+      id: `savings-interest-${interest.account_id}-${month}`,
       user_id: user.id,
-      name: "Intereses cuenta remunerada",
+      name: `Intereses ${interest.account_name}`,
       category_id: null,
-      amount: Number(interestThisMonth.amount),
+      amount: Number(interest.amount),
       occurred_at: month,
       is_recurring: true,
-      notes: `Estimación bruta sobre ${formatMoney(Number(interestThisMonth.balance))} al ${Number(interestThisMonth.annual_rate_pct).toLocaleString("es-ES")}% anual`,
+      notes: `Estimación bruta sobre ${formatMoney(Number(interest.balance))} al ${Number(interest.annual_rate_pct).toLocaleString("es-ES")}% anual`,
       source: "manual" as const,
       import_id: null,
       created_at: month,
-      readOnlyReason: "Ingreso automático: edita el saldo o el tipo en Ajustes recurrentes",
-    }] : []),
+      readOnlyReason: "Ingreso automático: edita esta cuenta en Ajustes recurrentes",
+    })),
     ...data.income,
   ];
   const prevLabel = new Date(month + "T00:00:00");
@@ -479,9 +482,8 @@ export default async function DashboardPage({
             categories={expenseCategories}
             incomeCategories={incomeCategories}
             currentMonth={recurrentSettingsMonth}
-            savingsAccount={savingsAccount ? { is_remunerated: savingsAccount.is_remunerated, balance: Number(savingsAccount.balance) } : null}
-            savingsRates={(savingsRates ?? []) as SavingsInterestRate[]}
-            monthlyInterest={Number((savingsInterestRows ?? []).find((row) => row.month === recurrentSettingsMonth)?.amount ?? 0)}
+            remuneratedAccounts={(remuneratedAccounts ?? []) as RemuneratedAccount[]}
+            accountInterests={(savingsInterestRows ?? []).filter((row) => row.month === recurrentSettingsMonth) as SavingsAccountInterest[]}
           />
           <Suspense>
             <MonthSwitcher month={month} />
@@ -507,6 +509,7 @@ export default async function DashboardPage({
             savingsDelta={pctChange(savings, previousSavings)}
             monthlyInvestment={monthlyInvestment}
             accumulatedInvestment={accumulatedInvestment}
+            accumulatedSavingsInterest={accumulatedSavingsInterest}
           />
 
       <div className="grid gap-4 lg:grid-cols-2">
