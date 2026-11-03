@@ -21,17 +21,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  applicationName: "Todo en Casa",
+  applicationName: "Home Brain",
   title: {
-    default: "Todo en Casa",
-    template: "%s · Todo en Casa",
+    default: "Home Brain",
+    template: "%s · Home Brain",
   },
   description:
     "Las finanzas, los gastos compartidos y los menús de tu casa, en un solo lugar.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Todo en Casa",
+    title: "Home Brain",
     statusBarStyle: "black",
   },
   icons: {

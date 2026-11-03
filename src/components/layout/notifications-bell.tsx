@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -50,10 +51,13 @@ export function NotificationsBell() {
 
           if (document.visibilityState !== "visible") {
             const groupId = notification.data?.group_id;
+            const notificationUrl = notification.data?.url;
             showSystemNotification(notification.title, {
               body: notification.body ?? undefined,
               url:
-                typeof groupId === "string"
+                typeof notificationUrl === "string" && notificationUrl.startsWith("/") && !notificationUrl.startsWith("//")
+                  ? notificationUrl
+                  : typeof groupId === "string"
                   ? `/compartidos/${groupId}`
                   : undefined,
             });
@@ -121,14 +125,20 @@ export function NotificationsBell() {
           </p>
         ) : (
           <div className="max-h-80 overflow-y-auto">
-            {notifications.map((n) => (
-              <div key={n.id} className="border-b border-border-primary px-2 py-2.5 text-[13px] last:border-0">
+            {notifications.map((n) => {
+              const url = n.data?.url;
+              const href = typeof url === "string" && url.startsWith("/") && !url.startsWith("//") ? url : null;
+              const content = <>
                 <p className="font-medium text-text-primary">{n.title}</p>
                 {n.body && (
                   <p className="mt-0.5 text-xs text-text-secondary">{n.body}</p>
                 )}
-              </div>
-            ))}
+              </>;
+              const className = "block border-b border-border-primary px-2 py-2.5 text-[13px] last:border-0";
+              return href
+                ? <Link key={n.id} href={href} className={`${className} hover:bg-bg-tertiary`}>{content}</Link>
+                : <div key={n.id} className={className}>{content}</div>;
+            })}
           </div>
         )}
       </DropdownMenuContent>

@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Todo en Casa",
-    short_name: "Todo en Casa",
+    name: "Home Brain",
+    short_name: "Home Brain",
     description:
       "Las finanzas, los gastos compartidos y los menús de tu casa, en un solo lugar.",
     lang: "es",

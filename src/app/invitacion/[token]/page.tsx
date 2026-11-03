@@ -103,7 +103,7 @@ export default async function InvitacionPage({
             <span>{groupName}</span>
           </h1>
           <p className="mt-4 max-w-xl text-base text-text-secondary">
-            Te han invitado a {isFamilyInvitation ? "compartir todos los datos de la unidad familiar" : "compartir gastos y saldos de grupo"} en Todo en Casa.
+            Te han invitado a {isFamilyInvitation ? "compartir todos los datos de la unidad familiar" : "compartir gastos y saldos de grupo"} en Home Brain.
             Para continuar, entra con tu cuenta o crea una nueva con el email
             invitado.
           </p>

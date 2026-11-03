@@ -123,7 +123,7 @@ export function InstallAppButton() {
           <div className="flex items-center gap-3 rounded-lg border border-border-primary bg-bg-tertiary/50 p-3">
             <BrandMark variant="dark" className="size-12 drop-shadow-sm" />
             <div className="grid">
-              <span className="text-sm font-medium text-text-primary">Todo en Casa</span>
+              <span className="text-sm font-medium text-text-primary">Home Brain</span>
               <span className="text-xs text-text-tertiary">Así aparecerá en tu pantalla de inicio</span>
             </div>
           </div>

@@ -1,4 +1,4 @@
-# Todo en Casa
+# Home Brain
 
 App web para organizar las finanzas personales y familiares, los gastos compartidos y los menús de casa.
 
@@ -72,3 +72,31 @@ src/lib/finance.ts     lógica financiera pura (reparto, simplificación de deud
 - Buckets de Storage privados con policies por carpeta (`documents/{user_id}/…`, `receipts/{group_id}/…`).
 - La IA nunca escribe en las tablas finales: todo pasa por staging + confirmación del usuario.
 - Confirmación explícita antes de cualquier borrado.
+
+# StockAlert en la despensa
+
+La ruta `/stockalert` integra el inventario de caducidades en la sesión de esta app.
+Antes de usarla, aplica la migración `supabase/migrations/20261103222158_stockalert_products.sql`
+al proyecto Supabase de home-finance. Para analizar fotos, configura `OPENAI_API_KEY`
+como secreto del servidor de Next.js; las altas manuales no necesitan esa clave.
+Los productos de la instalación original de StockAlert viven en otro proyecto
+Supabase y no se migran automáticamente.
+
+### Avisos de caducidad
+
+Home Brain comprueba la Despensa cada día a las 07:00 UTC mediante el cron de
+Vercel. Para cada producto activo avisa a su propietario cuando quedan 10 días,
+3 días y el día de caducidad. El aviso aparece en la campana de la app y se
+envía por correo. No se envía a otros miembros de la unidad familiar.
+
+Configura estas variables **solo en el servidor** del proyecto de Vercel:
+
+- `CRON_SECRET`: cadena aleatoria larga para autorizar la tarea programada.
+- `RESEND_API_KEY`: clave de Resend con permiso para enviar correos.
+- `RESEND_FROM_EMAIL`: remitente de un dominio verificado en Resend, por ejemplo
+  `Home Brain <avisos@tudominio.es>`.
+
+El cron se activa con el despliegue de producción. Los avisos por correo no se
+envían hasta que Resend y estas variables estén configurados. Para comprobar
+una ejecución sin esperar al día siguiente, llama a
+`GET /api/cron/stockalert-expiry` con `Authorization: Bearer <CRON_SECRET>`.

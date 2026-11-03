@@ -1,4 +1,4 @@
-const CACHE = "todo-en-casa-v6";
+const CACHE = "home-brain-v1";
 const PRECACHE = [
   "/offline.html",
   "/icon-192.png?v=3",

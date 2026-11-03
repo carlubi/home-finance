@@ -34,7 +34,7 @@ export const PDF_COLORS = {
   },
 };
 
-export const APP_NAME = "Todo en Casa";
+export const APP_NAME = "Home Brain";
 
 export type PdfFonts = { family: string; medium: string; semibold: string };
 

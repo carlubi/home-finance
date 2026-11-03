@@ -87,10 +87,10 @@ export function BrandLogo({
   const s = sizes[size];
   return (
     <span className={cn("flex items-center gap-2", className)}>
-      <BrandMark className={s.box} title={withText ? undefined : "Todo en Casa"} />
+      <BrandMark className={s.box} title={withText ? undefined : "Home Brain"} />
       {withText && (
         <span className={cn("whitespace-nowrap font-semibold text-text-primary", s.text)}>
-          Todo en Casa
+          Home Brain
         </span>
       )}
     </span>

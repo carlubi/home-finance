@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Menu,
   PiggyBank,
+  Package,
   Receipt,
   Settings,
   Users,
@@ -53,6 +54,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/familia", label: "Gastos", icon: Receipt, mobileLabel: "Familia" },
       { href: "/menus", label: "Menús", icon: CalendarDays },
+      { href: "/stockalert", label: "Despensa", icon: Package },
       { href: "/hipoteca", label: "Hipoteca", icon: HousePlus },
       { href: "/global", label: "Visión global", icon: ChartPie },
     ],

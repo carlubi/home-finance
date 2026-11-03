@@ -68,8 +68,8 @@ export function NotificationsPermissionPrompt() {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-text-primary">¿Activamos las notificaciones?</p>
           <p className="mt-0.5 text-[13px] leading-[18px] text-text-secondary">
-            Te avisaremos cuando alguien registre un gasto compartido o pague una
-            deuda, aunque no tengas la app abierta en pantalla.
+            Recibirás avisos de gastos compartidos y productos próximos a caducar.
+            Los avisos del sistema aparecerán mientras la app esté abierta.
           </p>
           <div className="mt-3 flex gap-2">
             <Button size="sm" onClick={allow} disabled={asking}>
