@@ -1,11 +1,11 @@
-const CACHE = "mis-finanzas-v3";
+const CACHE = "todo-en-casa-v6";
 const PRECACHE = [
   "/offline.html",
-  "/icon-192.png",
-  "/icon.png?v=2",
-  "/icon-512.png?v=2",
-  "/icon-maskable-192.png",
-  "/icon-maskable-512.png",
+  "/icon-192.png?v=3",
+  "/icon.png?v=3",
+  "/icon-512.png?v=3",
+  "/icon-maskable-192.png?v=3",
+  "/icon-maskable-512.png?v=3",
 ];
 
 self.addEventListener("install", (event) => {

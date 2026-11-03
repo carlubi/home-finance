@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Pencil, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { buttonVariants } from "@/components/ui/button";
 import { MortgageFields } from "@/components/mortgage/mortgage-fields";
 import { draftFromMortgage, emptyMortgageDraft } from "@/lib/mortgage-config";
 import type { MortgageTerms } from "@/lib/mortgage";
@@ -20,16 +21,16 @@ export function MortgageConfiguration({ mortgage }: { mortgage: MortgageTerms | 
     type="button"
     onClick={() => setOpen(true)}
     className={mortgage
-      ? "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-      : "inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"}
+      ? buttonVariants({ variant: "outline" })
+      : buttonVariants({ variant: "default", size: "lg" })}
   >
     {mortgage ? <Pencil className="size-4" /> : <Plus className="size-4" />}
     {mortgage ? "Editar datos" : "Configurar hipoteca"}
   </button>;
 
   return <>
-    {mortgage ? button : <section className="rounded-2xl border bg-card p-6 sm:p-8">
-      <h1 className="text-2xl font-semibold">Tu hipoteca</h1>
+    {mortgage ? button : <section className="rounded-lg border bg-card p-6 sm:p-8">
+      <h1 className="text-2xl font-medium">Tu hipoteca</h1>
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Si tienes una hipoteca, añade sus datos para consultar el saldo, las cuotas y las simulaciones. Puedes hacerlo más adelante.</p>
       <div className="mt-5">{button}</div>
     </section>}
@@ -50,7 +51,7 @@ export function MortgageConfiguration({ mortgage }: { mortgage: MortgageTerms | 
               setOpen(false);
               router.refresh();
             }
-          })} className="min-h-11 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+          })} className="min-h-11 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-60">
             {pending ? "Guardando…" : "Guardar hipoteca"}
           </button>
         </div>

@@ -105,6 +105,7 @@ export async function createGroup(formData: FormData) {
   });
 
   revalidatePath("/compartidos");
+  revalidatePath("/");
   return { ok: true, groupId: group.id };
 }
 
@@ -274,6 +275,7 @@ export async function acceptInvitation(token: string) {
   if (error) return { error: "No se pudo aceptar la invitación." };
 
   revalidatePath("/compartidos");
+  revalidatePath("/");
   return { ok: true, groupId: member.group_id };
 }
 
@@ -374,6 +376,7 @@ export async function saveSharedExpense(input: SharedExpenseInput) {
   }
 
   revalidatePath("/compartidos");
+  revalidatePath("/");
   return { ok: true };
 }
 
@@ -384,6 +387,7 @@ export async function deleteSharedExpense(id: string) {
   const { error } = await supabase.from("shared_expenses").delete().eq("id", id);
   if (error) return { error: "No tienes permiso para eliminar este gasto." };
   revalidatePath("/compartidos");
+  revalidatePath("/");
   return { ok: true };
 }
 

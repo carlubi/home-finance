@@ -26,7 +26,7 @@ export default function ActualizarPasswordPage() {
       <CardContent>
         {state?.ok ? (
           <div className="grid gap-4">
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+            <div className="rounded-lg border border-green/20 bg-green/10 p-4 text-sm text-green">
               Contraseña actualizada. Ya puedes iniciar sesión con la nueva clave.
             </div>
             <Button nativeButton={false} render={<Link href="/login" />} className="w-full">

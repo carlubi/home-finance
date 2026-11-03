@@ -159,8 +159,8 @@ export function InvestmentList({
               oneOff ? investment.one_off_amount : investment.monthly_amount
             );
             return (
-              <li key={investment.id} className="row-hover flex items-center gap-3 p-3">
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[oklch(0.72_0.16_95/0.16)] text-[oklch(0.48_0.13_95)]">
+              <li key={investment.id} className="flex items-center gap-3 p-3">
+                <span className="grid size-7 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
                   {oneOff ? <Plus className="size-4" /> : <Repeat className="size-4" />}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -287,7 +287,7 @@ export function InvestmentList({
             </p>
 
             {!editingOneOff && (
-              <p className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border-primary bg-bg-tertiary/60 p-2.5 text-xs text-muted-foreground">
                 Esta inversión es recurrente. Al editarla desde el resumen, se
                 conservarán los meses anteriores y el cambio se aplicará desde
                 este mes.

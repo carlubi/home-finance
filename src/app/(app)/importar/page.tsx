@@ -32,8 +32,8 @@ export default async function ImportarPage({
       ? { pathname: "/familia", query: { mes } }
       : "/familia"
     : validMonth
-      ? { pathname: "/", query: { mes } }
-      : "/";
+      ? { pathname: "/gastos-personales", query: { mes } }
+      : "/gastos-personales";
   const scopeHref = (nextScope: ImportScope) => {
     const params = new URLSearchParams({ scope: nextScope });
     if (validMonth) params.set("mes", mes!);
@@ -64,7 +64,7 @@ export default async function ImportarPage({
           Volver a {importScope === "family" ? "gastos familiares" : "gastos personales"}
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-2xl font-medium">
             Importar {importScope === "family" ? "gastos familiares" : "gastos personales"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -74,7 +74,7 @@ export default async function ImportarPage({
         </div>
       </div>
 
-      <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+      <div className="grid gap-2 rounded-lg border bg-muted/20 p-3">
         <div>
           <p className="text-sm font-medium">Guardar documento en</p>
           <p className="text-xs text-muted-foreground">
@@ -136,7 +136,7 @@ export default async function ImportarPage({
                 {f.status === "ready" || f.status === "confirmed" ? (
                   <Link
                     href={`/importar/${f.id}`}
-                    className="row-hover flex items-center gap-3 p-3"
+                    className="flex items-center gap-3 p-3"
                   >
                     {inner}
                     <ChevronRight className="size-4 text-muted-foreground" />

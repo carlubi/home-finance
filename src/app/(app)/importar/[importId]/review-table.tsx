@@ -90,7 +90,7 @@ export function ReviewTable({
     <div className="grid gap-4">
       {confirmed && (
         <div className="rounded-md border bg-muted/40 p-3 text-sm">
-          <Check className="mr-1 inline size-4 text-green-600" />
+          <Check className="mr-1 inline size-4 text-green" />
           Esta importación ya fue confirmada.
         </div>
       )}
@@ -125,7 +125,7 @@ export function ReviewTable({
                     </Badge>
                     {duplicateSet.has(row.id) && (
                       <span
-                        className="mt-1 flex items-center gap-1 text-[10px] text-amber-600"
+                        className="mt-1 flex items-center gap-1 text-[10px] text-orange"
                         title="Ya existe un movimiento con el mismo importe y fecha"
                       >
                         <AlertTriangle className="size-3" />
@@ -297,7 +297,7 @@ export function ReviewTable({
                 if (r.error) toast.error(r.error);
                 else {
                   toast.success(`Importadas ${r.count} transacciones.`);
-                  router.push(r.scope === "family" ? "/familia" : "/");
+                  router.push(r.scope === "family" ? "/familia" : "/gastos-personales");
                 }
               })
             }

@@ -372,8 +372,8 @@ export function GroupView({
                         (settled
                           ? ""
                           : p.net > 0
-                            ? "text-green-700 dark:text-green-500"
-                            : "text-red-700 dark:text-red-400")
+                            ? "text-green"
+                            : "text-red")
                       }
                     >
                       {p.net > 0 ? "+" : ""}
@@ -400,7 +400,7 @@ export function GroupView({
         <CardContent className="grid gap-2">
           {transfers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Todo saldado este mes. 🎉
+              Todo saldado este mes. <span className="emoji" aria-hidden>🎉</span>
             </p>
           ) : (
             transfers.map((t, i) => (
@@ -445,7 +445,7 @@ export function GroupView({
                   key={p.id}
                   className="flex items-center gap-2 text-xs text-muted-foreground"
                 >
-                  <Check className="size-3 text-green-600" />
+                  <Check className="size-3 text-green" />
                   {memberName(members, p.from_member)} pagó{" "}
                   {formatMoney(Number(p.paid_amount))} a{" "}
                   {memberName(members, p.to_member)}
@@ -550,7 +550,7 @@ export function GroupView({
           ) : (
             <ul className="divide-y rounded-md border">
               {filteredExpenses.map((e) => (
-                <li key={e.id} className="row-hover flex items-center gap-3 p-3">
+                <li key={e.id} className="flex items-center gap-3 p-3">
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: e.categories?.color ?? "#898781" }}
@@ -745,7 +745,7 @@ export function GroupView({
                 </div>
                 <button
                   type="button"
-                  className="cursor-pointer text-left text-xs font-semibold text-primary underline-offset-4 hover:text-primary/80 hover:underline"
+                  className="cursor-pointer text-left text-xs font-medium text-primary underline-offset-4 hover:text-accent-hover hover:underline"
                   onClick={() => setManualExpenseOpen(true)}
                 >
                   Prefiero hacerlo manual

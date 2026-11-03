@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Download, Share, SquarePlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/layout/brand-logo";
 import {
   Dialog,
   DialogContent,
@@ -114,11 +115,18 @@ export function InstallAppButton() {
         title="Instalar la aplicación"
         onClick={install}
       >
-        <Download className="size-5" />
+        <Download className="size-4" />
       </Button>
 
       <Dialog open={iosHelpOpen} onOpenChange={setIosHelpOpen}>
         <DialogContent className="max-w-sm">
+          <div className="flex items-center gap-3 rounded-lg border border-border-primary bg-bg-tertiary/50 p-3">
+            <BrandMark variant="dark" className="size-12 drop-shadow-sm" />
+            <div className="grid">
+              <span className="text-sm font-medium text-text-primary">Todo en Casa</span>
+              <span className="text-xs text-text-tertiary">Así aparecerá en tu pantalla de inicio</span>
+            </div>
+          </div>
           <DialogHeader>
             <DialogTitle>Instalar en tu iPhone o iPad</DialogTitle>
             <DialogDescription>
@@ -128,7 +136,7 @@ export function InstallAppButton() {
           </DialogHeader>
           <ol className="grid gap-3 text-sm">
             <li className="flex items-center gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <span className="grid size-7 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
                 <Share className="size-4" />
               </span>
               <span>
@@ -136,7 +144,7 @@ export function InstallAppButton() {
               </span>
             </li>
             <li className="flex items-center gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <span className="grid size-7 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
                 <SquarePlus className="size-4" />
               </span>
               <span>

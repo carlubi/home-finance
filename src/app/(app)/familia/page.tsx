@@ -256,8 +256,8 @@ export default async function FamilyExpensesPage({
     <div className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-primary">Coste de mantener la vivienda</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Gastos unidad familiar</h1>
+          <p className="eyebrow">Coste de mantener la vivienda</p>
+          <h1 className="mt-1 text-2xl font-medium">Gastos unidad familiar</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Una vista separada para entender cuánto cuesta la casa y cómo se reparte entre las personas.
           </p>
@@ -274,7 +274,7 @@ export default async function FamilyExpensesPage({
               />
             }
             variant="default"
-            className="shadow-sm hover:-translate-y-0.5 hover:shadow-md"
+            className="shadow-sm hover:shadow-md"
           >
             <Import className="size-4" />
             Importar documentos

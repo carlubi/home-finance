@@ -196,7 +196,7 @@ export function FamilyRecurringSettingsDialog({
           trigger ?? (
             <Button
               variant="default"
-              className="shadow-sm hover:-translate-y-0.5 hover:shadow-md"
+              className="shadow-sm hover:shadow-md"
             >
               Ajustes recurrentes
             </Button>

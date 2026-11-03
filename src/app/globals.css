@@ -4,133 +4,294 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Linear design system — tokens de runtime.
+   Fuente de verdad en CSS (Tailwind v4 no usa tailwind.config).
+   Espejo tipado en src/lib/design-system/tokens/: mantener ambos en sync.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tema claro ─────────────────────────────────────────────────────────── */
+:root {
+  /* Capas de fondo: página → card → anidado → muy anidado */
+  --bg-primary: #fbfbfc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f3f5;
+  --bg-quaternary: #ebebee;
+
+  /* Jerarquía de texto */
+  --text-primary: #1b1c1f;
+  --text-secondary: #62666d;
+  --text-tertiary: #8a8f98;
+
+  /* Bordes */
+  --border-primary: rgba(0, 0, 0, 0.08);
+  --border-secondary: rgba(0, 0, 0, 0.13);
+
+  /* Acento: lila de la marca (tono 293° en OKLCH), AA con texto blanco */
+  --accent-default: #7545d7;
+  --accent-hover: #6d3bcd;
+  --accent-light: #8d6be7;
+
+  /* Estados (versiones oscurecidas para texto legible en claro) */
+  --status-green: #1f8a5a;
+  --status-blue: #1a73c8;
+  --status-red: #d93f3f;
+  --status-orange: #c9541c;
+  --status-yellow: #a87b06;
+}
+
+/* ── Tema oscuro (dark-first: valores literales de Linear) ─────────────── */
+.dark {
+  --bg-primary: #08090a;
+  --bg-secondary: #1c1c1f;
+  --bg-tertiary: #232326;
+  --bg-quaternary: #28282c;
+
+  --text-primary: #f7f8f8;
+  --text-secondary: #8a8f98;
+  --text-tertiary: #62666d;
+
+  --border-primary: rgba(255, 255, 255, 0.06);
+  --border-secondary: rgba(255, 255, 255, 0.08);
+
+  --accent-default: #825cde;
+  --accent-hover: #8d6be7;
+  --accent-light: #a38af2;
+
+  --status-green: #4cb782;
+  --status-blue: #4ea7fc;
+  --status-red: #eb5757;
+  --status-orange: #fc7840;
+  --status-yellow: #f2c94c;
+}
+
+/* ── Alias semánticos de shadcn → tokens de Linear ─────────────────────
+   Los componentes base y las páginas usan estos nombres; todos derivan de
+   las capas anteriores, así que no hay valores sueltos que mantener. */
+:root,
+.dark {
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --card: var(--bg-secondary);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-secondary);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent-default);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bg-tertiary);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-tertiary);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--accent-default);
+  --accent-foreground: #ffffff;
+  --destructive: var(--status-red);
+  --border: var(--border-primary);
+  --input: var(--border-secondary);
+  --ring: var(--accent-default);
+  --sidebar: var(--bg-primary);
+  --sidebar-foreground: var(--text-secondary);
+  --sidebar-primary: var(--accent-default);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--bg-tertiary);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-primary);
+  --sidebar-ring: var(--accent-default);
+}
+
 @theme inline {
+  /* Tipografía */
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Capas de fondo → bg-bg-primary … bg-bg-quaternary */
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+  --color-bg-quaternary: var(--bg-quaternary);
+
+  /* Texto → text-text-primary … text-text-tertiary */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+
+  /* Bordes → border-border-primary / border-border-secondary */
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+
+  /* Acento → bg-accent, bg-accent-hover, text-accent-light */
+  --color-accent: var(--accent-default);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-light: var(--accent-light);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* Estados → text-green, bg-red/10, border-orange/20 … */
+  --color-green: var(--status-green);
+  --color-blue: var(--status-blue);
+  --color-red: var(--status-red);
+  --color-orange: var(--status-orange);
+  --color-yellow: var(--status-yellow);
+
+  /* shadcn */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
-:root {
-  --background: oklch(0.988 0.005 300);
-  --foreground: oklch(0.22 0.03 295);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.03 295);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.03 295);
-  --primary: oklch(0.55 0.22 293);
-  --primary-foreground: oklch(0.985 0.005 300);
-  --secondary: oklch(0.955 0.02 295);
-  --secondary-foreground: oklch(0.35 0.08 293);
-  --muted: oklch(0.955 0.012 300);
-  --muted-foreground: oklch(0.53 0.03 295);
-  --accent: oklch(0.945 0.03 295);
-  --accent-foreground: oklch(0.35 0.1 293);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.015 298);
-  --input: oklch(0.91 0.015 298);
-  --ring: oklch(0.65 0.18 293);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 1rem;
-  --sidebar: oklch(0.975 0.01 300);
-  --sidebar-foreground: oklch(0.22 0.03 295);
-  --sidebar-primary: oklch(0.55 0.22 293);
-  --sidebar-primary-foreground: oklch(0.985 0.005 300);
-  --sidebar-accent: oklch(0.94 0.03 295);
-  --sidebar-accent-foreground: oklch(0.35 0.1 293);
-  --sidebar-border: oklch(0.91 0.015 298);
-  --sidebar-ring: oklch(0.65 0.18 293);
+@theme {
+  /* Pesos de Linear (Inter variable) */
+  --font-weight-normal: 400;
+  --font-weight-medium: 510;
+  --font-weight-semibold: 538;
+  --font-weight-bold: 538;
+
+  /* Escala tipográfica: cada clase de tamaño lleva su interlineado y su
+     tracking negativo, así text-2xl ya es «heading lg» sin repetir valores. */
+  --text-2xs: 11px;               /* caption sm */
+  --text-2xs--line-height: 14px;
+  --text-2xs--letter-spacing: -0.066px;
+  --text-xs: 12px;                /* caption base */
+  --text-xs--line-height: 16px;
+  --text-xs--letter-spacing: -0.072px;
+  --text-sm: 14px;                /* body base / button md */
+  --text-sm--line-height: 20px;
+  --text-sm--letter-spacing: -0.084px;
+  --text-base: 16px;              /* body lg (≥16px evita zoom en iOS) */
+  --text-base--line-height: 24px;
+  --text-base--letter-spacing: -0.096px;
+  --text-lg: 18px;                /* heading md */
+  --text-lg--line-height: 24px;
+  --text-lg--letter-spacing: -0.144px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-xl--letter-spacing: -0.2px;
+  --text-2xl: 24px;               /* heading lg */
+  --text-2xl--line-height: 32px;
+  --text-2xl--letter-spacing: -0.288px;
+  --text-3xl: 30px;               /* heading xl */
+  --text-3xl--line-height: 38px;
+  --text-3xl--letter-spacing: -0.66px;
+  --text-4xl: 36px;               /* display md */
+  --text-4xl--line-height: 44px;
+  --text-4xl--letter-spacing: -0.792px;
+  --text-5xl: 48px;               /* display lg */
+  --text-5xl--line-height: 56px;
+  --text-5xl--letter-spacing: -1.056px;
+  --text-6xl: 64px;               /* display xl */
+  --text-6xl--line-height: 72px;
+  --text-6xl--letter-spacing: -1.408px;
+
+  /* Radios */
+  --radius-xs: 1px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
+  --radius-4xl: 9999px;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-focus: 0 0 0 3px rgba(130, 92, 222, 0.15);
+  --shadow-inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+
+  /* Movimiento */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.dark {
-  --background: oklch(0.17 0.02 296);
-  --foreground: oklch(0.97 0.01 300);
-  --card: oklch(0.235 0.025 296);
-  --card-foreground: oklch(0.97 0.01 300);
-  --popover: oklch(0.235 0.025 296);
-  --popover-foreground: oklch(0.97 0.01 300);
-  --primary: oklch(0.72 0.17 293);
-  --primary-foreground: oklch(0.17 0.03 296);
-  --secondary: oklch(0.3 0.035 295);
-  --secondary-foreground: oklch(0.97 0.01 300);
-  --muted: oklch(0.29 0.03 296);
-  --muted-foreground: oklch(0.72 0.02 298);
-  --accent: oklch(0.32 0.05 294);
-  --accent-foreground: oklch(0.94 0.03 296);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.6 0.14 293);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.215 0.025 296);
-  --sidebar-foreground: oklch(0.97 0.01 300);
-  --sidebar-primary: oklch(0.72 0.17 293);
-  --sidebar-primary-foreground: oklch(0.17 0.03 296);
-  --sidebar-accent: oklch(0.32 0.05 294);
-  --sidebar-accent-foreground: oklch(0.94 0.03 296);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.6 0.14 293);
+/* Transiciones estándar. Nunca `transition: all`: solo propiedades de
+   color/opacidad/sombra, que no provocan relayout ni movimiento. */
+@utility transition-fast {
+  transition-property: color, background-color, border-color, outline-color,
+    text-decoration-color, fill, stroke, opacity, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+}
+
+@utility transition-base {
+  transition-property: color, background-color, border-color, outline-color,
+    text-decoration-color, fill, stroke, opacity, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-out);
+}
+
+/* Utilidades de sombra de Linear */
+@utility linear-shadow-sm {
+  box-shadow: var(--shadow-sm), var(--shadow-inner-glow);
+}
+
+@utility linear-shadow-md {
+  box-shadow: var(--shadow-md), var(--shadow-inner-glow);
+}
+
+/* Etiqueta de sección: pequeña, sobria, siempre en texto secundario */
+@utility eyebrow {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  letter-spacing: -0.072px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply font-sans;
+    font-feature-settings: "cv01", "ss03";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+  b,
+  strong {
+    font-weight: 538;
+  }
+  ::selection {
+    background-color: color-mix(in srgb, var(--accent-default) 30%, transparent);
   }
 }
 
-/* Compact phones: preserve the desktop composition while increasing touch
-   targets and preventing horizontal clipping. */
+:where(button, [role="button"], [data-slot="button"], input[type="button"], input[type="submit"], input[type="reset"]):not(:disabled):not([aria-disabled="true"]):not([data-disabled]) {
+  cursor: pointer;
+}
+
+:where(button, [role="button"], [data-slot="button"], input[type="button"], input[type="submit"], input[type="reset"]):is(:disabled, [aria-disabled="true"], [data-disabled]) {
+  cursor: not-allowed;
+}
+
+/* Teléfonos: objetivos táctiles de 44px (Apple HIG) sin alterar el diseño. */
 @media (max-width: 767px) {
   html {
     -webkit-text-size-adjust: 100%;
@@ -153,19 +314,21 @@
   [data-slot="popover-content"] {
     max-width: calc(100vw - 2rem);
   }
-
-  .row-hover:hover {
-    padding-left: inherit;
-  }
 }
-/* ── Variables de visualización de datos (paleta validada) ── */
+
+/* ── Visualización de datos ─────────────────────────────────────────────
+   La paleta categórica se mantiene (está ligada a los colores guardados de
+   cada categoría). Los colores semánticos y la «tinta» del gráfico
+   (rejilla, ejes) derivan de los tokens de Linear. Ingreso usa un verde
+   azulado propio: separa mejor del rojo para daltonismo (ΔE ≥ 10). */
 :root {
-  --viz-income: #1baf7a;
-  --viz-expense: #e34948;
-  --viz-savings: #2a78d6;
-  --viz-grid: #e1e0d9;
-  --viz-axis: #c3c2b7;
-  --viz-muted: #898781;
+  --viz-income: #138a72;
+  --viz-investment: #138a72;
+  --viz-expense: var(--status-red);
+  --viz-savings: var(--accent-default);
+  --viz-grid: var(--border-primary);
+  --viz-axis: var(--border-secondary);
+  --viz-muted: var(--text-tertiary);
   --viz-other: #898781;
   --viz-blue: #2a78d6;
   --viz-aqua: #1baf7a;
@@ -178,12 +341,13 @@
 }
 
 .dark {
-  --viz-income: #199e70;
-  --viz-expense: #e66767;
-  --viz-savings: #3987e5;
-  --viz-grid: #2c2c2a;
-  --viz-axis: #383835;
-  --viz-muted: #898781;
+  --viz-income: #14a08a;
+  --viz-investment: #14a08a;
+  --viz-expense: var(--status-red);
+  --viz-savings: var(--accent-default);
+  --viz-grid: rgba(255, 255, 255, 0.06);
+  --viz-axis: rgba(255, 255, 255, 0.1);
+  --viz-muted: var(--text-secondary);
   --viz-other: #898781;
   --viz-blue: #3987e5;
   --viz-aqua: #199e70;
@@ -197,17 +361,21 @@
 
 /* ── Tipografía del informe IA ── */
 .prose-finance {
-  font-size: 0.9rem;
-  line-height: 1.65;
+  font-size: var(--text-sm);
+  line-height: 22px;
+  color: var(--text-primary);
 }
 .prose-finance h1 {
-  font-size: 1.35rem;
-  font-weight: 650;
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
+  letter-spacing: -0.2px;
+  font-weight: 538;
   margin-bottom: 0.75rem;
 }
 .prose-finance h2 {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  letter-spacing: -0.096px;
+  font-weight: 510;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
 }
@@ -221,8 +389,11 @@
   display: grid;
   gap: 0.25rem;
 }
+.prose-finance li::marker {
+  color: var(--text-tertiary);
+}
 .prose-finance strong {
-  font-weight: 600;
+  font-weight: 538;
 }
 
 /* ── Impresión: solo el informe ── */
@@ -242,107 +413,146 @@
   }
 }
 
-/* ── Animaciones y micro-interacciones ── */
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Micro-animaciones de iconos y emojis ───────────────────────────────
+   Petición expresa del producto: al pasar el ratón (o enfocar con teclado)
+   por un elemento interactivo, su icono se anima según lo que significa.
+   Se anima SOLO el glifo dentro de su caja (transform del <svg>/emoji):
+   el botón no se mueve ni desplaza el layout. Una sola reproducción por
+   hover, y nada si el usuario pide reducir el movimiento. */
+@keyframes icon-pop {
+  0%, 100% { transform: none; }
+  45% { transform: scale(1.18) rotate(-8deg); }
+}
+@keyframes icon-nudge-right {
+  0%, 100% { transform: none; }
+  50% { transform: translateX(2px); }
+}
+@keyframes icon-nudge-left {
+  0%, 100% { transform: none; }
+  50% { transform: translateX(-2px); }
+}
+@keyframes icon-nudge-diagonal {
+  0%, 100% { transform: none; }
+  50% { transform: translate(1.5px, -1.5px); }
+}
+@keyframes icon-nudge-down {
+  0%, 100% { transform: none; }
+  40% { transform: translateY(2px); }
+  70% { transform: translateY(-1px); }
+}
+@keyframes icon-turn {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(90deg); }
+}
+@keyframes icon-spin-once {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(180deg); }
+}
+@keyframes icon-wiggle {
+  0%, 100% { transform: none; }
+  20% { transform: rotate(-12deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(3deg); }
+}
+@keyframes icon-ring {
+  0%, 100% { transform: none; }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(2deg); }
+}
+@keyframes icon-pulse {
+  0%, 100% { transform: none; }
+  30% { transform: scale(1.2); }
+  60% { transform: scale(0.95); }
+}
+@keyframes icon-write {
+  0%, 100% { transform: none; }
+  25% { transform: translate(-1px, 1px) rotate(-6deg); }
+  50% { transform: translate(1px, -1px) rotate(4deg); }
+  75% { transform: translate(-0.5px, 0.5px) rotate(-2deg); }
+}
+@keyframes emoji-bounce {
+  0%, 100% { transform: none; }
+  30% { transform: translateY(-3px) scale(1.15) rotate(-8deg); }
+  60% { transform: translateY(0) scale(0.97) rotate(4deg); }
 }
 
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-10deg); }
-  75% { transform: rotate(10deg); }
-}
-
-@keyframes float-blob {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(12px, -16px) scale(1.06); }
+.emoji {
+  display: inline-block;
+  transform-origin: 50% 70%;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .animate-fade-up {
-    animation: fade-up 0.35s ease-out both;
+  :where(a, button, summary, label, [role="button"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="tab"], [role="switch"], [data-slot="badge"]):is(:hover, :focus-visible)
+    svg.lucide:where(:not(.animate-spin, .lucide-chevron-down, .lucide-chevron-up, .lucide-chevrons-up-down, .lucide-loader-circle, .lucide-loader)) {
+    animation: icon-pop 420ms var(--ease-spring) both;
+    transform-origin: center;
   }
-  .animate-pop-in {
-    animation: pop-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-  .hover-wiggle:hover > svg,
-  .hover-wiggle:hover svg {
-    animation: wiggle 0.45s ease-in-out;
-  }
-  .auth-blob {
-    animation: float-blob 9s ease-in-out infinite;
-  }
-  /* Retardo en cascada para grupos de cards */
-  .stagger > * {
-    animation: fade-up 0.4s ease-out both;
-  }
-  .stagger > *:nth-child(2) { animation-delay: 60ms; }
-  .stagger > *:nth-child(3) { animation-delay: 120ms; }
-  .stagger > *:nth-child(4) { animation-delay: 180ms; }
-  .stagger > *:nth-child(5) { animation-delay: 240ms; }
-  .stagger > *:nth-child(6) { animation-delay: 300ms; }
-}
 
-/* Card interactiva: se eleva al pasar el ratón */
-.card-lift {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-}
-.card-lift:hover {
-  transform: translateY(-3px);
-  box-shadow:
-    0 8px 24px -8px oklch(0.55 0.22 293 / 0.25),
-    0 2px 8px -2px oklch(0.55 0.22 293 / 0.12);
-  border-color: oklch(0.65 0.18 293 / 0.4);
-}
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-arrow-right, svg.lucide-chevron-right, svg.lucide-move-right, svg.lucide-log-out, svg.lucide-log-in) {
+    animation-name: icon-nudge-right;
+    animation-duration: 360ms;
+    animation-timing-function: var(--ease-out);
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-arrow-left, svg.lucide-chevron-left) {
+    animation-name: icon-nudge-left;
+    animation-duration: 360ms;
+    animation-timing-function: var(--ease-out);
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-arrow-up-right, svg.lucide-external-link, svg.lucide-send) {
+    animation-name: icon-nudge-diagonal;
+    animation-duration: 360ms;
+    animation-timing-function: var(--ease-out);
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-download, svg.lucide-arrow-down, svg.lucide-file-down, svg.lucide-import, svg.lucide-arrow-down-left) {
+    animation-name: icon-nudge-down;
+    animation-duration: 420ms;
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible) svg.lucide-plus {
+    animation-name: icon-turn;
+    animation-duration: 260ms;
+    animation-timing-function: var(--ease-out);
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-refresh-cw, svg.lucide-rotate-cw, svg.lucide-repeat, svg.lucide-settings, svg.lucide-settings-2, svg.lucide-sun) {
+    animation-name: icon-spin-once;
+    animation-duration: 480ms;
+    animation-timing-function: var(--ease-in-out);
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-trash, svg.lucide-trash-2, svg.lucide-x, svg.lucide-user-x, svg.lucide-calendar-days, svg.lucide-utensils-crossed, svg.lucide-moon, svg.lucide-languages) {
+    animation-name: icon-wiggle;
+    animation-duration: 500ms;
+    animation-timing-function: var(--ease-in-out);
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-bell, svg.lucide-bell-ring) {
+    animation-name: icon-ring;
+    animation-duration: 650ms;
+    animation-timing-function: var(--ease-in-out);
+    transform-origin: 50% 10%;
+  }
+  :where(a, button, [role="button"], [role="menuitem"], [role="switch"]):is(:hover, :focus-visible)
+    :is(svg.lucide-heart, svg.lucide-check, svg.lucide-circle-check, svg.lucide-sparkles, svg.lucide-sparkle, svg.lucide-party-popper, svg.lucide-piggy-bank, svg.lucide-eye) {
+    animation-name: icon-pulse;
+    animation-duration: 420ms;
+  }
+  :where(a, button, [role="button"], [role="menuitem"]):is(:hover, :focus-visible)
+    :is(svg.lucide-pencil, svg.lucide-square-pen, svg.lucide-pen) {
+    animation-name: icon-write;
+    animation-duration: 480ms;
+  }
 
-/* Filas de listas: desplazamiento sutil al hover */
-.row-hover {
-  transition: background-color 0.15s ease, padding-left 0.2s ease;
-}
-.row-hover:hover {
-  background-color: var(--accent);
-  padding-left: 1rem;
-}
-
-/* Texto de marca con degradado */
-.brand-gradient {
-  background: linear-gradient(
-    100deg,
-    oklch(0.55 0.22 293),
-    oklch(0.62 0.2 330)
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.dark .brand-gradient {
-  background: linear-gradient(
-    100deg,
-    oklch(0.75 0.16 293),
-    oklch(0.78 0.15 330)
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  /* Emojis: dentro de cualquier elemento al que se pase el ratón */
+  :hover > .emoji,
+  :focus-visible > .emoji {
+    animation: emoji-bounce 520ms var(--ease-spring) both;
+  }
 }

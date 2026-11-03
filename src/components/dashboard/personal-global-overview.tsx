@@ -256,7 +256,7 @@ export default async function PersonalGlobalOverview() {
   if (summaries.length === 0) {
     return (
       <div className="grid gap-2">
-        <h1 className="text-2xl font-semibold">Visión global</h1>
+        <h1 className="text-2xl font-medium">Visión global</h1>
         <p className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
           Aún no hay datos de {year}. Registra gastos e ingresos para ver tu evolución anual.
         </p>
@@ -472,7 +472,7 @@ export default async function PersonalGlobalOverview() {
 
   return (
     <div className="grid gap-4">
-      <h1 className="text-2xl font-semibold">Visión global · {year}</h1>
+      <h1 className="text-2xl font-medium">Visión global · {year}</h1>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Ahorro medio mensual" value={formatMoney(avgSavings)} />
@@ -522,7 +522,7 @@ export default async function PersonalGlobalOverview() {
       <ChartCard
         title="Evolución de mis finanzas"
         description={`Ahorro total acumulado hasta cada mes de ${year}`}
-        fileName="evolucion-mis-finanzas"
+        fileName="evolucion-finanzas"
       >
         <Tabs defaultValue="ahorro">
           <TabsList>

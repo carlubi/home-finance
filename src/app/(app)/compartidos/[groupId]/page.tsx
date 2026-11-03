@@ -133,7 +133,7 @@ export default async function GroupPage({
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{groupRes.data.name}</h1>
+        <h1 className="text-2xl font-medium">{groupRes.data.name}</h1>
         <Suspense>
           <MonthSwitcher month={month} />
         </Suspense>

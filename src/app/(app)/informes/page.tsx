@@ -86,7 +86,7 @@ export default async function InformesPage() {
   return (
     <div className="grid max-w-4xl gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Informes y exportación</h1>
+        <h1 className="text-2xl font-medium">Informes y exportación</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Genera análisis financieros con IA o descarga tus datos cuando los necesites.
         </p>

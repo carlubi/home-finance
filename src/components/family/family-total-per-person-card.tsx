@@ -39,7 +39,7 @@ export function FamilyTotalPerPersonCard({
   }
 
   return (
-    <Card className="card-lift relative">
+    <Card className="relative">
       <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Dividir entre</span>
         <Select
@@ -64,13 +64,13 @@ export function FamilyTotalPerPersonCard({
         </Select>
       </div>
       <CardContent className="flex min-w-0 items-start gap-3 pt-0">
-        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+        <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
           <Users className="size-4.5" />
         </span>
         <div className="grid min-w-0 flex-1 gap-1.5">
           <div className="grid min-w-0 gap-1.5">
             <p className="text-sm text-muted-foreground">Total por persona</p>
-            <p className="truncate text-2xl font-bold tabular-nums">
+            <p className="truncate text-2xl font-semibold">
               {formatMoney(total / peopleCount)}
             </p>
             <p className="text-xs text-muted-foreground">

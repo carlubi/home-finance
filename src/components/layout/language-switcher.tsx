@@ -65,8 +65,8 @@ export function LanguageInlineOptions({
               onChange?.(option.value);
             }}
             className={cn(
-              "flex items-center justify-between rounded-md px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-              language === option.value && "bg-accent text-accent-foreground"
+              "flex items-center justify-between rounded-md px-1.5 py-1 text-left text-[13px] text-text-secondary transition-fast hover:bg-bg-tertiary hover:text-text-primary",
+              language === option.value && "bg-bg-tertiary text-text-primary"
             )}
           >
             {option.label}
@@ -89,12 +89,12 @@ export function LanguageMenuButton() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 cursor-pointer gap-1.5 px-2"
+            className="h-8 cursor-pointer gap-1.5 px-2"
             aria-label="Idioma"
             title="Idioma"
           >
             <Languages className="size-4" />
-            <span className="text-xs font-semibold" data-no-translate>
+            <span className="text-xs font-medium" data-no-translate>
               {activeLanguage?.value.toUpperCase()}
             </span>
           </Button>

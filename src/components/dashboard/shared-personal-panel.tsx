@@ -27,7 +27,7 @@ export function SharedPersonalPanel({ members, kind }: { members: SharedPersonal
     {members.map((member) => {
       const items = kind === "expense" ? member.expenseItems : kind === "income" ? member.incomeItems : member.investmentItems;
       const total = kind === "expense" ? member.expenses : kind === "income" ? member.income : member.investment;
-      return <div key={member.id} className="rounded-2xl border border-border/70 bg-muted/45 p-4 text-muted-foreground">
+      return <div key={member.id} className="rounded-lg border border-border/70 bg-muted/45 p-4 text-muted-foreground">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-wide">Solo lectura</p><h3 className="mt-1 text-lg font-semibold text-foreground/75">{member.name}</h3></div><p className="text-right text-sm">{labels.total}: <strong className="tabular-nums text-foreground/75">{formatMoney(total)}</strong></p></div>
         {items.length ? <ul className="mt-4 divide-y divide-border/60 border-t border-border/60">{items.map((item) => <li key={item.id} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="min-w-0 truncate">{item.name}{item.category && <span className="ml-2 text-xs opacity-70">· {item.category}</span>}</span><span className="shrink-0 tabular-nums">{formatMoney(item.amount)}</span></li>)}</ul> : <p className="mt-3 text-sm">{labels.empty}</p>}
       </div>;

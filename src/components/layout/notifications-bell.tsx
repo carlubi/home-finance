@@ -86,10 +86,10 @@ export function NotificationsBell() {
     <DropdownMenu onOpenChange={(open) => open && markAllRead()}>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="size-5" />
+          <Button variant="ghost" size="icon" className="relative" aria-label="Notificaciones">
+            <Bell className="size-4" />
             {unread > 0 && (
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive" />
+              <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent ring-2 ring-bg-primary" />
             )}
           </Button>
         }
@@ -116,16 +116,16 @@ export function NotificationsBell() {
           </>
         )}
         {notifications.length === 0 ? (
-          <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+          <p className="px-2 py-6 text-center text-[13px] text-text-secondary">
             No tienes notificaciones.
           </p>
         ) : (
           <div className="max-h-80 overflow-y-auto">
             {notifications.map((n) => (
-              <div key={n.id} className="border-b px-2 py-2 text-sm last:border-0">
-                <p className="font-medium">{n.title}</p>
+              <div key={n.id} className="border-b border-border-primary px-2 py-2.5 text-[13px] last:border-0">
+                <p className="font-medium text-text-primary">{n.title}</p>
                 {n.body && (
-                  <p className="text-xs text-muted-foreground">{n.body}</p>
+                  <p className="mt-0.5 text-xs text-text-secondary">{n.body}</p>
                 )}
               </div>
             ))}

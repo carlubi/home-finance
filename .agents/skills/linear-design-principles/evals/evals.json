@@ -1,0 +1,310 @@
+{
+  "skill_name": "linear-design-principles",
+  "evals": [
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Our dashboard feels cluttered and overwhelming, but we can't remove any of the data — users need all of it. How do we make it feel calmer without cutting information?",
+      "files": [],
+      "expected_behavior": [
+        "Distinguishes visual noise from information density — calm is achievable without removing data",
+        "Recommends using visual weight as a ranking system: work content dominates, chrome/navigation recedes",
+        "Suggests auditing borders, icons, backgrounds, and separators — each must earn its place by clarifying a relationship",
+        "Mentions 'structure should be felt, not seen' and that unnoticed refinements are a good sign",
+        "Advises testing against real, full, and empty states across light/dark/custom themes",
+        "Does NOT recommend simply deleting features or data to reduce clutter"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Several enterprise customers are asking us to add required fields and multiple assignees per task. Should we build these?",
+      "files": [],
+      "expected_behavior": [
+        "Frames requests as input, not instructions — interpret the underlying need",
+        "Notes these are classic manager-driven requests that degrade the daily IC workflow",
+        "Explains Linear's stance of refusing whole categories of requests that protect managers at IC expense",
+        "Recommends finding the real problem (e.g., what the required field is meant to ensure) and solving that, or saying no",
+        "Invokes opinionated-software / 'one really good way' reasoning",
+        "Avoids defaulting to 'build it because customers asked'"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "I asked an AI tool to generate a settings screen and it produced something that looks really polished. Can we just ship this?",
+      "files": [],
+      "expected_behavior": [
+        "Invokes 'output isn't design' — polished form does not mean solved problem or good fit",
+        "Asks whether the underlying problem and forces (user needs, constraints, edge cases, workflows) were defined first",
+        "Recommends using AI for exploration/prototyping while keeping human judgment on problem framing and fit",
+        "Bonus (not required): references 'settings are not a design failure' — settings for genuine preferences, not to dodge product decisions",
+        "Advises validating against real app states rather than an isolated mockup",
+        "Does NOT treat visual polish as sufficient evidence of quality"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We want our app to feel instant and effortless. We're planning to add nicer loading skeletons and spinner animations. Good plan?",
+      "files": [],
+      "expected_behavior": [
+        "Reframes: 'calm, dense, fast' is architecture and input design, not polish — skeletons/spinners add noise",
+        "Recommends eliminating the wait (optimistic local writes, local-first data) instead of decorating it",
+        "Raises the input-model dimension: fast backend still loses if the primary action needs a mouse and several menus",
+        "Suggests keyboard-first paths and a command palette over local data",
+        "Notes near-zero latency is what lets the UI stay minimal (no loading affordances needed)",
+        "Does NOT endorse better spinners as the path to feeling fast"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Our product has accumulated years of UI cruft and feels inconsistent. Leadership wants a big redesign. How should we approach scope and process?",
+      "files": [],
+      "expected_behavior": [
+        "Names design debt and argues some debt is best paid in larger holistic sweeps, not per-screen fixes",
+        "Says the redesign should start from product evolution, not visual taste",
+        "Advises keeping the user's mental model stable and cutting high-risk scope (e.g., navigation changes) when risk is too high",
+        "Recommends design + engineering working together daily, no handoff",
+        "Suggests north-star/concept prototypes, stress-testing across environments and themes, and phased rollout (private beta then percentage rollout)",
+        "Mentions getting leadership backing for a holistic sweep rather than per-screen patching"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We're adding an AI assistant to our product. The plan is a chat sidebar where users type requests. Is chat the right interface?",
+      "files": [],
+      "expected_behavior": [
+        "Challenges chat-by-default — generic chat is a weak, imprecise form for many workflows",
+        "Recommends a structured 'workbench' where AI operates inside clear context",
+        "Says to design review, approval, context, and control surfaces, not just the prompt box",
+        "For agentic flows, keeps a human accountable and surfaces reasoning/tool calls/elicitations",
+        "Uses the 'river without banks' idea — unbounded AI is powerful but directionless",
+        "Does NOT simply affirm the chat sidebar as the obvious choice"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "How should we run design reviews and decide what ships? Right now we have weekly formal review meetings and we A/B test most changes before launch.",
+      "files": [],
+      "expected_behavior": [
+        "Describes Linear's taste-driven model: no formal design reviews, async feedback in project channels",
+        "Explains that A/B tests are not used as decision-makers — taste decides, dogfooding and betas validate",
+        "Recommends feature flags to internal dogfooding within days, then optional customer beta",
+        "Mentions senior taste/sponsors applied continuously, not at checkpoints",
+        "Notes 'decide and move on' and that speed comes from competence, not corner-cutting",
+        "Connects this to no-handoff small teams that own problems end to end"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "A stakeholder keeps giving contradictory feedback on our new feature and the project is dragging. What's going wrong and how do we unstick it?",
+      "files": [],
+      "expected_behavior": [
+        "Identifies an unclear or contested problem definition as the likely root cause",
+        "Notes contradictory feedback often means people are reacting to different problem definitions",
+        "Recommends writing the problem in your own words and confirming it's the real problem, not a symptom",
+        "Separates problem design, conceptual solution, and execution — settle concepts before UI details",
+        "Asks diagnostic questions (is this real? what if we don't do it? who defined it?)",
+        "Does NOT jump straight to more mockups or visual iteration"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Two teams disagree on whether comments should show newest-first or oldest-first, so we're about to add a sort toggle in settings. Right call?",
+      "files": [],
+      "expected_behavior": [
+        "Distinguishes a genuine recurring preference from punting a product decision into a toggle",
+        "Asks whether one ordering is actually better for the core reading/replying workflow, and recommends picking that default first",
+        "Notes settings aren't automatically a failure and can teach power users what's possible",
+        "Warns against settings becoming a dumping ground for unresolved decisions",
+        "Does NOT reflexively add the toggle, nor reflexively forbid all settings"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We're renaming 'tasks' to 'Sparks' and 'projects' to 'Constellations' to give the product a distinctive brand identity. Good idea?",
+      "files": [],
+      "expected_behavior": [
+        "Invokes vocabulary as a design surface and the cost of invented jargon (users need a handbook)",
+        "Argues for universal, plain terms so nobody has to learn a private language",
+        "Asks what the rename clarifies for the user — distinctiveness alone isn't a reason",
+        "Notes invented terms mean different things to different people",
+        "Does NOT endorse renaming core objects for novelty or branding"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Our bug backlog has 1,400 open issues and keeps growing. We triage quarterly and only assign polish/UI bugs to the design team. How should we handle quality?",
+      "files": [],
+      "expected_behavior": [
+        "Recommends a strict bug SLA and no permanent backlog (fix fast or it never gets fixed)",
+        "Frames quality as everyone's job, not just the design team's",
+        "Suggests a recurring quality ritual and group UI review (different people catch different defects)",
+        "Treats papercuts as real, scheduled work",
+        "Locates quality in hiring and no-handoff ownership, not in adding a separate QA gate",
+        "Does NOT endorse a permanent quarterly-triaged backlog as acceptable"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We're positioning the product as a flexible platform for any team, configurable to fit each company's process. Is that a strong strategy?",
+      "files": [],
+      "expected_behavior": [
+        "Warns that generic 'for everyone / configurable to anything' positioning tends to be invisible",
+        "Recommends picking a specific user and use case and optimizing hard for it",
+        "Frames restraint and opinionation as the strategy, not a limitation",
+        "May note being most opinionated at the atomic level while taking more cues at broad container levels (optional)",
+        "Does NOT affirm maximal flexibility as the path to winning trust"
+      ]
+    },
+    {
+      "skills": [],
+      "query": "I have an approved Figma spec for our new settings page. Implement it in React with Tailwind, matching the spec exactly, and fix the flexbox overflow on the right panel.",
+      "files": [],
+      "expected_behavior": [
+        "Does NOT drive the answer with Linear product-philosophy framing — the problem and design are already settled",
+        "Treats this as pixel/implementation execution that a frontend craft/implementation skill should own",
+        "At most offers a light pointer (e.g. test against real/empty states) without re-litigating the product decision",
+        "Does NOT re-open problem framing, opinionation, or 'is this the right problem' for an approved spec"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We added optimistic updates so everything feels instant. A teammate worried that when a save silently fails, the user thinks it worked. How should we handle this?",
+      "files": [],
+      "expected_behavior": [
+        "Surfaces reversibility/undo and the failure/rollback state as first-class, not an edge case",
+        "Notes that optimistic local writes make recovery MORE important, not less — removing spinners is only half of feedback",
+        "Recommends designing a clear, recoverable rollback/reconciliation state when the write fails",
+        "May prefer undo over confirmation dialogs for routine actions",
+        "Does NOT just suggest adding a retry spinner or treating it as a backend-only concern"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We're building a no-code workspace where every team models their own data and views. Should we ship one opinionated workflow like Linear?",
+      "files": [],
+      "expected_behavior": [
+        "Recognizes this is a platform/creative substrate with unknowably diverse users, where one-good-way would exclude most of the audience",
+        "Identifies the deciding variable: how knowable/homogeneous the user's job is, and shared vs. personal artifact",
+        "Recommends flexibility WITH a counterweight (templates, guided first-run, system/governance) — not raw blank-canvas flexibility",
+        "Does NOT blindly apply 'be opinionated, ship one way, say no' as universal law",
+        "May reference the boundary between Linear's lane and platforms (Notion/Raycast/Figma)"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Our AI triage agent sometimes mislabels issues. We usually just dogfood and trust our taste — is that enough here?",
+      "files": [],
+      "expected_behavior": [
+        "Distinguishes deterministic UI (taste/dogfooding fine) from stochastic agents (need systematic evals)",
+        "Recommends eval task suites, regression checks, and production-trace observability as the actual quality signal",
+        "Frames evals as the one place 'taste over metrics' must bend — not as bureaucracy",
+        "Ties back to keeping a human accountable and a structured workbench",
+        "Does NOT claim dogfooding/taste alone is sufficient for a non-deterministic feature"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We're exposing our app to coding agents via an API. We'll just wrap our existing REST endpoints. Anything to consider?",
+      "files": [],
+      "expected_behavior": [
+        "Treats the agent as a user you design for — the API/tools/schemas are a design surface",
+        "Recommends a few high-leverage tools over thin wrappers around every endpoint",
+        "Suggests human-readable fields over opaque IDs, namespacing, response-verbosity controls, prompt-engineered descriptions",
+        "Notes errors should teach the next step, and docs are part of the interface",
+        "May mention gating consequential/irreversible actions and context-window budgeting",
+        "Does NOT treat a thin 1:1 REST wrapper as sufficient"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "To stand out, we're replacing standard navigation with a brand-new spatial canvas and our own keyboard language. It tests great with power users. Ship it broadly?",
+      "files": [],
+      "expected_behavior": [
+        "Invokes the novelty tax — every unfamiliar concept charges a learning cost that must be repaid in benefit",
+        "Advises being distinctive only where payoff clearly exceeds the tax; for mainstream reach lean on familiar conventions ('a piano, not a saxophone')",
+        "Notes power-user love is not proof of mainstream fit",
+        "May cite Arc/The Browser Company as a cautionary case",
+        "Does NOT treat distinctiveness/novelty alone as a reason to ship broadly"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Our team keeps a 600-item backlog and runs 1-week sprints but feels rushed and never has time to think. What process changes would help?",
+      "files": [],
+      "expected_behavior": [
+        "Offers both cadences honestly: Linear's curated-backlog/continuous-cycle hygiene vs. Shape Up's appetite + no-backlog + cooldown + circuit breaker",
+        "Introduces appetite as a scope-shaping constraint (fix the time, shape scope to fit — the inverse of estimating)",
+        "Suggests scheduled cooldown/slack and a circuit breaker (a project that misses its appetite stops by default)",
+        "Picks based on iteration frequency and how focus should be protected",
+        "Does NOT just say 'triage the backlog harder' or assume one method is universally correct"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Our daily analytics dashboard feels sterile. We want to add celebratory confetti animations and sounds on every data refresh. Good idea?",
+      "files": [],
+      "expected_behavior": [
+        "Distinguishes high-frequency all-day work surfaces (calm wins; flourish becomes fatigue) from genuine milestone moments (delight can earn its place)",
+        "Flags that confetti on EVERY refresh fails the test — motion should communicate a real state change, not decorate routine actions",
+        "Allows that a single, deliberate peak moment might be warranted",
+        "May note motion as a communication channel and honoring prefers-reduced-motion",
+        "Does NOT reflexively forbid all delight, nor endorse celebratory motion on every routine action"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We're letting third-party AI agents work inside our project management tool. How should an agent show up and behave when someone assigns it a task?",
+      "files": [],
+      "expected_behavior": [
+        "Cites Linear's Agent Interaction Guidelines or their substance: disclose it's an agent, work through native UI/actions, give instant feedback, show its state, stop when asked, human stays accountable",
+        "Recommends keeping a human as owner/assignee and giving the agent a separate delegate role, so accountability is structural rather than policy",
+        "Suggests a small typed set of agent activities/states (thinking, acting, asking, done, error) rather than free-form comments",
+        "Recommends a distinct least-privilege identity for the agent rather than a borrowed human account",
+        "Does NOT suggest letting the agent become the sole owner of the task"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Our AI triage feature takes about two minutes to produce suggestions. The team says 'Linear style means no spinners', so they want to hide it until it's done. Is that right?",
+      "files": [],
+      "expected_behavior": [
+        "Scopes the no-spinner rule to deterministic operations that can be made instant",
+        "Says inherently slow AI work needs a designed wait: immediate acknowledgement, honest live progress (e.g., a thinking state with a timer or trace), and a defined timeout/stale state",
+        "Recommends AI suggestions be visually distinct from human-set values, with reasoning available on demand",
+        "Does NOT recommend hiding the work silently until it completes"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We want our AI to auto-assign and auto-label incoming bugs. Should we just turn it on for everything?",
+      "files": [],
+      "expected_behavior": [
+        "Frames autonomy as graded levels (suggest, first pass with correction, full) granted one decision type at a time",
+        "Recommends per-property or per-value opt-in to auto-apply, with AI-applied values clearly marked and cheap to override",
+        "Warns against turning literal human-in-the-loop into per-step approval, while keeping confirmation for consequential or irreversible actions",
+        "Does NOT recommend flipping full autonomy on for all properties at once"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "Does Linear have a point of view on mobile apps? We're designing a companion mobile app for our desktop-first B2B tool.",
+      "files": [],
+      "expected_behavior": [
+        "Says yes: Linear treats mobile as an away-from-keyboard sidekick with a narrowed job (capture, inbox triage, updates, reading), not a shrunken desktop",
+        "Mentions dense-professional legibility over trend (ProKit framing, dropping effects like refraction) and keeping platform accessibility settings working",
+        "Defers touch-layout mechanics to mobile-specific guidance",
+        "Does NOT claim Linear has published no mobile philosophy"
+      ]
+    },
+    {
+      "skills": ["linear-design-principles"],
+      "query": "We have 400 open bugs and a 'we'll get to it' backlog. How would Linear handle this?",
+      "files": [],
+      "expected_behavior": [
+        "Describes the zero-bugs mechanism: a one-time reset that pauses project work, then fix-within-SLA or explicit won't-fix with no backlog option",
+        "Mentions the SLA shape (e.g., 48 hours high priority, 7 days otherwise) and load rebalancing / rotating goalie",
+        "Gives the rationale that a fix costs the same now or later, and fast fixes build customer trust",
+        "Does NOT recommend simply grooming or re-prioritizing the backlog"
+      ]
+    }
+  ]
+}

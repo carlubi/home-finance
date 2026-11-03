@@ -14,7 +14,7 @@ export function MortgageFields({ value, onChange, idPrefix }: {
     <label htmlFor={`${idPrefix}-${key}`} className="text-sm font-medium">{label}</label>
     <input id={`${idPrefix}-${key}`} type={type} inputMode={type === "text" && !["lender", "firstBorrower", "secondBorrower"].includes(key) ? "decimal" : undefined}
       value={value[key]} onChange={(event) => change(key, event.target.value)}
-      className="h-11 min-w-0 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      className="h-11 min-w-0 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
     {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
   </div>;
 
@@ -23,7 +23,7 @@ export function MortgageFields({ value, onChange, idPrefix }: {
       <div className="grid gap-3 sm:grid-cols-2">{field("lender", "Entidad bancaria")}{field("firstBorrower", "Primer titular")}{field("secondBorrower", "Segundo titular (opcional)")}{field("purchasePrice", "Precio de compra (€)")}{field("principal", "Capital concedido (€)")}{field("startedOn", "Fecha de inicio", "date")}{field("endsOn", "Fecha de finalización", "date")}</div>
     </section>
     <section className="grid gap-3 border-t pt-5"><h3 className="font-semibold">Tipo de interés</h3>
-      <div className="grid gap-1.5"><label htmlFor={`${idPrefix}-rateKind`} className="text-sm font-medium">Modalidad</label><select id={`${idPrefix}-rateKind`} value={value.rateKind} onChange={(event) => change("rateKind", event.target.value as MortgageDraft["rateKind"])} className="h-11 rounded-xl border bg-background px-3 text-sm"><option value="mixed">Mixta</option><option value="fixed">Fija</option><option value="variable">Variable</option></select></div>
+      <div className="grid gap-1.5"><label htmlFor={`${idPrefix}-rateKind`} className="text-sm font-medium">Modalidad</label><select id={`${idPrefix}-rateKind`} value={value.rateKind} onChange={(event) => change("rateKind", event.target.value as MortgageDraft["rateKind"])} className="h-11 rounded-lg border bg-background px-3 text-sm"><option value="mixed">Mixta</option><option value="fixed">Fija</option><option value="variable">Variable</option></select></div>
       <div className="grid gap-3 sm:grid-cols-2">
         {value.rateKind !== "variable" && field("fixedRate", "Tipo fijo anual (%)")}
         {value.rateKind !== "variable" && field("fixedPayment", "Cuota fija mensual (€)")}

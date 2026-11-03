@@ -48,7 +48,7 @@ export default async function AjustesPage() {
 
   return (
     <div className="grid w-full gap-4">
-      <h1 className="text-2xl font-semibold">Configuración</h1>
+      <h1 className="text-2xl font-medium">Configuración</h1>
 
       <Card>
         <CardHeader>

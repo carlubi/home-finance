@@ -11,7 +11,7 @@ export function PersonalSharingControl({ initialEnabled }: { initialEnabled: boo
   const [enabled, setEnabled] = useState(initialEnabled);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  return <section className="inline-flex max-w-full items-center gap-2.5 justify-self-start rounded-xl border border-border/70 bg-muted/25 px-3 py-2">
+  return <section className="inline-flex max-w-full items-center gap-2.5 justify-self-start rounded-lg border border-border/70 bg-muted/25 px-3 py-2">
     {enabled ? <Eye className="size-4 shrink-0 text-primary" aria-hidden="true" /> : <EyeOff className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
     <span className="min-w-0 text-xs font-medium leading-4 sm:text-sm">Compartir mis finanzas</span>
     <Popover>
@@ -21,6 +21,6 @@ export function PersonalSharingControl({ initialEnabled }: { initialEnabled: boo
         <PopoverDescription>Los miembros activos verán tus gastos, ingresos e inversiones en modo lectura. Tus datos también se incluirán en la Visión global común.</PopoverDescription>
       </PopoverContent>
     </Popover>
-    <button type="button" role="switch" aria-checked={enabled} aria-label="Compartir mis finanzas personales con la unidad familiar" disabled={pending} onClick={() => startTransition(async () => { const next = !enabled; const result = await setPersonalSharing(next); if (result.error) toast.error(result.error); else { setEnabled(next); router.refresh(); } })} className={`relative ml-0.5 h-6 w-10 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 ${enabled ? "bg-primary" : "bg-muted-foreground/40"}`}><span className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? "translate-x-4" : ""}`} /></button>
+    <button type="button" role="switch" aria-checked={enabled} aria-label="Compartir mis finanzas personales con la unidad familiar" disabled={pending} onClick={() => startTransition(async () => { const next = !enabled; const result = await setPersonalSharing(next); if (result.error) toast.error(result.error); else { setEnabled(next); router.refresh(); } })} className={`relative ml-0.5 h-5 w-9 shrink-0 rounded-full border transition-fast outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:opacity-50 ${enabled ? "border-accent bg-accent" : "border-border-secondary bg-bg-quaternary"}`}><span className={`absolute left-0.5 top-0.5 size-3.5 rounded-full bg-white shadow-sm transition-transform duration-150 ease-out motion-reduce:transition-none ${enabled ? "translate-x-4" : ""}`} /></button>
   </section>;
 }

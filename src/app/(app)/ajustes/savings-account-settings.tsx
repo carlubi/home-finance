@@ -53,8 +53,8 @@ export function SavingsAccountSettings({ accounts, currentMonth, interests }: {
   }
 
   return <div className="grid gap-5">
-    <div className="flex items-start gap-3 rounded-xl border border-primary/15 bg-primary/5 p-4">
-      <PiggyBank className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+    <div className="flex items-start gap-3 rounded-lg border border-border-primary bg-bg-tertiary/60 p-4">
+      <PiggyBank className="mt-0.5 size-4 shrink-0 text-text-secondary" aria-hidden />
       <div className="grid gap-1 text-sm">
         <p className="font-medium">Una cuenta por banco o producto</p>
         <p className="text-xs leading-5 text-muted-foreground">Cada cuenta tiene sus propios tipos de interés por mes. Puedes aplicar el tipo a un importe concreto de ese banco o al ahorro acumulado que no hayas asignado a otras cuentas. El saldo inicial se indica en Configuración.</p>
@@ -75,7 +75,7 @@ export function SavingsAccountSettings({ accounts, currentMonth, interests }: {
       const amounts = [...account.remunerated_account_amounts].sort((a, b) => b.starts_on.localeCompare(a.starts_on));
       const activeRate = account.active ? currentSavingsRate(rates, currentMonth) : null;
       const interestThisMonth = interests.filter((item) => item.account_id === account.id).reduce((sum, item) => sum + Number(item.amount), 0);
-      return <section key={account.id} className="grid gap-4 rounded-xl border p-4">
+      return <section key={account.id} className="grid gap-4 rounded-lg border p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold">{account.name}</h3>
           <Button type="button" variant="ghost" size="icon" aria-label={`Eliminar ${account.name}`} disabled={pending} onClick={() => {

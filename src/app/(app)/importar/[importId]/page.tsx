@@ -84,7 +84,7 @@ export default async function RevisarImportacionPage({
   return (
     <div className="grid gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Revisar importación</h1>
+        <h1 className="text-2xl font-medium">Revisar importación</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {file.file_name} · edita o descarta lo que no encaje y confirma. Nada se
           guarda hasta que confirmes en {file.import_scope === "family" ? "gastos familiares" : "gastos personales"}.

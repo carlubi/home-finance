@@ -122,7 +122,7 @@ function buildExportSvg(
   const totalHeight = paddingTop + headerHeight + contentHeight + 36;
   const background = window.getComputedStyle(document.body).backgroundColor;
   const titleColor = window.getComputedStyle(document.body).color;
-  const subtitleColor = "rgb(113, 113, 122)";
+  const subtitleColor = "#62666d";
 
   const chartMarkup = chartSvg
     ? `<g transform="translate(${paddingX}, ${paddingTop + headerHeight})">${new XMLSerializer().serializeToString(chartSvg)}</g>`
@@ -138,14 +138,14 @@ function buildExportSvg(
             const value = escapeXml(item.value ?? "");
             const percent = escapeXml(item.percent ?? "");
             return `
-              <circle cx="7" cy="${y + 8}" r="4" fill="${escapeXml(item.color ?? "#94a3b8")}" />
-              <text x="18" y="${y + 12}" fill="${escapeXml(titleColor)}" font-size="12" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+              <circle cx="7" cy="${y + 8}" r="4" fill="${escapeXml(item.color ?? "#898781")}" />
+              <text x="18" y="${y + 12}" fill="${escapeXml(titleColor)}" font-size="12" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
                 ${label}
               </text>
-              <text x="${legendWidth - 34}" y="${y + 12}" text-anchor="end" fill="${escapeXml(titleColor)}" font-size="12" font-weight="600" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+              <text x="${legendWidth - 34}" y="${y + 12}" text-anchor="end" fill="${escapeXml(titleColor)}" font-size="12" font-weight="600" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
                 ${value}
               </text>
-              <text x="${legendWidth}" y="${y + 12}" text-anchor="end" fill="rgb(113, 113, 122)" font-size="11" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+              <text x="${legendWidth}" y="${y + 12}" text-anchor="end" fill="#62666d" font-size="11" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
                 ${percent}
               </text>
             `;
@@ -158,12 +158,12 @@ function buildExportSvg(
   return `
     <svg xmlns="${SVG_NS}" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}">
       <rect width="100%" height="100%" fill="${escapeXml(background)}" />
-      <text x="${paddingX}" y="${paddingTop + 22}" fill="${escapeXml(titleColor)}" font-size="22" font-weight="700" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+      <text x="${paddingX}" y="${paddingTop + 22}" fill="${escapeXml(titleColor)}" font-size="22" font-weight="600" letter-spacing="-0.4" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
         ${escapeXml(title)}
       </text>
       ${
         subtitle
-          ? `<text x="${paddingX}" y="${paddingTop + 46}" fill="${escapeXml(subtitleColor)}" font-size="13" font-weight="500" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">${escapeXml(subtitle)}</text>`
+          ? `<text x="${paddingX}" y="${paddingTop + 46}" fill="${escapeXml(subtitleColor)}" font-size="13" font-weight="500" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">${escapeXml(subtitle)}</text>`
           : ""
       }
       ${chartMarkup}

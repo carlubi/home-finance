@@ -12,6 +12,9 @@ import { CategoryDonut } from "@/components/charts/category-donut";
 import { StatCard } from "@/components/dashboard/summary-cards";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 
+// Orden categórico fijo (dataviz): sin ciclar; a partir del 9.º, «Otros» en gris.
+const CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+
 export const metadata = { title: "Visión global · unidad familiar" };
 
 function categoryTotal(userId: string, name: string, total: number, color: string): CategoryTotal {
@@ -54,9 +57,9 @@ export default async function GlobalPage() {
     user.id,
     member.display_name || member.email,
     summaries.filter((row) => row.user_id === member.user_id).reduce((sum, row) => sum + Number(row.total_expenses), 0),
-    ["#2a78d6", "#4a3aa7", "#1baf7a", "#eda100"][index % 4]
+    CATEGORICAL[index] ?? "#898781"
   )).filter((section) => section.total > 0);
-  const investmentData = groupedInvestments.map((item, index) => categoryTotal(user.id, item.name, item.capital, ["#1baf7a", "#eda100", "#4a3aa7", "#e34948"][index % 4])).filter((item) => item.total > 0);
+  const investmentData = groupedInvestments.map((item, index) => categoryTotal(user.id, item.name, item.capital, CATEGORICAL[index] ?? "#898781")).filter((item) => item.total > 0);
   const percent = (value: number) => totalIncome > 0 ? `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(value / totalIncome * 100)} %` : "—";
   const allocation = [
     { label: "Gastos totales", amount: totalExpenses, color: "#2a78d6", description: `Suma los gastos registrados desde enero hasta el mes actual de ${year} por los miembros que comparten sus finanzas. Incluye gastos recurrentes y gastos familiares que ya figuran en sus cuentas; estos últimos se cuentan una sola vez.` },
@@ -65,15 +68,15 @@ export default async function GlobalPage() {
   ];
 
   return <div className="grid gap-5">
-    <div><p className="text-sm font-medium text-primary">La misma vista para toda la unidad · {year}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Visión global familiar</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Suma los ingresos, gastos, aportaciones a inversión y ahorros personales compartidos desde enero hasta el mes actual de {year}.</p></div>
-    {sharedMembers.length < activeMembers.length && <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">{sharedMembers.length} de {activeMembers.length} miembros comparten sus finanzas personales. Las cifras conjuntas no incluyen a quienes aún no las comparten.</div>}
+    <div><p className="eyebrow">La misma vista para toda la unidad · {year}</p><h1 className="mt-1 text-2xl font-medium">Visión global familiar</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Suma los ingresos, gastos, aportaciones a inversión y ahorros personales compartidos desde enero hasta el mes actual de {year}.</p></div>
+    {sharedMembers.length < activeMembers.length && <div className="rounded-lg border border-orange/20 bg-orange/10 p-3 text-sm text-orange">{sharedMembers.length} de {activeMembers.length} miembros comparten sus finanzas personales. Las cifras conjuntas no incluyen a quienes aún no las comparten.</div>}
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <StatCard label="Ingresos compartidos" value={formatMoney(totalIncome)} icon={Wallet} />
       <StatCard label="Gastos de los miembros" value={formatMoney(totalExpenses)} icon={Receipt} />
       <StatCard label="Ahorro conjunto" value={formatMoney(totalSavings)} icon={PiggyBank} helper={`${percent(totalSavings)} de los ingresos`} />
       <StatCard label={`Aportado a inversión en ${year}`} value={formatMoney(investmentOutflow)} icon={Landmark} />
     </div>
-    <div className="rounded-2xl border bg-card p-5">
+    <div className="rounded-lg border bg-card p-5">
       <h2 className="font-semibold">Destino de los ingresos compartidos</h2>
       <div className="mt-5 grid gap-4">{allocation.map((item) => <div key={item.label}>
         <div className="flex justify-between gap-2 text-sm">
@@ -92,11 +95,11 @@ export default async function GlobalPage() {
           </div>
           <span className="shrink-0 tabular-nums">{formatMoney(item.amount)} · <strong>{percent(item.amount)}</strong></span>
         </div>
-        <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: `${totalIncome > 0 ? Math.max(0, Math.min(100, item.amount / totalIncome * 100)) : 0}%`, backgroundColor: item.color }} /></div>
+        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-bg-quaternary"><div className="h-full rounded-full" style={{ width: `${totalIncome > 0 ? Math.max(0, Math.min(100, item.amount / totalIncome * 100)) : 0}%`, backgroundColor: item.amount < 0 ? "var(--viz-expense)" : "var(--viz-savings)" }} /></div>
       </div>)}</div>
       <div className="mt-4 grid gap-1 border-t pt-3 text-xs text-muted-foreground"><p>Las aportaciones de {year} no incluyen capital invertido en años anteriores ni rentabilidad.</p><p>Los gastos de la unidad familiar ya figuran en los gastos personales y no se suman por segunda vez.</p></div>
     </div>
     <div className="grid gap-4 lg:grid-cols-2"><ChartCard title="Gastos por miembro" description={`Acumulado de ${year} de los miembros que comparten`} fileName="gastos-miembros-globales"><CategoryDonut data={sections} emptyLabel="Aún no hay gastos compartidos este año." /></ChartCard><ChartCard title="Inversiones por producto" description={`Aportaciones de ${year} por producto`} fileName="inversiones-familiares"><CategoryDonut data={investmentData} emptyLabel="Aún no hay aportaciones compartidas este año." /></ChartCard></div>
-    <div className="rounded-2xl border bg-card p-5"><h2 className="font-semibold">Aportación personal visible</h2><div className="mt-3 grid gap-3 sm:grid-cols-2">{sharedMembers.map((member) => { const rows = summaries.filter((row) => row.user_id === member.user_id); return <div key={member.user_id} className="rounded-xl bg-muted/40 p-4"><p className="font-medium">{member.display_name || member.email}</p><p className="mt-2 text-sm text-muted-foreground">Ingresos: {formatMoney(rows.reduce((sum, row) => sum + Number(row.total_income), 0))}</p><p className="text-sm text-muted-foreground">Gastos: {formatMoney(rows.reduce((sum, row) => sum + Number(row.total_expenses), 0))}</p><p className="text-sm text-muted-foreground">Ahorro tras inversiones: {formatMoney(rows.reduce((sum, row) => sum + Number(row.savings), 0))}</p></div>; })}{!sharedMembers.length && <p className="text-sm text-muted-foreground">Ningún miembro ha activado aún el uso compartido.</p>}</div></div>
+    <div className="rounded-lg border bg-card p-5"><h2 className="font-semibold">Aportación personal visible</h2><div className="mt-3 grid gap-3 sm:grid-cols-2">{sharedMembers.map((member) => { const rows = summaries.filter((row) => row.user_id === member.user_id); return <div key={member.user_id} className="rounded-lg bg-muted/40 p-4"><p className="font-medium">{member.display_name || member.email}</p><p className="mt-2 text-sm text-muted-foreground">Ingresos: {formatMoney(rows.reduce((sum, row) => sum + Number(row.total_income), 0))}</p><p className="text-sm text-muted-foreground">Gastos: {formatMoney(rows.reduce((sum, row) => sum + Number(row.total_expenses), 0))}</p><p className="text-sm text-muted-foreground">Ahorro tras inversiones: {formatMoney(rows.reduce((sum, row) => sum + Number(row.savings), 0))}</p></div>; })}{!sharedMembers.length && <p className="text-sm text-muted-foreground">Ningún miembro ha activado aún el uso compartido.</p>}</div></div>
   </div>;
 }

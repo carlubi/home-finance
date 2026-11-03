@@ -90,20 +90,20 @@ const intensityMeta = {
   green: {
     label: "Verde",
     className:
-      "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    dot: "bg-emerald-500",
+      "border-green/20 bg-green/10 text-green",
+    dot: "bg-green",
   },
   orange: {
     label: "Naranja",
     className:
-      "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    dot: "bg-amber-500",
+      "border-orange/20 bg-orange/10 text-orange",
+    dot: "bg-orange",
   },
   red: {
     label: "Rojo",
     className:
-      "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
-    dot: "bg-red-500",
+      "border-red/20 bg-red/10 text-red",
+    dot: "bg-red",
   },
 };
 
@@ -115,18 +115,18 @@ const outcomeMeta: Record<
     label: "Gastaste menos",
     icon: SmilePlus,
     className:
-      "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+      "border-green/20 bg-green/10 text-green",
   },
   met: {
     label: "Cumplido",
     icon: CheckCircle2,
     className:
-      "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+      "border-blue/20 bg-blue/10 text-blue",
   },
   over: {
     label: "Te pasaste",
     icon: CircleSlash,
-    className: "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
+    className: "border-red/20 bg-red/10 text-red",
   },
 };
 
@@ -313,11 +313,11 @@ function YearBudgetOverview({
             const ratio = maxTotal > 0 ? month.total / maxTotal : 0;
             const heatClass =
               ratio >= 0.85
-                ? "border-red-500/30 bg-red-500/[0.04]"
+                ? "border-red/20 bg-red/5"
                 : ratio >= 0.6
-                  ? "border-amber-500/30 bg-amber-500/[0.05]"
+                  ? "border-orange/20 bg-orange/5"
                   : month.total > 0
-                    ? "border-emerald-500/25 bg-emerald-500/[0.04]"
+                    ? "border-green/20 bg-green/5"
                     : "bg-card";
 
             return (
@@ -326,7 +326,7 @@ function YearBudgetOverview({
                 type="button"
                 onClick={() => setOpenMonth(month)}
                 className={cn(
-                  "grid min-h-44 min-w-0 cursor-pointer gap-3 overflow-hidden rounded-lg border p-3 text-left outline-none transition-colors hover:bg-muted/30 focus-visible:ring-3 focus-visible:ring-ring/40",
+                  "grid min-h-44 min-w-0 cursor-pointer gap-3 overflow-hidden rounded-lg border p-3 text-left outline-none transition-fast hover:bg-muted/30 focus-visible:ring-3 focus-visible:ring-ring/40",
                   heatClass
                 )}
               >
@@ -413,7 +413,7 @@ function YearBudgetOverview({
                       <p className="text-xs font-medium text-muted-foreground">
                         Previsto
                       </p>
-                      <p className="mt-1 text-2xl font-semibold tabular-nums">
+                      <p className="mt-1 text-2xl font-semibold">
                         {formatMoney(openMonth.total)}
                       </p>
                     </div>
@@ -421,7 +421,7 @@ function YearBudgetOverview({
                       <p className="text-xs font-medium text-muted-foreground">
                         Real
                       </p>
-                      <p className="mt-1 text-2xl font-semibold tabular-nums">
+                      <p className="mt-1 text-2xl font-semibold">
                         {formatMoney(openMonth.actualTotal)}
                       </p>
                     </div>
@@ -525,7 +525,7 @@ export function BudgetsView({
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid min-w-0 gap-1">
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-2xl font-medium">
             {showYearOverview ? `Vista global ${year}` : "Presupuestos mensuales"}
           </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
@@ -610,13 +610,13 @@ export function BudgetsView({
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border bg-muted/25 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Previsto</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums">
+                <p className="mt-1 text-2xl font-semibold">
                   {formatMoney(selected.plannedTotal)}
                 </p>
               </div>
               <div className="rounded-lg border bg-muted/25 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Real</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums">
+                <p className="mt-1 text-2xl font-semibold">
                   {formatMoney(selected.actualTotal)}
                 </p>
               </div>
@@ -626,8 +626,8 @@ export function BudgetsView({
                   className={cn(
                     "mt-1 text-2xl font-semibold tabular-nums",
                     selected.difference > 0
-                      ? "text-red-700 dark:text-red-300"
-                      : "text-emerald-700 dark:text-emerald-300"
+                      ? "text-red"
+                      : "text-green"
                   )}
                 >
                   {formatMoney(selected.difference)}
@@ -657,7 +657,7 @@ export function BudgetsView({
                 <div
                   className={cn(
                     "h-full rounded-full",
-                    actualProgress > 102 ? "bg-red-500" : "bg-emerald-500"
+                    actualProgress > 102 ? "bg-red" : "bg-green"
                   )}
                   style={{ width: `${Math.min(100, actualProgress)}%` }}
                 />
@@ -710,7 +710,7 @@ export function BudgetsView({
                       type="button"
                       onClick={() => setOutcome(value)}
                       className={cn(
-                        "grid h-20 place-items-center gap-1 rounded-lg border p-2 text-center text-xs font-medium transition-colors",
+                        "grid h-20 place-items-center gap-1 rounded-lg border p-2 text-center text-xs font-medium transition-fast",
                         outcome === value
                           ? meta.className
                           : "bg-background hover:bg-muted"
@@ -886,8 +886,8 @@ export function BudgetsView({
                   key={view.month}
                   href={`/presupuestos?mes=${monthParam(view.month)}`}
                   className={cn(
-                    "grid gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/60",
-                    active && "border-primary bg-primary/5"
+                    "grid gap-2 rounded-lg border p-3 transition-fast hover:bg-muted/60",
+                    active && "border-accent/40 bg-accent/5"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">

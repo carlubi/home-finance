@@ -38,8 +38,8 @@ export async function showSystemNotification(
 
   const payload: NotificationOptions & { data: { url?: string } } = {
     body: options.body,
-    icon: "/icon.png?v=2",
-    badge: "/icon.png?v=2",
+    icon: "/icon.png?v=3",
+    badge: "/icon.png?v=3",
     data: { url: options.url },
   };
 

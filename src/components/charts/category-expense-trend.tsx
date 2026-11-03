@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { categoryColor, SERIES } from "@/lib/chart-colors";
+import { categoryColor } from "@/lib/chart-colors";
 import {
   Select,
   SelectContent,
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChartTooltip } from "./chart-tooltip";
+import { ChartEmpty, ChartLegend, activeDotProps, chartMargin, dotProps, gridProps, lineCursor, xAxisProps, yAxisProps } from "./chart-theme";
 
 export interface CategoryTrendSeries {
   key: string;
@@ -30,10 +31,6 @@ export type CategoryTrendDatum = {
   label: string;
 } & Record<string, number | string>;
 
-const compact = new Intl.NumberFormat("es-ES", {
-  notation: "compact",
-  maximumFractionDigits: 0,
-});
 const ALL_CATEGORIES = "__all__";
 
 export function CategoryExpenseTrend({
@@ -52,18 +49,14 @@ export function CategoryExpenseTrend({
 
   if (series.length === 0) {
     return (
-      <div className="grid h-64 place-items-center rounded-md border border-dashed text-sm text-muted-foreground">
-        No hay gastos por categoría suficientes para mostrar evolución.
-      </div>
+      <ChartEmpty>No hay gastos por categoría suficientes para mostrar evolución.</ChartEmpty>
     );
   }
 
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
-          Selecciona una categoría o compara todas a la vez.
-        </p>
+        <ChartLegend items={visibleSeries.map((item) => ({ label: item.label, color: categoryColor(item.color) }))} className="min-w-0 flex-1" />
         <Select
           value={selectedKey}
           onValueChange={(value) => setSelectedKey(String(value))}
@@ -86,27 +79,13 @@ export function CategoryExpenseTrend({
         </Select>
       </div>
 
-      <div className="h-64">
+      <div className="h-60">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={data}
-            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid stroke={SERIES.grid} strokeWidth={1} vertical={false} />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
-              axisLine={{ stroke: SERIES.axis }}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
-              axisLine={false}
-              tickLine={false}
-              width={44}
-              tickFormatter={(v: number) => compact.format(v)}
-            />
-            <Tooltip content={<ChartTooltip />} cursor={{ stroke: SERIES.axis }} />
+          <LineChart data={data} margin={chartMargin}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="label" {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip content={<ChartTooltip />} cursor={lineCursor} />
             {visibleSeries.map((item) => (
               <Line
                 key={item.key}
@@ -115,22 +94,8 @@ export function CategoryExpenseTrend({
                 name={item.label}
                 stroke={categoryColor(item.color)}
                 strokeWidth={2}
-                dot={
-                  selected
-                    ? {
-                        r: 4,
-                        fill: categoryColor(item.color),
-                        stroke: "var(--background)",
-                        strokeWidth: 2,
-                      }
-                    : false
-                }
-                activeDot={{
-                  r: selected ? 6 : 4,
-                  fill: categoryColor(item.color),
-                  stroke: "var(--background)",
-                  strokeWidth: 2,
-                }}
+                dot={selected ? dotProps(categoryColor(item.color)) : false}
+                activeDot={activeDotProps(categoryColor(item.color))}
                 isAnimationActive={false}
               />
             ))}

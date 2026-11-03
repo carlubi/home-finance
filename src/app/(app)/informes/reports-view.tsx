@@ -155,8 +155,8 @@ export function ReportsView({
               className={cn(
                 "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium",
                 canGenerate
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                  : "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  ? "border-green/20 bg-green/10 text-green"
+                  : "border-orange/30 bg-orange/10 text-orange"
               )}
             >
               {canGenerate ? (
@@ -175,7 +175,7 @@ export function ReportsView({
               {quotaDetail} Mes de cuota: {formatMonth(quotaMonth)}.
             </p>
             {selectedReportExists && (
-              <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+              <p className="mt-2 text-xs font-medium text-orange">
                 Ya existe un informe para el periodo seleccionado. Puedes verlo en
                 el historial, pero no volver a generarlo.
               </p>

@@ -1,17 +1,9 @@
 "use client";
 
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { SERIES } from "@/lib/chart-colors";
 import { ChartTooltip } from "./chart-tooltip";
+import { ChartEmpty, ChartLegend, activeDotProps, chartMargin, gridProps, lineCursor, xAxisProps, yAxisProps } from "./chart-theme";
 
 export interface FamilyExpenseTrendDatum {
   label: string;
@@ -19,68 +11,52 @@ export interface FamilyExpenseTrendDatum {
   "Por persona": number;
 }
 
-const compact = new Intl.NumberFormat("es-ES", {
-  notation: "compact",
-  maximumFractionDigits: 0,
-});
 
 export function FamilyExpenseTrend({ data }: { data: FamilyExpenseTrendDatum[] }) {
   if (data.length === 0) {
-    return (
-      <div className="grid h-64 place-items-center rounded-md border border-dashed text-sm text-muted-foreground">
-        Todavía no hay gastos familiares para mostrar evolución.
-      </div>
-    );
+    return <ChartEmpty>Todavía no hay gastos familiares para mostrar evolución.</ChartEmpty>;
   }
 
   return (
-    <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke={SERIES.grid} strokeWidth={1} vertical={false} />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
-            axisLine={{ stroke: SERIES.axis }}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-            width={44}
-            tickFormatter={(value: number) => compact.format(value)}
-          />
-          <Tooltip content={<ChartTooltip />} cursor={{ stroke: SERIES.axis }} />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            formatter={(value: string) => (
-              <span className="text-xs text-muted-foreground">{value}</span>
-            )}
-          />
-          <Area
-            type="monotone"
-            dataKey="Gasto total"
-            stroke={SERIES.expense}
-            fill={SERIES.expense}
-            fillOpacity={0.12}
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-          <Area
-            type="monotone"
-            dataKey="Por persona"
-            stroke={SERIES.savings}
-            fill={SERIES.savings}
-            fillOpacity={0.06}
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+    <div className="grid gap-3">
+      <ChartLegend
+        items={[
+          { label: "Gasto total", color: SERIES.expense },
+          { label: "Por persona", color: SERIES.savings },
+        ]}
+      />
+      <div className="h-60">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={chartMargin}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="label" {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip content={<ChartTooltip />} cursor={lineCursor} />
+            <Area
+              type="monotone"
+              dataKey="Gasto total"
+              stroke={SERIES.expense}
+              fill={SERIES.expense}
+              fillOpacity={0.1}
+              strokeWidth={2}
+              dot={false}
+              activeDot={activeDotProps(SERIES.expense)}
+              isAnimationActive={false}
+            />
+            <Area
+              type="monotone"
+              dataKey="Por persona"
+              stroke={SERIES.savings}
+              fill={SERIES.savings}
+              fillOpacity={0.06}
+              strokeWidth={2}
+              dot={false}
+              activeDot={activeDotProps(SERIES.savings)}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

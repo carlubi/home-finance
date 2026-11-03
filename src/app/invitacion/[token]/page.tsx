@@ -66,15 +66,15 @@ export default async function InvitacionPage({
 
   if (!member || !groupName) {
     return (
-      <main className="flex min-h-svh items-center justify-center bg-[linear-gradient(135deg,var(--background),var(--muted))] p-4">
-        <section className="animate-pop-in w-full max-w-md rounded-2xl border bg-card p-7 text-center shadow-2xl shadow-primary/10">
-          <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <Mail className="size-7" />
+      <main className="flex min-h-svh items-center justify-center bg-bg-primary p-4">
+        <section className="w-full max-w-md rounded-lg border border-border-primary bg-bg-secondary p-6 text-center linear-shadow-sm">
+          <div className="mx-auto mb-4 flex size-10 items-center justify-center rounded-full border border-red/20 bg-red/10 text-red">
+            <Mail className="size-5" />
           </div>
-          <h1 className="font-heading text-2xl font-semibold tracking-normal">
+          <h1 className="font-heading text-2xl font-medium">
             Invitación no disponible
           </h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          <p className="mt-2 text-sm text-text-secondary">
             Este enlace no existe, ha caducado o la invitación fue revocada.
           </p>
           <Button
@@ -90,42 +90,42 @@ export default async function InvitacionPage({
   }
 
   return (
-    <main className="relative min-h-svh overflow-hidden bg-[linear-gradient(135deg,var(--background),var(--muted))]">
+    <main className="relative min-h-svh bg-bg-primary">
       <div className="mx-auto grid min-h-svh w-full max-w-6xl items-center gap-8 px-4 py-8 md:grid-cols-[1.1fr_0.9fr] md:px-8">
-        <section className="animate-fade-up">
-          <BrandLogo className="mb-10 h-14" />
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-            <Sparkles className="size-3.5 text-primary" />
+        <section>
+          <BrandLogo size="md" className="mb-10" />
+          <div className="mb-4 inline-flex h-6 items-center gap-1.5 rounded-full border border-border-primary bg-bg-secondary px-2.5 text-xs font-medium text-text-secondary">
+            <Sparkles className="size-3 text-accent" />
             Invitación privada
           </div>
-          <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-tight tracking-normal text-foreground md:text-6xl">
+          <h1 className="max-w-2xl font-heading text-4xl font-semibold text-text-primary md:text-5xl">
             Hola, estás invitado a{" "}
-            <span className="brand-gradient">{groupName}</span>
+            <span>{groupName}</span>
           </h1>
-          <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-            Te han invitado a {isFamilyInvitation ? "compartir todos los datos de la unidad familiar" : "compartir gastos y saldos de grupo"} en Home Finance.
+          <p className="mt-4 max-w-xl text-base text-text-secondary">
+            Te han invitado a {isFamilyInvitation ? "compartir todos los datos de la unidad familiar" : "compartir gastos y saldos de grupo"} en Todo en Casa.
             Para continuar, entra con tu cuenta o crea una nueva con el email
             invitado.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1.5">
-              <Mail className="size-4 text-primary" />
+          <div className="mt-6 flex flex-wrap gap-2 text-[13px] text-text-secondary">
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border-primary bg-bg-secondary px-2.5">
+              <Mail className="size-3.5 text-text-tertiary" />
               {member.email}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1.5">
-              <ShieldCheck className="size-4 text-primary" />
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border-primary bg-bg-secondary px-2.5">
+              <ShieldCheck className="size-3.5 text-text-tertiary" />
               Acceso protegido
             </span>
           </div>
         </section>
 
-        <section className="animate-pop-in rounded-2xl border bg-card/95 p-5 shadow-2xl shadow-primary/10 backdrop-blur md:p-7">
+        <section className="rounded-lg border border-border-primary bg-bg-secondary p-5 linear-shadow-sm md:p-6">
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Users className="size-5" />
+            <div className="flex size-8 items-center justify-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
+              <Users className="size-4" />
             </div>
             <div>
-              <h2 className="font-heading text-lg font-semibold tracking-normal">
+              <h2 className="font-heading text-base font-medium">
                 Únete al grupo
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -135,15 +135,15 @@ export default async function InvitacionPage({
           </div>
 
           <div className="grid gap-3 text-sm">
-            <div className="flex gap-3 rounded-xl border bg-muted/40 p-3">
-              <CheckCircle className="mt-0.5 size-4 text-primary" />
+            <div className="flex gap-3 rounded-md border border-border-primary bg-bg-tertiary/50 p-3">
+              <CheckCircle className="mt-0.5 size-4 shrink-0 text-green" />
               <p className="text-muted-foreground">
                 Verás el grupo y podrás aceptar la invitación después de iniciar
                 sesión.
               </p>
             </div>
-            <div className="flex gap-3 rounded-xl border bg-muted/40 p-3">
-              <CheckCircle className="mt-0.5 size-4 text-primary" />
+            <div className="flex gap-3 rounded-md border border-border-primary bg-bg-tertiary/50 p-3">
+              <CheckCircle className="mt-0.5 size-4 shrink-0 text-green" />
               <p className="text-muted-foreground">
                 Si llegaste desde el correo de invitación, prepararemos la sesión
                 automáticamente.
@@ -152,7 +152,7 @@ export default async function InvitacionPage({
           </div>
 
           {error && (
-            <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            <p className="mt-4 rounded-lg border border-red/20 bg-red/10 p-3 text-sm text-red">
               No se pudo aceptar la invitación. Revisa que estás usando el email
               invitado.
             </p>
@@ -162,7 +162,7 @@ export default async function InvitacionPage({
             <InvitationAuthSync />
             {member.status === "active" ? (
               <>
-                <p className="rounded-xl border bg-muted/40 p-3 text-sm text-muted-foreground">
+                <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
                   Esta invitación ya fue aceptada.
                 </p>
                 <Button

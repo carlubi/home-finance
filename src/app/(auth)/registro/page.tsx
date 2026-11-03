@@ -38,7 +38,7 @@ function RegistroForm() {
       <CardContent>
         {success ? (
           <div className="grid gap-4">
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+            <div className="rounded-lg border border-green/20 bg-green/10 p-4 text-sm text-green">
               {state.message}
             </div>
             <p className="text-center text-sm text-muted-foreground">

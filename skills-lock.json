@@ -7,6 +7,18 @@
       "skillPath": "packages/playground/.agents/skills/frontend-design/SKILL.md",
       "computedHash": "537c1df9d0c694ecf9139a911f9ad0bd111a7ebc173a55457568459e543fe75b"
     },
+    "linear-design-principles": {
+      "source": "tylergibbs1/tyler-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design/linear-design-principles/SKILL.md",
+      "computedHash": "90ae84265892433c4144fd8448be9c04788cad5e5b97f7579abdf0022b27205c"
+    },
+    "linear-design-system": {
+      "source": "arvindrk/deep-research-agents",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/linear-design-system/SKILL.md",
+      "computedHash": "67d9d78e1eff6072b43cd692da41bcab1c47e2e829b0efa44b0d4ca7392a7a9e"
+    },
     "mobile-design": {
       "source": "sickn33/agentic-awesome-skills",
       "sourceType": "github",

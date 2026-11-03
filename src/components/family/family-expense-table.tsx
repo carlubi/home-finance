@@ -139,7 +139,7 @@ export function FamilyExpenseTable({
   }
 
   return (
-    <Card className="card-lift">
+    <Card>
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -154,7 +154,7 @@ export function FamilyExpenseTable({
       <CardContent className="grid gap-3">
         {selectableRows.length > 0 ? (
           selected.size > 0 ? (
-            <div className="animate-pop-in flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium">
                 {selected.size} seleccionado{selected.size === 1 ? "" : "s"}
               </span>
@@ -206,8 +206,8 @@ export function FamilyExpenseTable({
                 <div
                   key={row.id}
                   className={
-                    "row-hover flex min-w-0 items-center gap-3 p-3 " +
-                    (selectedRow ? "bg-primary/5" : "")
+                    "flex min-w-0 items-center gap-3 p-3 " +
+                    (selectedRow ? "bg-accent/5" : "")
                   }
                 >
                   <Checkbox
@@ -255,7 +255,7 @@ export function FamilyExpenseTable({
                   >
                     <div className="min-w-20 text-right">
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">€/mes</p>
-                      <p className={`text-sm font-semibold tabular-nums ${row.entry_kind === "income" ? "text-emerald-600" : ""}`}>{row.entry_kind === "income" ? "+" : ""}{formatMoney(Number(row.amount))}</p>
+                      <p className={`text-sm font-semibold tabular-nums ${row.entry_kind === "income" ? "text-green" : ""}`}>{row.entry_kind === "income" ? "+" : ""}{formatMoney(Number(row.amount))}</p>
                     </div>
                     {showPerPerson && (
                       <div className="min-w-24 text-right">
@@ -269,7 +269,7 @@ export function FamilyExpenseTable({
 
                   <div className="flex shrink-0 items-center gap-2 sm:hidden">
                     <div className="text-right">
-                      <p className={`text-sm font-semibold tabular-nums ${row.entry_kind === "income" ? "text-emerald-600" : ""}`}>{row.entry_kind === "income" ? "+" : ""}{formatMoney(Number(row.amount))}</p>
+                      <p className={`text-sm font-semibold tabular-nums ${row.entry_kind === "income" ? "text-green" : ""}`}>{row.entry_kind === "income" ? "+" : ""}{formatMoney(Number(row.amount))}</p>
                       {showPerPerson && (
                         <p className="text-xs text-muted-foreground tabular-nums">
                           Por persona: {formatMoney(perPerson(Number(row.amount), row.people_count))}

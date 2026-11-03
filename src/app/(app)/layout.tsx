@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAppProfile, getCurrentUser } from "@/lib/auth";
-import { BottomNav, Sidebar } from "@/components/layout/nav";
+import { BottomNav, CurrentSection, Sidebar } from "@/components/layout/nav";
 import { InstallAppButton } from "@/components/layout/install-app-button";
 import { NotificationsPermissionPrompt } from "@/components/layout/notifications-permission";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -30,15 +30,15 @@ export default async function AppLayout({
   const familyUnit = await getOrCreateFamilyUnit(await createClient(), user);
 
   return (
-    <div className="flex h-svh w-full overflow-hidden">
+    <div className="flex h-svh w-full overflow-hidden bg-bg-primary">
       <Sidebar />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="z-30 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur">
-          <div className="hover-wiggle flex items-center md:hidden">
-            <BrandLogo className="h-9" />
+        <header className="z-30 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border-primary bg-bg-primary/90 px-4 backdrop-blur-md md:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <BrandLogo size="sm" withText={false} className="md:hidden" />
+            <CurrentSection />
           </div>
-          <div className="hidden md:block" />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <InstallAppButton />
             <NotificationsBell />
             <LanguageMenuButton />
@@ -48,7 +48,7 @@ export default async function AppLayout({
             />
           </div>
         </header>
-        <main className="animate-fade-up min-h-0 flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 pt-6 pb-24 md:px-8 md:pt-8 md:pb-10">
           {children}
         </main>
       </div>

@@ -60,14 +60,14 @@ export function NotificationsPermissionPrompt() {
   }
 
   return (
-    <div className="animate-pop-in fixed right-4 bottom-20 z-40 w-[calc(100%-2rem)] max-w-sm rounded-2xl border bg-card p-4 shadow-lg md:bottom-4">
+    <div className="fixed right-4 bottom-20 z-40 w-[calc(100%-2rem)] max-w-sm rounded-lg border border-border-secondary bg-bg-secondary p-4 shadow-lg linear-shadow-md md:bottom-4">
       <div className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-          <BellRing className="size-5" />
+        <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
+          <BellRing className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">¿Activamos las notificaciones?</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="text-sm font-medium text-text-primary">¿Activamos las notificaciones?</p>
+          <p className="mt-0.5 text-[13px] leading-[18px] text-text-secondary">
             Te avisaremos cuando alguien registre un gasto compartido o pague una
             deuda, aunque no tengas la app abierta en pantalla.
           </p>

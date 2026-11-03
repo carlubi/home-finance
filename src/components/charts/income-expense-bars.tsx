@@ -1,17 +1,18 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { SERIES } from "@/lib/chart-colors";
 import { ChartTooltip } from "./chart-tooltip";
+import {
+  BAR_MAX,
+  BAR_RADIUS,
+  ChartLegend,
+  barCursor,
+  chartMargin,
+  gridProps,
+  xAxisProps,
+  yAxisProps,
+} from "./chart-theme";
 
 export interface MonthBarDatum {
   label: string;
@@ -19,54 +20,27 @@ export interface MonthBarDatum {
   Gastos: number;
 }
 
-const compact = new Intl.NumberFormat("es-ES", {
-  notation: "compact",
-  maximumFractionDigits: 0,
-});
-
 export function IncomeExpenseBars({ data }: { data: MonthBarDatum[] }) {
   return (
-    <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} barGap={2} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke={SERIES.grid} strokeWidth={1} vertical={false} />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
-            axisLine={{ stroke: SERIES.axis }}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: "var(--viz-muted)", fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-            width={44}
-            tickFormatter={(v: number) => compact.format(v)}
-          />
-          <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--viz-grid)", opacity: 0.4 }} />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            formatter={(value: string) => (
-              <span className="text-xs text-muted-foreground">{value}</span>
-            )}
-          />
-          <Bar
-            dataKey="Ingresos"
-            fill={SERIES.income}
-            maxBarSize={24}
-            radius={[4, 4, 0, 0]}
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="Gastos"
-            fill={SERIES.expense}
-            maxBarSize={24}
-            radius={[4, 4, 0, 0]}
-            isAnimationActive={false}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="grid gap-3">
+      <ChartLegend
+        items={[
+          { label: "Ingresos", color: SERIES.income },
+          { label: "Gastos", color: SERIES.expense },
+        ]}
+      />
+      <div className="h-60">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} barGap={2} barCategoryGap="28%" margin={chartMargin}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="label" {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip content={<ChartTooltip />} cursor={barCursor} />
+            <Bar dataKey="Ingresos" fill={SERIES.income} maxBarSize={BAR_MAX} radius={BAR_RADIUS} isAnimationActive={false} />
+            <Bar dataKey="Gastos" fill={SERIES.expense} maxBarSize={BAR_MAX} radius={BAR_RADIUS} isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

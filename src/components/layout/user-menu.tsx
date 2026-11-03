@@ -43,9 +43,9 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <Avatar className="size-8">
-              <AvatarFallback>{initials}</AvatarFallback>
+          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menú de usuario">
+            <Avatar className="size-6">
+              <AvatarFallback className="text-2xs">{initials}</AvatarFallback>
             </Avatar>
           </Button>
         }
@@ -54,8 +54,8 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             <div className="grid">
-              <span>{name || "Usuario"}</span>
-              <span className="truncate text-xs font-normal text-muted-foreground">
+              <span className="text-[13px] text-text-primary">{name || "Usuario"}</span>
+              <span className="truncate text-xs font-normal text-text-secondary">
                 {email}
               </span>
             </div>

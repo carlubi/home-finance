@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import { Figtree, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/components/layout/language-provider";
 import { PwaRegistration } from "@/components/layout/pwa-registration";
@@ -9,9 +9,9 @@ import { NetworkStatus } from "@/components/layout/network-status";
 import { LANGUAGE_COOKIE, normalizeLanguage } from "@/lib/language";
 import "./globals.css";
 
-// Figtree: humanista y redondeada, la alternativa libre más cercana a Aptos
-const figtree = Figtree({
-  variable: "--font-sans",
+// Inter variable: permite los pesos intermedios de Linear (510 / 538)
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -21,25 +21,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  applicationName: "Mis Finanzas",
+  applicationName: "Todo en Casa",
   title: {
-    default: "Mis Finanzas",
-    template: "%s · Mis Finanzas",
+    default: "Todo en Casa",
+    template: "%s · Todo en Casa",
   },
   description:
-    "Gestión de finanzas personales y gastos compartidos con análisis asistido por IA",
+    "Las finanzas, los gastos compartidos y los menús de tu casa, en un solo lugar.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Mis Finanzas",
-    statusBarStyle: "default",
+    title: "Todo en Casa",
+    statusBarStyle: "black",
   },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png?v=2", type: "image/png", sizes: "512x512" },
+      { url: "/icon.png?v=3", type: "image/png", sizes: "512x512" },
     ],
-    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
+    apple: [{ url: "/apple-icon.png?v=3", type: "image/png", sizes: "180x180" }],
   },
 };
 
@@ -47,8 +47,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#171321" },
+    { media: "(prefers-color-scheme: light)", color: "#fbfbfc" },
+    { media: "(prefers-color-scheme: dark)", color: "#08090a" },
   ],
 };
 
@@ -63,7 +63,7 @@ export default async function RootLayout({
   return (
     <html
       lang={language}
-      className={`${figtree.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
@@ -72,7 +72,7 @@ export default async function RootLayout({
             <PwaRegistration />
             {children}
             <NetworkStatus />
-            <Toaster richColors position="top-center" />
+            <Toaster position="top-center" />
           </LanguageProvider>
         </ThemeProvider>
       </body>

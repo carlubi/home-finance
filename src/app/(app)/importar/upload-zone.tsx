@@ -91,8 +91,8 @@ export function UploadZone({
           setIsDragging(false);
           handleFiles(e.dataTransfer.files);
         }}
-        className={`flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center transition-colors ${
-          isDragging ? "border-primary bg-accent/50" : "hover:bg-accent/40"
+        className={`flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center transition-fast ${
+          isDragging ? "border-accent bg-accent/5" : "hover:bg-bg-tertiary"
         } ${busy ? "cursor-not-allowed opacity-80" : ""}`}
       >
         {busy ? (

@@ -72,7 +72,7 @@ export function FamilyExpenseDialog({
         <DialogTrigger
           render={
             trigger ?? (
-              <Button className="shadow-sm hover:-translate-y-0.5 hover:shadow-md">
+              <Button className="shadow-sm hover:shadow-md">
                 Añadir gasto
               </Button>
             )

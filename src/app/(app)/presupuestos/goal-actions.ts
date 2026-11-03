@@ -10,6 +10,7 @@ import type { FinancialGoal } from "@/lib/types";
 function refreshGoals() {
   revalidatePath("/presupuestos");
   revalidatePath("/");
+  revalidatePath("/gastos-personales");
   revalidatePath("/familia");
 }
 

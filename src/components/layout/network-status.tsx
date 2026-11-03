@@ -23,9 +23,9 @@ export function NetworkStatus() {
   return (
     <div
       role="status"
-      className="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[60] mx-auto flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full bg-foreground px-3 py-2 text-sm font-medium text-background shadow-lg"
+      className="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[60] mx-auto flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-lg border border-border-secondary bg-bg-secondary px-3 py-2 text-[13px] font-medium text-text-primary shadow-lg linear-shadow-md"
     >
-      <WifiOff className="size-4 shrink-0" />
+      <WifiOff className="size-4 shrink-0 text-orange" />
       Sin conexión. Necesitas internet para actualizar tus datos.
     </div>
   );

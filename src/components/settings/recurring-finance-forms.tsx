@@ -108,7 +108,7 @@ function SaveStatusButton({
 }) {
   if (saved) {
     return (
-      <span className="grid h-8 min-w-8 place-items-center rounded-lg border border-green-600/30 bg-green-600/10 text-green-700 dark:text-green-400">
+      <span className="grid h-8 min-w-8 place-items-center rounded-lg border border-green/20 bg-green/10 text-green">
         <Check className="size-4" />
       </span>
     );

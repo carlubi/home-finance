@@ -31,11 +31,11 @@ export default async function CompartidosPage() {
 
   return (
     <div className="grid max-w-2xl gap-4">
-      <h1 className="text-2xl font-semibold">Gastos compartidos</h1>
+      <h1 className="text-2xl font-medium">Gastos compartidos</h1>
 
       {joinedGroups.length > 0 && (
-        <div className="animate-pop-in flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
-          <PartyPopper className="size-5 shrink-0 text-primary" />
+        <div className="flex items-center gap-3 rounded-lg border border-green/20 bg-green/10 p-3 text-sm">
+          <PartyPopper className="size-4 shrink-0 text-green" />
           <p>
             Te habían invitado por email y ya formas parte de{" "}
             <strong>{joinedGroups.join(", ")}</strong>.
@@ -57,7 +57,7 @@ export default async function CompartidosPage() {
           <div className="grid gap-2">
             {list.map((g) => (
               <Link key={g.id} href={`/compartidos/${g.id}`}>
-                <Card className="card-lift">
+                <Card>
                   <CardContent className="flex items-center gap-3">
                     <Users className="size-5 text-muted-foreground" />
                     <div className="flex-1">

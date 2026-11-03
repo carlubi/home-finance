@@ -28,17 +28,18 @@ export function ChartCard({
   const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <Card className="card-lift">
-      <CardHeader className="flex-row items-start justify-between space-y-0">
+    <Card>
+      <CardHeader className="flex items-start justify-between gap-2">
         <div>
-          <CardTitle className="text-base">{title}</CardTitle>
+          <CardTitle>{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </div>
         <Button
           variant="ghost"
-          size="icon"
-          className="size-8 shrink-0"
+          size="icon-sm"
+          className="shrink-0 text-text-tertiary"
           title="Exportar como PNG"
+          aria-label="Exportar como PNG"
           onClick={() =>
             ref.current &&
             exportChartAsPng(ref.current, fileName, {
@@ -47,7 +48,7 @@ export function ChartCard({
             })
           }
         >
-          <Download className="size-4" />
+          <Download className="size-3.5" />
         </Button>
       </CardHeader>
       <CardContent>

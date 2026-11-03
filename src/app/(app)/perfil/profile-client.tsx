@@ -68,11 +68,11 @@ export function ProfileClient({
   return (
     <div className="grid gap-4">
       <div className="flex items-center gap-3">
-        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
+        <div className="flex size-12 items-center justify-center rounded-full bg-bg-quaternary text-base font-medium text-text-secondary">
           {initials}
         </div>
         <div>
-          <h1 className="text-2xl font-semibold">Perfil</h1>
+          <h1 className="text-2xl font-medium">Perfil</h1>
           <p className="text-sm text-muted-foreground">
             Edita tu nombre, revisa tu correo y gestiona tu cuenta.
           </p>
@@ -111,16 +111,16 @@ export function ProfileClient({
             </div>
           </form>
 
-          <div className="grid gap-1 rounded-xl border bg-muted/30 p-4 text-sm">
+          <div className="grid gap-1 rounded-lg border bg-muted/30 p-4 text-sm">
             <span className="text-muted-foreground">Correo asociado</span>
             <span className="font-medium">{email}</span>
           </div>
 
-          <div className="rounded-xl border bg-muted/30 p-4">
+          <div className="rounded-lg border bg-muted/30 p-4">
             <LanguageSegmentedControl />
           </div>
 
-          <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
+          <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 text-sm">
             <div className="flex items-center gap-2">
               <KeyRound className="size-4 text-muted-foreground" />
               <div>
@@ -203,7 +203,7 @@ export function ProfileClient({
                 <Link
                   key={group.id}
                   href={`/compartidos/${group.id}`}
-                  className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent/40"
+                  className="flex items-center gap-3 rounded-lg border p-3 transition-fast hover:bg-bg-tertiary"
                 >
                   <Users className="size-5 text-muted-foreground" />
                   <div className="min-w-0 flex-1">

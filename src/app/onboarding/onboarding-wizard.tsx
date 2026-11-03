@@ -426,7 +426,7 @@ export function OnboardingWizard({ userId }: { userId: string }) {
   const isLast = step === TOTAL_STEPS - 1;
 
   return (
-    <Card className="animate-pop-in">
+    <Card>
       <CardHeader>
         <Progress value={((step + 1) / TOTAL_STEPS) * 100} className="mb-4" />
         <CardTitle>{current.title}</CardTitle>

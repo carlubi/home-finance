@@ -156,7 +156,7 @@ export function TransactionList({
         {/* Selección múltiple */}
         {selectableItems.length > 0 ? (
           selected.size > 0 ? (
-            <div className="animate-pop-in flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium">
                 {selected.size} seleccionado{selected.size === 1 ? "" : "s"}
               </span>
@@ -257,8 +257,8 @@ export function TransactionList({
             <li
               key={tx.id}
               className={
-                "row-hover flex items-center gap-3 p-3 " +
-                (selected.has(tx.id) ? "bg-primary/5" : "")
+                "flex items-center gap-3 p-3 " +
+                (selected.has(tx.id) ? "bg-accent/5" : "")
               }
             >
               <Checkbox
@@ -304,7 +304,7 @@ export function TransactionList({
               <span
                 className={
                   "text-sm font-semibold tabular-nums " +
-                  (kind === "income" ? "text-green-600 dark:text-green-400" : "")
+                  (kind === "income" ? "text-green" : "")
                 }
               >
                 {kind === "expense" ? "−" : "+"}

@@ -27,8 +27,8 @@ function Delta({
   return (
     <p
       className={cn(
-        "flex items-center gap-0.5 text-xs",
-        good ? "text-green-700 dark:text-green-500" : "text-red-700 dark:text-red-400"
+        "flex items-center gap-0.5 text-xs tabular-nums",
+        good ? "text-green" : "text-red"
       )}
     >
       <Icon className="size-3" />
@@ -56,29 +56,21 @@ export function StatCard({
   deltaSuffix?: string;
   helper?: string;
   icon?: React.ComponentType<{ className?: string }>;
+  /** Color semántico del icono (p. ej. text-green). Por defecto, neutro. */
   iconClass?: string;
 }) {
   return (
-    <Card className="card-lift">
-      <CardContent className="flex items-start gap-3 pt-0">
-        {Icon && (
-          <span
-            className={cn(
-              "mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl",
-              iconClass ?? "bg-primary/10 text-primary"
-            )}
-          >
-            <Icon className="size-4.5" />
-          </span>
+    <Card size="sm">
+      <CardContent className="grid min-w-0 gap-1">
+        <p className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-text-secondary">
+          {Icon && <Icon className={cn("size-3.5 shrink-0", iconClass ?? "text-text-tertiary")} />}
+          <span className="truncate" title={label}>{label}</span>
+        </p>
+        <p className="truncate text-2xl font-medium text-text-primary">{value}</p>
+        {delta !== undefined && (
+          <Delta value={delta} upIsGood={upIsGood} suffix={deltaSuffix} />
         )}
-        <div className="grid min-w-0 gap-0.5">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="truncate text-2xl font-bold">{value}</p>
-          {delta !== undefined && (
-            <Delta value={delta} upIsGood={upIsGood} suffix={deltaSuffix} />
-          )}
-          {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
-        </div>
+        {helper && <p className="text-xs text-text-tertiary">{helper}</p>}
       </CardContent>
     </Card>
   );
@@ -108,14 +100,14 @@ export function SummaryCards({
   accumulatedSavingsInterest?: number;
 }) {
   return (
-    <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
       <StatCard
         label="Ingresos"
         value={formatMoney(income)}
         delta={incomeDelta}
         upIsGood
         icon={Wallet}
-        iconClass="bg-[oklch(0.65_0.15_165/0.15)] text-[oklch(0.5_0.13_165)] dark:text-[oklch(0.75_0.13_165)]"
+        iconClass="text-green"
       />
       <StatCard
         label="Gastos"
@@ -123,7 +115,7 @@ export function SummaryCards({
         delta={expensesDelta}
         upIsGood={false}
         icon={Receipt}
-        iconClass="bg-[oklch(0.6_0.19_25/0.14)] text-[oklch(0.55_0.19_25)] dark:text-[oklch(0.75_0.14_25)]"
+        iconClass="text-red"
       />
       <StatCard
         label="Ahorro"
@@ -131,6 +123,7 @@ export function SummaryCards({
         delta={savingsDelta}
         upIsGood
         icon={PiggyBank}
+        iconClass="text-accent"
       />
       <StatCard
         label="Inversión acumulada"
@@ -141,21 +134,18 @@ export function SummaryCards({
             : undefined
         }
         icon={Landmark}
-        iconClass="bg-[oklch(0.72_0.16_95/0.16)] text-[oklch(0.48_0.13_95)] dark:text-[oklch(0.8_0.13_95)]"
       />
       <StatCard
         label="Dinero acumulado por la cuenta remunerada"
         value={formatMoney(accumulatedSavingsInterest ?? 0)}
         helper="Intereses generados hasta este mes"
         icon={PiggyBank}
-        iconClass="bg-[oklch(0.72_0.16_95/0.16)] text-[oklch(0.48_0.13_95)] dark:text-[oklch(0.8_0.13_95)]"
       />
       <StatCard
         label="% de ahorro"
         value={savingsPct === null ? "—" : `${savingsPct.toFixed(1)}%`}
         helper="Las inversiones no forman parte del ahorro neto"
         icon={Sparkle}
-        iconClass="bg-[oklch(0.62_0.2_330/0.14)] text-[oklch(0.55_0.2_330)] dark:text-[oklch(0.78_0.15_330)]"
       />
     </div>
   );

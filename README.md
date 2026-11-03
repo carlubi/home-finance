@@ -1,6 +1,6 @@
-# Mis Finanzas
+# Todo en Casa
 
-App web (responsive móvil/escritorio) de finanzas personales y gastos compartidos con análisis asistido por IA.
+App web para organizar las finanzas personales y familiares, los gastos compartidos y los menús de casa.
 
 - **Frontend**: Next.js (App Router) + Tailwind + shadcn/ui + Recharts
 - **Backend**: Supabase (Postgres + RLS, Auth, Storage, Edge Functions)
@@ -26,7 +26,7 @@ npm test           # tests de lógica financiera (Vitest)
 npm run build      # build de producción
 ```
 
-Variables en `.env.local` (ya configuradas para el proyecto `dsnvugbgpmzhwpivydir`):
+Variables en `.env.local` (ya configuradas para el proyecto):
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=…
