@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { KeyRound, LogOut, ShieldAlert, Users } from "lucide-react";
+import { ArrowUpRight, KeyRound, LogOut, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { logout } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -39,14 +39,30 @@ type GroupRow = {
   created_at: string;
 };
 
+type FamilyUnitRow = {
+  name: string;
+  members: {
+    id: string;
+    user_id: string | null;
+    email: string;
+    display_name: string | null;
+    role: "owner" | "member";
+    status: "active" | "invited";
+  }[];
+  personalSharingEnabled: boolean;
+  currentUserId: string;
+};
+
 export function ProfileClient({
   fullName,
   email,
   groups,
+  familyUnit,
 }: {
   fullName: string;
   email: string;
   groups: GroupRow[];
+  familyUnit: FamilyUnitRow | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -182,6 +198,66 @@ export function ProfileClient({
               </div>
             </form>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <CardTitle className="text-base">Unidad familiar</CardTitle>
+              <CardDescription>
+                Consulta con quién compartes los datos de la unidad familiar.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/familia" />}>
+              Gestionar unidad <ArrowUpRight className="size-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {familyUnit ? (
+            <>
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-4">
+                <Users className="size-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{familyUnit.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {familyUnit.members.filter((member) => member.status === "active").length} miembros activos
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                {familyUnit.members.map((member) => (
+                  <div key={member.id} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {(member.user_id === familyUnit.currentUserId && fullName) || member.display_name || member.email}
+                        {member.user_id === familyUnit.currentUserId ? " (tú)" : ""}
+                      </p>
+                      {member.display_name && <p className="truncate text-xs text-muted-foreground">{member.email}</p>}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {member.role === "owner" && <span className="hidden text-xs text-muted-foreground sm:inline">Propietario</span>}
+                      <Badge variant={member.status === "active" ? "secondary" : "outline"}>
+                        {member.status === "active" ? "Activo" : "Invitado"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {familyUnit.members.some((member) => member.status === "invited") && (
+                <p className="text-xs text-muted-foreground">Las personas invitadas aún no tienen acceso hasta que acepten.</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {familyUnit.personalSharingEnabled
+                  ? "Los miembros activos pueden ver tus gastos, ingresos e inversiones en modo lectura."
+                  : "Tus gastos, ingresos e inversiones personales no se comparten con esta unidad."} Puedes cambiarlo en Familia.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No se pudo cargar tu unidad familiar.</p>
+          )}
         </CardContent>
       </Card>
 

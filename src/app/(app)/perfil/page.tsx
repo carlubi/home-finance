@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppProfile, getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import type { SharedGroup } from "@/lib/types";
 import { ProfileClient } from "./profile-client";
 
@@ -20,9 +21,10 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [profile, { data: ownedGroups }, { data: memberships }] =
+  const [profile, familyUnit, { data: ownedGroups }, { data: memberships }] =
     await Promise.all([
       getAppProfile(user.id),
+      getOrCreateFamilyUnit(supabase, user),
       supabase
         .from("shared_groups")
         .select("id, name, created_at")
@@ -35,6 +37,23 @@ export default async function ProfilePage() {
         .neq("status", "removed")
         .order("created_at", { ascending: false }),
     ]);
+
+  const [familyMembersResult, personalSharingResult] = familyUnit
+    ? await Promise.all([
+        supabase
+          .from("family_unit_members")
+          .select("id, user_id, email, display_name, role, status")
+          .eq("unit_id", familyUnit.id)
+          .in("status", ["active", "invited"])
+          .order("created_at"),
+        supabase
+          .from("family_personal_sharing")
+          .select("enabled")
+          .eq("family_unit_id", familyUnit.id)
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ])
+    : [null, null];
 
   const groupsById = new Map<string, GroupAssociation>();
 
@@ -79,6 +98,19 @@ export default async function ProfilePage() {
         fullName={profile?.full_name ?? ""}
         email={user.email ?? ""}
         groups={groups}
+        familyUnit={familyUnit && !familyMembersResult?.error && !personalSharingResult?.error ? {
+          name: familyUnit.name,
+          members: (familyMembersResult?.data ?? []) as {
+            id: string;
+            user_id: string | null;
+            email: string;
+            display_name: string | null;
+            role: "owner" | "member";
+            status: "active" | "invited";
+          }[],
+          personalSharingEnabled: personalSharingResult?.data?.enabled === true,
+          currentUserId: user.id,
+        } : null}
       />
     </div>
   );
