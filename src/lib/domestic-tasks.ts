@@ -26,3 +26,17 @@ export function dueDateForWeek(start: string, weekday: number) {
   return dateAfterDays(start, weekday);
 }
 
+export type TaskSchedule = { weekday: number | null; starts_on: string; scheduled_date: string | null };
+
+export function taskOccursOnDate(task: TaskSchedule, date: string) {
+  if (task.scheduled_date !== null) return task.scheduled_date === date;
+  return task.weekday !== null && date >= task.starts_on && weekdayOf(date) === task.weekday;
+}
+
+export function taskDueDateForWeek(task: TaskSchedule, start: string) {
+  if (task.scheduled_date !== null) return task.scheduled_date >= start && task.scheduled_date <= dateAfterDays(start, 6) ? task.scheduled_date : null;
+  if (task.weekday === null) return null;
+  const date = dueDateForWeek(start, task.weekday);
+  return date >= task.starts_on ? date : null;
+}
+

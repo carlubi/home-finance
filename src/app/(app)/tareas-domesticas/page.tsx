@@ -22,7 +22,7 @@ export default async function DomesticTasksPage({ searchParams }: { searchParams
   if (familyAccess === "none") redirect("/familia/gestion-miembros");
   const [{ data: members, error: membersError }, { data: tasks, error: tasksError }, { data: completions, error: completionsError }, { data: permissions }] = await Promise.all([
     supabase.from("family_unit_members").select("id,user_id,display_name,email,role,status").eq("unit_id", familyUnit.id).order("created_at"),
-    supabase.from("domestic_tasks").select("id,title,weekday,starts_on,assignee_member_id").eq("family_unit_id", familyUnit.id).order("weekday").order("created_at"),
+    supabase.from("domestic_tasks").select("id,title,weekday,scheduled_date,starts_on,assignee_member_id").eq("family_unit_id", familyUnit.id).order("created_at"),
     supabase.from("domestic_task_completions").select("task_id,due_date,completed_at").eq("family_unit_id", familyUnit.id)
       .gte("due_date", selectedWeek).lte("due_date", dateAfterDays(selectedWeek, 6)),
     familyAccess === "edit" ? createAdminClient().from("family_section_permissions").select("member_id,access")

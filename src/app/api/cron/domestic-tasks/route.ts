@@ -1,11 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/config";
-import { dateAfterDays, madridDate, weekdayOf } from "@/lib/domestic-tasks";
+import { dateAfterDays, madridDate, weekStart, weekdayOf } from "@/lib/domestic-tasks";
 import { reminderId } from "@/lib/domestic-task-reminder";
 
 export const maxDuration = 60;
 
-type Task = { id: string; title: string; family_unit_id: string; assignee_member_id: string; weekday: number; starts_on: string };
+type Task = { id: string; title: string; family_unit_id: string; assignee_member_id: string; weekday: number | null; scheduled_date: string | null; starts_on: string };
 type Member = { id: string; user_id: string | null; status: string; role: string };
 type ReminderData = { task_id: string; due_date: string; kind: "due" | "overdue"; url: string; email_sent_at?: string; email_provider_id?: string };
 
@@ -36,8 +36,9 @@ export async function GET(request: Request) {
     const dueDate = kind === "due" ? today : dateAfterDays(today, -1);
     for (let offset = 0; ; offset += 500) {
       const { data: tasks, error } = await admin.from("domestic_tasks")
-        .select("id,title,family_unit_id,assignee_member_id,weekday,starts_on")
-        .eq("weekday", weekdayOf(dueDate)).lte("starts_on", dueDate).order("id").range(offset, offset + 499);
+        .select("id,title,family_unit_id,assignee_member_id,weekday,scheduled_date,starts_on")
+        .or(`scheduled_date.eq.${dueDate},and(scheduled_date.is.null,weekday.eq.${weekdayOf(dueDate)})`)
+        .lte("starts_on", dueDate).order("id").range(offset, offset + 499);
       if (error) throw error;
       for (const task of (tasks ?? []) as Task[]) {
         const { data: member, error: memberError } = await admin.from("family_unit_members")
@@ -59,7 +60,8 @@ export async function GET(request: Request) {
         const id = reminderId(task.id, dueDate, kind);
         const title = kind === "due" ? `Hoy toca: ${task.title}` : `Pendiente de ayer: ${task.title}`;
         const body = kind === "due" ? "Marca la tarea cuando esté hecha." : "Aún no has marcado esta tarea como hecha.";
-        const initialData: ReminderData = { task_id: task.id, due_date: dueDate, kind, url: "/tareas-domesticas" };
+        const taskUrl = `/tareas-domesticas?semana=${weekStart(dueDate)}`;
+        const initialData: ReminderData = { task_id: task.id, due_date: dueDate, kind, url: taskUrl };
         const { error: insertError } = await admin.from("notifications").insert({
           id, user_id: assignee.user_id, type: "domestic_task", title, body, data: initialData,
         });
@@ -86,7 +88,7 @@ export async function GET(request: Request) {
         if (!email) { stats.emailFailures++; continue; }
         try {
           const providerId = await sendEmail(email, `Home Brain: ${title}`,
-            `${title}.\n\n${body}\n\nAbre tus tareas: ${getSiteUrl()}/tareas-domesticas`, id);
+            `${title}.\n\n${body}\n\nAbre tus tareas: ${getSiteUrl()}${taskUrl}`, id);
           const { error: updateError } = await admin.from("notifications")
             .update({ data: { ...storedData, email_sent_at: new Date().toISOString(), email_provider_id: providerId } }).eq("id", id);
           if (updateError) throw updateError;

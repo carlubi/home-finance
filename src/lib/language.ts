@@ -325,6 +325,13 @@ function translatePatterns(value: string) {
     [/^Estimación bruta sobre (.+) al (.+)% anual$/, "Estimació bruta sobre $1 al $2% anual"],
     [/^Intereses (.+)$/, "Interessos $1"],
     [/^Aportado a inversión en (\d{4})$/, "Aportat a inversions el $1"],
+    [/^(\d+) de (\d+) tareas completadas$/, "$1 de $2 tasques completades"],
+    [/^(\d+) de 3 familias creadas$/, "$1 de 3 unitats familiars creades"],
+    [/^Eliminar a (.+)$/, "Eliminar $1"],
+    [/^Editar (.+)$/, "Editar $1"],
+    [/^Eliminar (.+)$/, "Eliminar $1"],
+    [/^Marcar como hecha (.+) del (.+)$/, "Marcar com a feta $1 del $2"],
+    [/^Desmarcar (.+) del (.+)$/, "Desmarcar $1 del $2"],
     [/^(.+) de (\d{4})$/, "$1 de $2"],
   ];
 

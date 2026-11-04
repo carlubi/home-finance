@@ -107,15 +107,17 @@ envían hasta que Resend y estas variables estén configurados. Para comprobar
 una ejecución sin esperar al día siguiente, llama a
 `GET /api/cron/stockalert-expiry` con `Authorization: Bearer <CRON_SECRET>`.
 
-Las tareas domésticas semanales se guardan por unidad familiar y sus checks por fecha.
+Las tareas domésticas se pueden programar para una fecha concreta o repetir cada semana.
+Se muestran en un tablero semanal y sus checks se guardan por fecha.
 `GET /api/cron/domestic-tasks` usa el mismo `CRON_SECRET` y las mismas variables de
 Resend para avisar a la persona asignada el día de la tarea y, si sigue pendiente,
 al día siguiente. El cron se ejecuta diariamente a las 07:00 UTC.
 
 ## Unidades familiares y permisos
 
-Aplica, en este orden, `supabase/migrations/20261104120000_domestic_tasks.sql` y
-`supabase/migrations/20261104130000_family_access.sql` antes de desplegar esta versión.
+Aplica, en este orden, `supabase/migrations/20261104120000_domestic_tasks.sql`,
+`supabase/migrations/20261104130000_family_access.sql` y
+`supabase/migrations/20261104140000_domestic_task_dates.sql` antes de desplegar esta versión.
 En **Familia → Gestión de miembros**, cada persona puede seleccionar una de sus unidades
 o crear hasta tres propias. Solo quien creó una unidad puede cambiar su nombre,
 invitar o retirar miembros y asignar permisos por sección: sin acceso, solo lectura

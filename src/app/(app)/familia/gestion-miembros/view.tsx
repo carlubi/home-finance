@@ -8,6 +8,8 @@ import { inviteFamilyMember, removeFamilyMember } from "@/app/(app)/familia/acti
 import { createFamily, renameFamily, selectFamily, setMemberPermission } from "./actions";
 import { type FamilyAccess, type FamilySection, type FamilyUnit } from "@/lib/family-unit";
 import { PageHeader } from "@/components/layout/page-header";
+import { useLanguage } from "@/components/layout/language-provider";
+import { translateUiText } from "@/lib/language";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -34,6 +36,8 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
   members: ManagedMember[]; permissions: ManagedPermission[];
 }) {
   const router = useRouter();
+  const { language } = useLanguage();
+  const t = (value: string) => translateUiText(value, language);
   const [busy, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -49,9 +53,9 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
     startTransition(async () => {
       try {
         const result = await selectFamily(id);
-        if (result.error) toast.error(result.error);
+        if (result.error) toast.error(t(result.error));
         else router.refresh();
-      } catch { toast.error("No se pudo cambiar de unidad familiar."); }
+      } catch { toast.error(t("No se pudo cambiar de unidad familiar.")); }
     });
   }
 
@@ -59,12 +63,12 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
     startTransition(async () => {
       try {
         const result = await createFamily(newName);
-        if (result.error) { toast.error(result.error); return; }
+        if (result.error) { toast.error(t(result.error)); return; }
         setCreateOpen(false);
         setNewName("");
-        toast.success("Unidad familiar creada");
+        toast.success(t("Unidad familiar creada"));
         router.refresh();
-      } catch { toast.error("No se pudo crear la unidad familiar."); }
+      } catch { toast.error(t("No se pudo crear la unidad familiar.")); }
     });
   }
 
@@ -72,9 +76,9 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
     startTransition(async () => {
       try {
         const result = await renameFamily(name);
-        if (result.error) toast.error(result.error);
-        else { toast.success("Nombre actualizado"); router.refresh(); }
-      } catch { toast.error("No se pudo cambiar el nombre."); }
+        if (result.error) toast.error(t(result.error));
+        else { toast.success(t("Nombre actualizado")); router.refresh(); }
+      } catch { toast.error(t("No se pudo cambiar el nombre.")); }
     });
   }
 
@@ -82,12 +86,12 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
     startTransition(async () => {
       try {
         const result = await inviteFamilyMember(unit.id, email);
-        if (result.error) { toast.error(result.error); return; }
+        if (result.error) { toast.error(t(result.error)); return; }
         setEmail("");
         setInviteUrl(result.inviteUrl ?? null);
-        toast.success(result.emailSent ? "Invitación enviada" : "Invitación creada. Copia el enlace para compartirla.");
+        toast.success(t(result.emailSent ? "Invitación enviada" : "Invitación creada. Copia el enlace para compartirla."));
         router.refresh();
-      } catch { toast.error("No se pudo invitar a esa persona."); }
+      } catch { toast.error(t("No se pudo invitar a esa persona.")); }
     });
   }
 
@@ -99,11 +103,11 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
       try {
         const result = await setMemberPermission(memberId, section, next);
         if (result.error) throw new Error(result.error);
-        toast.success("Permiso actualizado");
+        toast.success(t("Permiso actualizado"));
         router.refresh();
       } catch (error) {
         setAccess((current) => ({ ...current, [key]: previous }));
-        toast.error(error instanceof Error ? error.message : "No se pudo actualizar el permiso.");
+        toast.error(t(error instanceof Error ? error.message : "No se pudo actualizar el permiso."));
       }
     });
   }
@@ -113,11 +117,11 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
     startTransition(async () => {
       try {
         const result = await removeFamilyMember(unit.id, removeTarget.id);
-        if (result.error) { toast.error(result.error); return; }
+        if (result.error) { toast.error(t(result.error)); return; }
         setRemoveTarget(null);
-        toast.success("Miembro eliminado de la unidad");
+        toast.success(t("Miembro eliminado de la unidad"));
         router.refresh();
-      } catch { toast.error("No se pudo eliminar al miembro."); }
+      } catch { toast.error(t("No se pudo eliminar al miembro.")); }
     });
   }
 
@@ -151,7 +155,7 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
           <Button type="submit" disabled={busy}><UserPlus /> Invitar</Button>
         </form>
         <p className="mt-2 text-xs text-text-tertiary">Las personas nuevas empiezan sin acceso. Puedes darles permisos antes de que acepten la invitación.</p>
-        {inviteUrl && <div className="mt-3 flex items-center gap-2 border-t border-border-primary pt-3"><Input readOnly aria-label="Enlace de invitación" value={inviteUrl} /><Button variant="outline" size="icon" aria-label="Copiar enlace" onClick={async () => { await navigator.clipboard.writeText(inviteUrl); toast.success("Enlace copiado"); }}><Copy /></Button></div>}
+        {inviteUrl && <div className="mt-3 flex items-center gap-2 border-t border-border-primary pt-3"><Input readOnly aria-label="Enlace de invitación" value={inviteUrl} /><Button variant="outline" size="icon" aria-label="Copiar enlace" onClick={async () => { await navigator.clipboard.writeText(inviteUrl); toast.success(t("Enlace copiado")); }}><Copy /></Button></div>}
       </Card>
 
       <div className="space-y-2">{members.map((member) => {
@@ -166,7 +170,7 @@ export function MembersManagementView({ unit, units, ownerCount, isOwner, member
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-text-primary">{member.display_name || member.email}</span><span className="block truncate text-xs text-text-tertiary">{member.email}</span></span>
             <Badge variant={member.role === "owner" ? "secondary" : member.status === "active" ? "success" : "neutral"}>{member.role === "owner" ? "Propietario" : member.status === "active" ? "Activo" : "Invitado"}</Badge>
           </button>
-          {member.role !== "owner" && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar a ${member.email}`} onClick={() => setRemoveTarget(member)}><Trash2 /></Button>}
+          {member.role !== "owner" && <Button variant="ghost" size="icon-sm" aria-label={t(`Eliminar a ${member.email}`)} onClick={() => setRemoveTarget(member)}><Trash2 /></Button>}
         </div>
         <div id={`member-permissions-${member.id}`} hidden={!expanded}>
         {member.role === "owner" ? <p className="px-4 py-3 text-[13px] text-text-secondary">Acceso completo a todas las secciones.</p> : <div className="divide-y divide-border-primary px-4">

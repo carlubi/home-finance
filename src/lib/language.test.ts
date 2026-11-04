@@ -18,4 +18,16 @@ describe("idioma catalán", () => {
     expect(mealLabel("dinner", "ca")).toBe("Sopar");
     expect(mealPlural("lunch", "ca")).toBe("Dinars");
   });
+
+  it("traduce tareas domésticas y permisos familiares, también en textos dinámicos", () => {
+    expect(translateUiText("Tareas Domésticas", "ca")).toBe("Tasques domèstiques");
+    expect(translateUiText("Gestión de miembros", "ca")).toBe("Gestió de membres");
+    expect(translateUiText("Sin acceso", "ca")).toBe("Sense accés");
+    expect(translateUiText("tareas completadas", "ca")).toBe("tasques completades");
+    expect(translateUiText("de 3 familias creadas", "ca")).toBe("de 3 unitats familiars creades");
+    expect(translateUiText("Marcar como hecha sacar la basura del lunes", "ca"))
+      .toBe("Marcar com a feta sacar la basura del dilluns");
+    expect(translateUiText("Eliminar a persona@example.com", "ca")).toBe("Eliminar persona@example.com");
+    expect(translateUiText("Gestión de miembros", "es")).toBe("Gestión de miembros");
+  });
 });
