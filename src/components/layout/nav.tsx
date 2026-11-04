@@ -1,11 +1,15 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   CalendarDays,
+  ClipboardList,
   ChartPie,
+  ContactRound,
   ChevronRight,
   FileText,
   HousePlus,
@@ -15,6 +19,7 @@ import {
   Pin,
   PinOff,
   PiggyBank,
+  Plus,
   Package,
   Receipt,
   Settings,
@@ -25,7 +30,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./brand-logo";
+import { createFamily, selectFamily } from "@/app/(app)/familia/gestion-miembros/actions";
+import type { FamilyAccessMap, FamilyUnit, FamilySection } from "@/lib/family-unit";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; mobileLabel?: string };
@@ -58,9 +68,11 @@ const groups: NavGroup[] = [
     items: [
       { href: "/familia", label: "Gastos", icon: Receipt, mobileLabel: "Familia" },
       { href: "/menus", label: "Menús", icon: CalendarDays },
+      { href: "/tareas-domesticas", label: "Tareas Domésticas", icon: ClipboardList },
       { href: "/stockalert", label: "Despensa", icon: Package },
       { href: "/hipoteca", label: "Hipoteca", icon: HousePlus },
       { href: "/global", label: "Visión global", icon: ChartPie },
+      { href: "/familia/gestion-miembros", label: "Gestión de miembros", icon: ContactRound },
     ],
   },
   {
@@ -69,6 +81,18 @@ const groups: NavGroup[] = [
     items: [{ href: "/compartidos", label: "Gastos compartidos", icon: Users }],
   },
 ];
+
+const familyPathSections: Record<string, FamilySection> = {
+  "/familia": "expenses", "/menus": "menus", "/stockalert": "pantry",
+  "/hipoteca": "mortgage", "/tareas-domesticas": "tasks", "/global": "overview",
+};
+
+function visibleFamilyGroups(family: NavigationDockState["family"]) {
+  return groups.map((group) => group.id !== "familia" ? group : {
+    ...group,
+    items: group.items.filter((item) => item.href === "/familia/gestion-miembros" || (family && family.access[familyPathSections[item.href]] !== "none")),
+  });
+}
 
 const settingsItem: NavItem = { href: "/ajustes", label: "Configuración", icon: Settings };
 
@@ -87,6 +111,7 @@ const allEntries = [
 ];
 
 function isActive(pathname: string, href: string) {
+  if (href === "/familia") return pathname === href;
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -98,11 +123,12 @@ type NavigationDockState = {
   open: boolean;
   setOpen: (open: boolean) => void;
   setDocked: (docked: boolean) => void;
+  family: { unit: FamilyUnit; units: FamilyUnit[]; access: FamilyAccessMap; canCreate: boolean } | null;
 };
 
 const NavigationDockContext = createContext<NavigationDockState | null>(null);
 
-export function NavigationDockProvider({ children, initialDocked }: { children: React.ReactNode; initialDocked: boolean }) {
+export function NavigationDockProvider({ children, initialDocked, family }: { children: React.ReactNode; initialDocked: boolean; family: NavigationDockState["family"] }) {
   const [docked, setDockedState] = useState(initialDocked);
   const [open, setOpen] = useState(false);
 
@@ -119,7 +145,7 @@ export function NavigationDockProvider({ children, initialDocked }: { children: 
     document.cookie = `${DOCKED_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
   }
 
-  const value = { docked, open, setOpen, setDocked };
+  const value = { docked, open, setOpen, setDocked, family };
   return <NavigationDockContext.Provider value={value}>{children}</NavigationDockContext.Provider>;
 }
 
@@ -170,6 +196,45 @@ function SidebarLink({ item, pathname, onNavigate }: { item: NavItem; pathname: 
   );
 }
 
+function FamilySidebarGroup({ family, items, pathname, expandedId, pending, onToggle, onCreate, onNavigate }: {
+  family: NonNullable<NavigationDockState["family"]>;
+  items: NavItem[];
+  pathname: string;
+  expandedId: string | null;
+  pending: boolean;
+  onToggle: (id: string) => void;
+  onCreate: () => void;
+  onNavigate: () => void;
+}) {
+  return <div className="grid gap-px">
+    <div className="group/family flex h-7 items-center justify-between px-2">
+      <p className="text-xs font-medium text-text-tertiary">Familia</p>
+      {family.canCreate && <Button type="button" variant="ghost" size="icon-xs" onClick={onCreate}
+        aria-label="Añadir unidad familiar" title="Añadir unidad familiar"
+        className="text-text-tertiary opacity-0 transition-fast group-hover/family:opacity-100 group-focus-within/family:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+      ><Plus className="size-3.5" /></Button>}
+    </div>
+    {family.units.map((unit) => {
+      const active = unit.id === family.unit.id;
+      const viewing = active && items.some((item) => isActive(pathname, item.href));
+      const expanded = active && expandedId === unit.id;
+      return <div key={unit.id} className="grid gap-px">
+        <button type="button" aria-expanded={expanded} aria-controls={`family-nav-${unit.id}`} disabled={pending}
+          onClick={() => onToggle(unit.id)}
+          className={cn("group flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] font-normal tracking-[-0.078px] text-text-secondary transition-fast outline-none hover:bg-bg-tertiary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60", viewing && "font-medium text-text-primary")}
+        >
+          <ChevronRight aria-hidden className={cn("size-3.5 shrink-0 text-text-tertiary transition-transform duration-150", expanded && "rotate-90")} />
+          <span className="min-w-0 flex-1 truncate">{unit.name}</span>
+          {active && <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-label="Unidad activa" />}
+        </button>
+        <div id={`family-nav-${unit.id}`} className={cn("ml-3 gap-px border-l border-border-primary pl-2", expanded ? "grid" : "hidden")}>
+          {expanded && items.map((item) => <SidebarLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />)}
+        </div>
+      </div>;
+    })}
+  </div>;
+}
+
 function SidebarGroup({
   group,
   pathname,
@@ -183,8 +248,7 @@ function SidebarGroup({
   onToggle: () => void;
   onNavigate?: () => void;
 }) {
-  const containsActive = group.items.some((item) => isActive(pathname, item.href));
-  const open = !collapsed || containsActive;
+  const open = !collapsed;
   return (
     <div className="grid gap-px">
       <button
@@ -210,15 +274,67 @@ function SidebarGroup({
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<string[]>([]);
-  const { docked, open, setOpen, setDocked } = useNavigationDock();
+  const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
+  const [switching, startSwitch] = useTransition();
+  const [creating, startCreate] = useTransition();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newFamilyName, setNewFamilyName] = useState("");
+  const { docked, open, setOpen, setDocked, family } = useNavigationDock();
+  const router = useRouter();
+  const visibleGroups = visibleFamilyGroups(family);
+
+  function toggleFamily(id: string) {
+    if (expandedFamilyId === id) {
+      setExpandedFamilyId(null);
+      localStorage.removeItem("nav-expanded-family");
+      return;
+    }
+    if (family?.unit.id === id) {
+      setExpandedFamilyId(id);
+      localStorage.setItem("nav-expanded-family", id);
+      return;
+    }
+    const previous = expandedFamilyId;
+    startSwitch(async () => {
+      try {
+        const result = await selectFamily(id);
+        if (result.error) { toast.error(result.error); return; }
+        setExpandedFamilyId(id);
+        localStorage.setItem("nav-expanded-family", id);
+        router.refresh();
+      } catch {
+        setExpandedFamilyId(previous);
+        toast.error("No se pudo cambiar de unidad familiar.");
+      }
+    });
+  }
+
+  function addFamily() {
+    startCreate(async () => {
+      try {
+        const result = await createFamily(newFamilyName);
+        if (result.error) { toast.error(result.error); return; }
+        setCreateOpen(false);
+        setNewFamilyName("");
+        if (result.unitId) {
+          setExpandedFamilyId(result.unitId);
+          localStorage.setItem("nav-expanded-family", result.unitId);
+        }
+        toast.success("Unidad familiar creada");
+        router.refresh();
+      } catch { toast.error("No se pudo crear la unidad familiar."); }
+    });
+  }
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]");
+      const stored = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
       // eslint-disable-next-line react-hooks/set-state-in-effect -- preferencia guardada solo en el cliente
-      if (Array.isArray(stored)) setCollapsed(stored.filter((value) => typeof value === "string"));
+      if (Array.isArray(stored)) setCollapsed(stored.filter((value) => typeof value === "string" && value !== "familia"));
+      const savedFamilyId = localStorage.getItem("nav-expanded-family");
+      if (savedFamilyId) setExpandedFamilyId(savedFamilyId);
     } catch {
-      // Preferencia corrupta: se ignora y se muestran todos los grupos.
+      // Preferencia corrupta: se ignora y se muestran los grupos.
     }
   }, []);
 
@@ -256,9 +372,9 @@ export function Sidebar() {
       </div>
       <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pt-4 pb-2">
         <SidebarLink item={homeItem} pathname={pathname} onNavigate={() => setOpen(false)} />
-        {groups.map((group) => (
-          <SidebarGroup
-            key={group.id}
+        {visibleGroups.map((group) => (
+          group.id === "familia" && family ? <FamilySidebarGroup key={group.id} family={family} items={group.items} pathname={pathname}
+            expandedId={expandedFamilyId} pending={switching} onToggle={toggleFamily} onCreate={() => setCreateOpen(true)} onNavigate={() => setOpen(false)} /> : <SidebarGroup key={group.id}
             group={group}
             pathname={pathname}
             collapsed={collapsed.includes(group.id)}
@@ -270,6 +386,15 @@ export function Sidebar() {
           <SidebarLink item={settingsItem} pathname={pathname} onNavigate={() => setOpen(false)} />
         </div>
       </nav>
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nueva unidad familiar</DialogTitle><DialogDescription>El nombre es opcional. Puedes crear hasta tres unidades familiares.</DialogDescription></DialogHeader>
+          <form onSubmit={(event) => { event.preventDefault(); addFamily(); }} className="space-y-4">
+            <div className="space-y-1.5"><Label htmlFor="sidebar-family-name">Nombre</Label><Input id="sidebar-family-name" value={newFamilyName} onChange={(event) => setNewFamilyName(event.target.value)} maxLength={80} placeholder="Mi unidad familiar" /></div>
+            <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={creating}>Crear familia</Button></div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 
@@ -314,18 +439,43 @@ export function CurrentSection() {
 }
 
 /** Barra inferior móvil: lo más frecuente a un toque; el resto, en «Más». */
-const mobileItems: NavItem[] = [
-  homeItem,
-  groups[0].items[0],
-  groups[1].items[0],
-  groups[1].items[1],
-];
+function MobileSheetLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = isActive(pathname, item.href);
+  const Icon = item.icon;
+  return <SheetClose nativeButton={false} render={
+    <Link href={item.href} aria-current={active ? "page" : undefined}
+      className={cn("flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-text-secondary transition-fast active:bg-bg-tertiary", active && "bg-bg-tertiary text-text-primary")} />
+  }>
+    <Icon className={cn("size-4 text-text-tertiary", active && "text-accent")} />
+    {item.label}
+  </SheetClose>;
+}
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
+  const [switching, startSwitch] = useTransition();
+  const { family } = useNavigationDock();
+  const visibleGroups = visibleFamilyGroups(family);
+  const familyItems = visibleGroups[1].items;
+  const mobileItems: NavItem[] = [homeItem, groups[0].items[0], familyItems[0], familyItems[1] ?? groups[0].items[1]];
   const moreActive =
     !mobileItems.some((item) => isActive(pathname, item.href)) &&
-    [...groups.flatMap((group) => group.items), settingsItem].some((item) => isActive(pathname, item.href));
+    [...visibleGroups.flatMap((group) => group.items), settingsItem].some((item) => isActive(pathname, item.href));
+
+  function toggleFamily(id: string) {
+    if (expandedFamilyId === id) { setExpandedFamilyId(null); return; }
+    if (family?.unit.id === id) { setExpandedFamilyId(id); return; }
+    startSwitch(async () => {
+      try {
+        const result = await selectFamily(id);
+        if (result.error) { toast.error(result.error); return; }
+        setExpandedFamilyId(id);
+        router.refresh();
+      } catch { toast.error("No se pudo cambiar de unidad familiar."); }
+    });
+  }
 
   return (
     <nav
@@ -368,32 +518,27 @@ export function BottomNav() {
         <SheetContent side="bottom" className="max-h-[85svh] overflow-y-auto rounded-t-lg px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <SheetHeader className="px-2 pb-1"><SheetTitle>Ir a</SheetTitle></SheetHeader>
           <div className="grid gap-4">
-            {groups.map((group) => (
+            {visibleGroups.map((group) => (
               <div key={group.id} className="grid gap-px">
                 <p className="px-3 pb-1 text-xs font-medium text-text-tertiary">{group.label}</p>
-                {group.items.map((item) => {
-                  const active = isActive(pathname, item.href);
-                  const Icon = item.icon;
-                  return (
-                    <SheetClose
-                      key={item.href}
-                      nativeButton={false}
-                      render={
-                        <Link
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={cn(
-                            "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-text-secondary transition-fast active:bg-bg-tertiary",
-                            active && "bg-bg-tertiary text-text-primary"
-                          )}
-                        />
-                      }
+                {group.id === "familia" && family ? family.units.map((unit) => {
+                  const active = family.unit.id === unit.id;
+                  const viewing = active && group.items.some((item) => isActive(pathname, item.href));
+                  const expanded = active && expandedFamilyId === unit.id;
+                  return <div key={unit.id}>
+                    <button type="button" disabled={switching} aria-expanded={expanded} aria-controls={`mobile-family-nav-${unit.id}`}
+                      onClick={() => toggleFamily(unit.id)}
+                      className={cn("flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-normal text-text-secondary transition-fast active:bg-bg-tertiary disabled:opacity-60", viewing && "font-medium text-text-primary")}
                     >
-                      <Icon className={cn("size-4 text-text-tertiary", active && "text-accent")} />
-                      {item.label}
-                    </SheetClose>
-                  );
-                })}
+                      <ChevronRight aria-hidden className={cn("size-4 shrink-0 text-text-tertiary transition-transform duration-150", expanded && "rotate-90")} />
+                      <span className="min-w-0 flex-1 truncate">{unit.name}</span>
+                      {active && <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-label="Unidad activa" />}
+                    </button>
+                    <div id={`mobile-family-nav-${unit.id}`} hidden={!expanded} className="ml-5 border-l border-border-primary pl-2">
+                      {expanded && group.items.map((item) => <MobileSheetLink key={item.href} item={item} pathname={pathname} />)}
+                    </div>
+                  </div>;
+                }) : group.items.map((item) => <MobileSheetLink key={item.href} item={item} pathname={pathname} />)}
               </div>
             ))}
             <div className="grid gap-px border-t border-border-primary pt-3">

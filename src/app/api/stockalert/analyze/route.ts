@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -18,6 +19,10 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "Sesión caducada." }, { status: 401 });
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  if (!familyUnit || (await getFamilyAccess(supabase, user.id, familyUnit)).pantry !== "edit") {
+    return Response.json({ error: "No tienes permiso para editar la despensa." }, { status: 403 });
+  }
   const key = process.env.OPENAI_API_KEY ?? process.env.OPENAI_KEY;
   if (!key) return Response.json({ error: "Configura OPENAI_API_KEY para analizar fotos." }, { status: 503 });
 
@@ -61,7 +66,7 @@ export async function POST(request: Request) {
   const { error: uploadError } = await supabase.storage.from("stockalert-images").upload(path, image, { contentType: image.type });
   if (uploadError) return Response.json({ error: uploadError.message }, { status: 500 });
   const { data, error } = await supabase.from("stockalert_products").insert({
-    owner_id: user.id, name: parsed.name?.trim() || "Producto por identificar", brand: parsed.brand?.trim() || null,
+    owner_id: user.id, family_unit_id: familyUnit.id, name: parsed.name?.trim() || "Producto por identificar", brand: parsed.brand?.trim() || null,
     units: parsed.units, expiration_date: validDate ? date : null, confidence: parsed.confidence,
     needs_review: Boolean(needsReview), status: "pending", source_image_path: path,
   }).select("id").single();

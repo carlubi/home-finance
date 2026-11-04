@@ -15,7 +15,7 @@ import { SavingsTrend, type TrendDatum } from "@/components/charts/savings-trend
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { IncomeAllocation, type AllocationGroup } from "@/components/charts/income-allocation";
 import { summarizeIncomeAllocation, type AllocationLine } from "@/lib/income-allocation";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { StatCard } from "@/components/dashboard/summary-cards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -209,7 +209,8 @@ export default async function PersonalGlobalOverview() {
   const firstMonth = `${currentMonth.slice(0, 4)}-01-01`;
   const year = currentMonth.slice(0, 4);
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
-  const [{ data: mortgageRow }, { data: mortgagePayments }, { data: ownProfile }] = familyUnit ? await Promise.all([
+  const canViewMortgage = familyUnit && (await getFamilyAccess(supabase, user.id, familyUnit)).mortgage !== "none";
+  const [{ data: mortgageRow }, { data: mortgagePayments }, { data: ownProfile }] = canViewMortgage ? await Promise.all([
     supabase.from("family_mortgages").select("started_on, fixed_payment, current_payment, rate_kind, variable_from, first_share_percent, first_borrower, second_borrower").eq("family_unit_id", familyUnit.id).maybeSingle(),
     supabase.from("family_mortgage_payments").select("month,payment").eq("family_unit_id", familyUnit.id),
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),

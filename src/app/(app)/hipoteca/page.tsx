@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { MortgageView } from "./mortgage-view";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { createClient } from "@/lib/supabase/server";
 import type { MortgageTerms, MortgagePayment } from "@/lib/mortgage";
 import { MortgageConfiguration } from "./mortgage-configuration";
@@ -15,11 +15,13 @@ export default async function MortgagePage() {
   const supabase = await createClient();
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   if (!familyUnit) redirect("/login");
+  const familyAccess = (await getFamilyAccess(supabase, user.id, familyUnit)).mortgage;
+  if (familyAccess === "none") redirect("/familia/gestion-miembros");
   const [{ data: row }, { data: paymentRows }] = await Promise.all([
     supabase.from("family_mortgages").select("*").eq("family_unit_id", familyUnit.id).maybeSingle(),
     supabase.from("family_mortgage_payments").select("month,payment,balance").eq("family_unit_id", familyUnit.id).order("month"),
   ]);
-  if (!row) return <div className="mx-auto max-w-6xl"><MortgageConfiguration mortgage={null} /></div>;
+  if (!row) return <div className="mx-auto max-w-6xl">{familyAccess === "edit" ? <MortgageConfiguration mortgage={null} /> : <p className="text-sm text-text-secondary">Esta unidad familiar aún no ha configurado una hipoteca.</p>}</div>;
   const mortgage: MortgageTerms = {
     familyUnitId: row.family_unit_id,
     rateKind: row.rate_kind ?? "mixed",
@@ -42,5 +44,5 @@ export default async function MortgagePage() {
     paidTotalToDate: row.paid_total_to_date === null || row.paid_total_to_date === undefined ? null : Number(row.paid_total_to_date),
   };
   const payments: MortgagePayment[] = (paymentRows ?? []).map((payment) => ({ month: payment.month.slice(0, 7), payment: Number(payment.payment), balance: Number(payment.balance) }));
-  return <MortgageView key={`${familyUnit.id}:${mortgage.firstSharePercent}:${row.updated_at}`} mortgage={mortgage} recordedPayments={payments} />;
+  return <MortgageView key={`${familyUnit.id}:${mortgage.firstSharePercent}:${row.updated_at}`} mortgage={mortgage} recordedPayments={payments} canEdit={familyAccess === "edit"} />;
 }

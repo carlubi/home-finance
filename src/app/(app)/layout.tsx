@@ -11,7 +11,7 @@ import { LanguageMenuButton } from "@/components/layout/language-switcher";
 import { FamilyLiveRefresh } from "@/components/layout/family-live-refresh";
 import { FinancialPrivacyProvider } from "@/components/layout/financial-privacy";
 import { createClient } from "@/lib/supabase/server";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getFamilyUnits, getOrCreateFamilyUnit } from "@/lib/family-unit";
 
 export default async function AppLayout({
   children,
@@ -29,11 +29,19 @@ export default async function AppLayout({
   if (profile && !profile.onboarding_completed) {
     redirect("/onboarding");
   }
-  const familyUnit = await getOrCreateFamilyUnit(await createClient(), user);
+  const supabase = await createClient();
+  const familyUnit = await getOrCreateFamilyUnit(supabase, user);
+  const familyUnits = familyUnit ? await getFamilyUnits(supabase, user.id) : [];
+  const family = familyUnit ? {
+    unit: familyUnit,
+    units: familyUnits,
+    access: await getFamilyAccess(supabase, user.id, familyUnit),
+    canCreate: familyUnits.filter((unit) => unit.owner_id === user.id).length < 3,
+  } : null;
   const initialDocked = (await cookies()).get("sidebar_docked")?.value !== "false";
 
   return (
-    <NavigationDockProvider initialDocked={initialDocked}>
+    <NavigationDockProvider initialDocked={initialDocked} family={family}>
       <div className="flex h-svh w-full overflow-hidden bg-bg-primary">
         <Sidebar />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">

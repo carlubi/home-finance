@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Info, Landmark, PiggyBank, Receipt, Wallet } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { addMonths, currentMadridMonth, formatMoney } from "@/lib/format";
 import { investmentMonthlyOutflow, roundCents } from "@/lib/finance";
 import { groupInvestmentCapital, summarizeSharedFinances } from "@/lib/shared-finances";
@@ -12,6 +12,7 @@ import { CategoryDonut } from "@/components/charts/category-donut";
 import { StatCard } from "@/components/dashboard/summary-cards";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
+import { PersonalSharingControl } from "@/components/family/personal-sharing-control";
 
 // Orden categórico fijo (dataviz): sin ciclar; a partir del 9.º, «Otros» en gris.
 const CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
@@ -28,13 +29,16 @@ export default async function GlobalPage() {
   const supabase = await createClient();
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   if (!familyUnit) redirect("/login");
+  const familyAccess = (await getFamilyAccess(supabase, user.id, familyUnit)).overview;
+  if (familyAccess === "none") redirect("/familia/gestion-miembros");
   const currentMonth = currentMadridMonth();
   const year = currentMonth.slice(0, 4);
   const firstYearMonth = `${year}-01-01`;
 
-  const [{ data: memberRows }, { data: sharingRows }] = await Promise.all([
+  const [{ data: memberRows }, { data: sharingRows }, { data: ownSharing }] = await Promise.all([
     supabase.from("family_unit_members").select("user_id, display_name, email").eq("unit_id", familyUnit.id).eq("status", "active"),
     supabase.from("family_personal_sharing").select("user_id,enabled").eq("family_unit_id", familyUnit.id),
+    supabase.from("family_personal_sharing").select("enabled").eq("family_unit_id", familyUnit.id).eq("user_id", user.id).maybeSingle(),
   ]);
   const activeMembers = (memberRows ?? []).filter((member) => member.user_id);
   const enabledIds = new Set((sharingRows ?? []).filter((row) => row.enabled).map((row) => row.user_id));
@@ -69,6 +73,7 @@ export default async function GlobalPage() {
   ];
 
   return <div className="grid gap-5">
+    {familyAccess === "edit" && <PersonalSharingControl initialEnabled={Boolean(ownSharing?.enabled)} />}
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="eyebrow">La misma vista para toda la unidad · {year}</p><h1 className="mt-1 text-2xl font-medium">Visión global familiar</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Suma los ingresos, gastos, aportaciones a inversión y ahorros personales compartidos desde enero hasta el mes actual de {year}.</p></div><FinancialPrivacyButton /></div>
     {sharedMembers.length < activeMembers.length && <div className="rounded-lg border border-orange/20 bg-orange/10 p-3 text-sm text-orange">{sharedMembers.length} de {activeMembers.length} miembros comparten sus finanzas personales. Las cifras conjuntas no incluyen a quienes aún no las comparten.</div>}
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -48,7 +48,7 @@ function dayLabel(key: string) {
   return new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long" }).format(new Date(year, month - 1, day));
 }
 
-export function MenusView({ month, recipes, meals, loadError }: { month: string; recipes: MenuRecipe[]; meals: MenuMeal[]; loadError: string | null }) {
+export function MenusView({ month, recipes, meals, loadError, canEdit = true }: { month: string; recipes: MenuRecipe[]; meals: MenuMeal[]; loadError: string | null; canEdit?: boolean }) {
   const router = useRouter();
   const { language } = useLanguage();
   const [pending, startTransition] = useTransition();
@@ -103,6 +103,7 @@ export function MenusView({ month, recipes, meals, loadError }: { month: string;
   }
 
   function dropMeal(day: string, id: string, restoreFocus = false) {
+    if (!canEdit) return;
     setDraggedMealId(null);
     setKeyboardMove(null);
     setDropDay(null);
@@ -177,14 +178,15 @@ export function MenusView({ month, recipes, meals, loadError }: { month: string;
   }
 
   function mealBadge(meal: MenuMeal, canDrag = true) {
+    canDrag = canDrag && canEdit;
     const type = types.find((item) => item.id === meal.meal_type)!;
     const titleHint = canDrag
       ? language === "ca" ? "Arrossega-la o prem Espai per moure-la." : "Arrástrala o pulsa Espacio para moverla."
-      : language === "ca" ? "Prem per editar-la i canviar-ne la data." : "Pulsa para editarla y cambiar la fecha.";
+      : canEdit ? language === "ca" ? "Prem per editar-la i canviar-ne la data." : "Pulsa para editarla y cambiar la fecha." : "Solo lectura";
     const keyboardHint = canDrag
       ? language === "ca" ? "Prem Espai per moure-la amb les fletxes o Intro per editar-la." : "Pulsa Espacio para moverla con las flechas o Intro para editarla."
       : titleHint;
-    return <button key={meal.id} type="button" data-meal-id={meal.id} data-meal-draggable={canDrag ? "" : undefined} data-dragging={draggedMealId === meal.id} draggable={canDrag && !movingMealId && !pending} aria-pressed={canDrag ? keyboardMove?.id === meal.id : undefined} onClick={() => { if (keyboardMove?.id !== meal.id) openMeal(meal.meal_date, meal.meal_type, meal); }}
+    return <button key={meal.id} type="button" disabled={!canEdit} data-meal-id={meal.id} data-meal-draggable={canDrag ? "" : undefined} data-dragging={draggedMealId === meal.id} draggable={canDrag && !movingMealId && !pending} aria-pressed={canDrag ? keyboardMove?.id === meal.id : undefined} onClick={() => { if (keyboardMove?.id !== meal.id) openMeal(meal.meal_date, meal.meal_type, meal); }}
       onKeyDown={canDrag ? (event) => handleMealKeyDown(event, meal) : undefined}
       onBlur={() => { if (keyboardMove?.id === meal.id) { setKeyboardMove(null); setDropDay(null); } }}
       onDragStart={(event) => { event.dataTransfer.setData("application/x-home-brain-meal", meal.id); event.dataTransfer.effectAllowed = "move"; setKeyboardMove(null); setDraggedMealId(meal.id); }}
@@ -204,7 +206,7 @@ export function MenusView({ month, recipes, meals, loadError }: { month: string;
       actions={<>
         <MenuPdfDialog month={month} monthTitle={monthTitle} meals={displayedMeals} />
         <Button variant="outline" aria-pressed={showRecipes} onClick={() => setShowRecipes((value) => !value)}><BookOpen /> Recetario <span className="rounded-full bg-bg-quaternary px-1.5 text-xs text-text-secondary tabular-nums">{recipes.length}</span></Button>
-        <Button onClick={() => openMeal(selectedDay)}><Plus /> Añadir comida</Button>
+        {canEdit ? <Button onClick={() => openMeal(selectedDay)}><Plus /> Añadir comida</Button> : <span className="text-[13px] text-text-secondary">Solo lectura</span>}
       </>}
     />
 
@@ -242,8 +244,8 @@ export function MenusView({ month, recipes, meals, loadError }: { month: string;
             const dayMeals = byDay.get(day) ?? [];
             const active = selectedDay === day;
             return <div key={day} onDragOver={(event) => { if (!draggedMealId) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropDay(day); }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropDay(null); }} onDrop={(event) => { event.preventDefault(); dropMeal(day, event.dataTransfer.getData("application/x-home-brain-meal") || draggedMealId || ""); }} className={cn("group/day relative min-h-14 bg-bg-secondary p-1 transition-fast hover:bg-bg-tertiary/60 md:min-h-32 md:p-1.5", active && "bg-bg-tertiary/80", dropDay === day && "bg-accent/10 ring-2 ring-inset ring-accent")}>
-              <button type="button" onClick={() => openMeal(day)} aria-label={`Añadir comida el ${dayLabel(day)}`} className="absolute inset-0 z-0 size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" />
-              <button type="button" onClick={() => openMeal(day)} aria-label={`Añadir comida el ${dayLabel(day)}`} title="Añadir comida" className="absolute right-1 top-1 z-20 flex size-6 items-center justify-center rounded-md text-text-tertiary opacity-100 transition-fast hover:bg-bg-quaternary hover:text-text-primary focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent md:opacity-0 md:group-hover/day:opacity-100"><Plus className="size-3.5" aria-hidden="true" /></button>
+              <button type="button" onClick={() => { if (canEdit) openMeal(day); else { setSelectedDay(day); setSelectedDayOpen(true); } }} aria-label={`${canEdit ? "Añadir comida el" : "Ver comidas del"} ${dayLabel(day)}`} className="absolute inset-0 z-0 size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" />
+              {canEdit && <button type="button" onClick={() => openMeal(day)} aria-label={`Añadir comida el ${dayLabel(day)}`} title="Añadir comida" className="absolute right-1 top-1 z-20 flex size-6 items-center justify-center rounded-md text-text-tertiary opacity-100 transition-fast hover:bg-bg-quaternary hover:text-text-primary focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent md:opacity-0 md:group-hover/day:opacity-100"><Plus className="size-3.5" aria-hidden="true" /></button>}
               <span className={cn("pointer-events-none relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-medium text-text-secondary tabular-nums", day === todayKey && "bg-accent text-white", active && day !== todayKey && "text-text-primary ring-1 ring-border-secondary")}>
                 {Number(day.slice(-2))}
               </span>
@@ -256,23 +258,23 @@ export function MenusView({ month, recipes, meals, loadError }: { month: string;
       </section>
 
       {showRecipes && <aside className="h-fit rounded-lg border border-border-primary bg-bg-secondary p-4 linear-shadow-sm xl:sticky xl:top-3">
-        <div className="flex items-center justify-between gap-2"><div><p className="eyebrow">Para volver a cocinar</p><h2 className="text-base font-medium">Recetario</h2></div><Button size="icon" variant="outline" aria-label="Nueva receta" onClick={() => setRecipeDraft({ name: "", ingredients: "", instructions: "", sourceUrl: "" })}><Plus /></Button></div>
+        <div className="flex items-center justify-between gap-2"><div><p className="eyebrow">Para volver a cocinar</p><h2 className="text-base font-medium">Recetario</h2></div>{canEdit && <Button size="icon" variant="outline" aria-label="Nueva receta" onClick={() => setRecipeDraft({ name: "", ingredients: "", instructions: "", sourceUrl: "" })}><Plus /></Button>}</div>
         <div className="relative mt-4"><Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-text-tertiary" /><Input className="pl-8" placeholder="Buscar recetas" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         <div className="mt-3 max-h-[55vh] space-y-px overflow-y-auto">
           {filteredRecipes.map((recipe) => {
             const sourceUrl = normalizeRecipeUrl(recipe.source_url ?? "");
             return <div key={recipe.id} className="group flex items-center rounded-md transition-fast hover:bg-bg-tertiary">
-              <button type="button" onClick={() => setRecipeDraft({ id: recipe.id, name: recipe.name, ingredients: recipe.ingredients ?? "", instructions: recipe.instructions ?? "", sourceUrl: recipe.source_url ?? "" })} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <button type="button" disabled={!canEdit} onClick={() => setRecipeDraft({ id: recipe.id, name: recipe.name, ingredients: recipe.ingredients ?? "", instructions: recipe.instructions ?? "", sourceUrl: recipe.source_url ?? "" })} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 <UtensilsCrossed className="size-4 shrink-0 text-text-tertiary" />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{recipe.name}</span>
-                <Pencil className="size-3.5 text-text-tertiary opacity-0 transition-fast group-hover:opacity-100" />
+                {canEdit && <Pencil className="size-3.5 text-text-tertiary opacity-0 transition-fast group-hover:opacity-100" />}
               </button>
               {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`Abrir receta de ${recipe.name} en internet`} title="Abrir receta en internet" className="mr-2 rounded-md p-2 text-text-secondary transition-fast hover:bg-bg-tertiary hover:text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent"><ExternalLink className="size-3.5" /></a>}
             </div>;
           })}
           {!filteredRecipes.length && <p className="rounded-md border border-dashed border-border-secondary p-5 text-center text-[13px] text-text-secondary">{recipes.length ? "No hay recetas con ese nombre." : "Todavía no hay recetas. Crea la primera para reutilizarla en tu calendario."}</p>}
         </div>
-        <Button variant="outline" className="mt-4 w-full" onClick={() => setRecipeDraft({ name: "", ingredients: "", instructions: "", sourceUrl: "" })}><Plus /> Nueva receta</Button>
+        {canEdit && <Button variant="outline" className="mt-4 w-full" onClick={() => setRecipeDraft({ name: "", ingredients: "", instructions: "", sourceUrl: "" })}><Plus /> Nueva receta</Button>}
       </aside>}
     </div>
 

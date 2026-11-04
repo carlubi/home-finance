@@ -44,7 +44,7 @@ function urgencyClass(date: string | null) {
   return "text-text-secondary";
 }
 
-export function StockAlertView({ products, loadError }: { products: StockProduct[]; loadError: string | null }) {
+export function StockAlertView({ products, loadError, canEdit = true }: { products: StockProduct[]; loadError: string | null; canEdit?: boolean }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [view, setView] = useState<"active" | "archived">("active");
@@ -91,11 +91,11 @@ export function StockAlertView({ products, loadError }: { products: StockProduct
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 pb-8">
       <PageHeader eyebrow="DESPENSA" title="StockAlert" description="Tus productos y sus fechas de caducidad, siempre a la vista."
-        actions={<div className="flex flex-wrap gap-2">
+        actions={canEdit ? <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setDraft({ ...emptyDraft })}><Plus className="size-4" /> Añadir manualmente</Button>
           <Button onClick={() => inputRef.current?.click()} disabled={uploading}><Camera className="size-4" /> {uploading ? "Analizando foto…" : "Añadir con foto"}</Button>
           <input ref={inputRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Foto del producto" onChange={(event) => void onPhoto(event.target.files?.[0])} />
-        </div>} />
+        </div> : <span className="text-[13px] text-text-secondary">Solo lectura</span>} />
 
       {loadError && <div role="alert" className="rounded-lg border border-red/30 bg-red/5 px-4 py-3 text-sm text-red">No se pudo cargar la despensa: {loadError}</div>}
 
@@ -109,7 +109,7 @@ export function StockAlertView({ products, loadError }: { products: StockProduct
         <div className="mb-4 flex items-center gap-2"><Clock3 className="size-4 text-yellow" /><h2 id="pending-title" className="text-sm font-semibold text-text-primary">Pendientes de confirmar</h2><span className="rounded-full bg-yellow/15 px-2 py-0.5 text-xs text-yellow">{awaiting.length}</span></div>
         <div className="grid gap-2 md:grid-cols-2">{awaiting.map((product) => <div key={product.id} className="flex items-center justify-between gap-3 rounded-lg border border-border-primary bg-bg-secondary p-3">
           <div className="min-w-0"><p className="truncate text-sm font-medium text-text-primary">{product.name}</p><p className="text-xs text-text-secondary">{product.needs_review ? "Faltan datos por revisar" : expirationLabel(product.expiration_date)}</p></div>
-          <div className="flex shrink-0 gap-1"><Button size="sm" variant="outline" onClick={() => setDraft(fromProduct(product))}><Pencil className="size-3.5" /> Revisar</Button><Button size="icon-sm" variant="ghost" aria-label={`Eliminar ${product.name}`} onClick={() => confirmDelete(product)}><Trash2 className="size-4 text-red" /></Button></div>
+          {canEdit && <div className="flex shrink-0 gap-1"><Button size="sm" variant="outline" onClick={() => setDraft(fromProduct(product))}><Pencil className="size-3.5" /> Revisar</Button><Button size="icon-sm" variant="ghost" aria-label={`Eliminar ${product.name}`} onClick={() => confirmDelete(product)}><Trash2 className="size-4 text-red" /></Button></div>}
         </div>)}</div>
       </section>}
 
@@ -124,7 +124,7 @@ export function StockAlertView({ products, loadError }: { products: StockProduct
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-bg-tertiary"><Package className="size-4 text-text-tertiary" /></div>
           <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-text-primary">{product.name}</p><p className="text-xs text-text-tertiary">{product.brand || "Sin marca"} · {product.units ?? "?"} {product.units === 1 ? "unidad" : "unidades"}</p></div>
           <div className="min-w-32 text-right sm:text-left"><p className="text-xs text-text-secondary">{product.expiration_date ? new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${product.expiration_date}T12:00:00`)) : "Sin fecha"}</p><p className={`text-xs font-medium ${view === "archived" ? "text-text-tertiary" : urgencyClass(product.expiration_date)}`}>{view === "archived" ? "Archivado" : expirationLabel(product.expiration_date)}</p></div>
-          <div className="ml-auto flex gap-1 sm:ml-0"><Button size="icon-sm" variant="ghost" aria-label={`Editar ${product.name}`} onClick={() => setDraft(fromProduct(product))}><Pencil className="size-4" /></Button><Button size="icon-sm" variant="ghost" aria-label={view === "active" ? `Marcar ${product.name} como gastado` : `Restaurar ${product.name}`} onClick={() => run(() => setProductStatus(product.id, view === "active" ? "archived" : "active"), view === "active" ? "Producto archivado." : "Producto restaurado.")}>{view === "active" ? <Archive className="size-4" /> : <RotateCcw className="size-4" />}</Button><Button size="icon-sm" variant="ghost" aria-label={`Eliminar ${product.name}`} onClick={() => confirmDelete(product)}><Trash2 className="size-4 text-red" /></Button></div>
+          {canEdit && <div className="ml-auto flex gap-1 sm:ml-0"><Button size="icon-sm" variant="ghost" aria-label={`Editar ${product.name}`} onClick={() => setDraft(fromProduct(product))}><Pencil className="size-4" /></Button><Button size="icon-sm" variant="ghost" aria-label={view === "active" ? `Marcar ${product.name} como gastado` : `Restaurar ${product.name}`} onClick={() => run(() => setProductStatus(product.id, view === "active" ? "archived" : "active"), view === "active" ? "Producto archivado." : "Producto restaurado.")}>{view === "active" ? <Archive className="size-4" /> : <RotateCcw className="size-4" />}</Button><Button size="icon-sm" variant="ghost" aria-label={`Eliminar ${product.name}`} onClick={() => confirmDelete(product)}><Trash2 className="size-4 text-red" /></Button></div>}
         </article>)}</div> : <div className="flex flex-col items-center px-6 py-16 text-center"><Package className="mb-3 size-8 text-text-tertiary" /><p className="text-sm font-medium text-text-primary">{view === "active" ? "Tu despensa está vacía" : "No hay productos archivados"}</p><p className="mt-1 text-xs text-text-secondary">{view === "active" ? "Añade un producto manualmente o hazle una foto." : "Los productos gastados aparecerán aquí."}</p></div>}
       </section>
 

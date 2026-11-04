@@ -26,7 +26,7 @@ import { InvestmentList } from "@/components/investments/investment-list";
 import PersonalGlobalOverview from "@/components/dashboard/personal-global-overview";
 import { getGoalSnapshots } from "@/lib/goal-data";
 import { GoalStatusStrip } from "@/components/goals/goal-status";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { SharedPersonalPanel, type SharedPersonalMember } from "@/components/dashboard/shared-personal-panel";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
@@ -239,7 +239,8 @@ export default async function DashboardPage({
 
   const supabase = await createClient();
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
-  const [{ data: membershipRows }, { data: sharingRows }] = familyUnit ? await Promise.all([
+  const canViewOverview = familyUnit && (await getFamilyAccess(supabase, user.id, familyUnit)).overview !== "none";
+  const [{ data: membershipRows }, { data: sharingRows }] = canViewOverview ? await Promise.all([
     supabase.from("family_unit_members").select("user_id, display_name, email").eq("unit_id", familyUnit.id).eq("status", "active"),
     supabase.from("family_personal_sharing").select("user_id, enabled").eq("family_unit_id", familyUnit.id),
   ]) : [{ data: [] }, { data: [] }];

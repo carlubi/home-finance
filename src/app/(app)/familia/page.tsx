@@ -34,10 +34,9 @@ import { FamilyTotalPerPersonCard } from "@/components/family/family-total-per-p
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { getGoalSnapshots } from "@/lib/goal-data";
 import { GoalStatusStrip } from "@/components/goals/goal-status";
-import { FamilyMembersCard } from "@/components/family/family-members-card";
 import { recurringMonthlyAmount, recurringOccursInMonth } from "@/lib/recurring";
 
 export const metadata: Metadata = { title: "Gastos unidad familiar" };
@@ -89,15 +88,15 @@ export default async function FamilyExpensesPage({
   const supabase = await createClient();
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   if (!familyUnit) redirect("/login");
+  const familyAccess = (await getFamilyAccess(supabase, user.id, familyUnit)).expenses;
+  if (familyAccess === "none") redirect("/familia/gestion-miembros");
   const familyGoals = await getGoalSnapshots("family", user.id, familyUnit.id);
   const [
     { data: familyExpenseRows },
     { data: recurringRows },
     { data: preferenceRow },
     { data: familyCategoryRows },
-    { data: familyMemberRows },
     { data: recurringSkipRows },
-    { data: ownSharing },
   ] = await Promise.all([
     supabase
       .from("family_expenses")
@@ -119,9 +118,7 @@ export default async function FamilyExpensesPage({
       .select("id, name, color")
       .eq("family_unit_id", familyUnit.id)
       .order("name"),
-    supabase.from("family_unit_members").select("id, user_id, email, display_name, role, status").eq("unit_id", familyUnit.id).order("created_at"),
     supabase.from("family_recurring_expense_skips").select("recurring_expense_id, month").eq("family_unit_id", familyUnit.id),
-    supabase.from("family_personal_sharing").select("enabled").eq("family_unit_id", familyUnit.id).eq("user_id", user.id).maybeSingle(),
   ]);
 
   const familyExpenses = (familyExpenseRows ?? []) as FamilyExpense[];
@@ -265,7 +262,7 @@ export default async function FamilyExpensesPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <FinancialPrivacyButton />
-          <Button
+          {familyAccess === "edit" && <Button
             nativeButton={false}
             render={
               <Link
@@ -280,24 +277,17 @@ export default async function FamilyExpensesPage({
           >
             <Import className="size-4" />
             Importar documentos
-          </Button>
-          <FamilyRecurringSettingsDialog
+          </Button>}
+          {familyAccess === "edit" && <FamilyRecurringSettingsDialog
             expenses={recurringExpenses}
             defaultMonth={month}
             categories={familyCategories}
-          />
+          />}
           <Suspense>
             <MonthSwitcher month={month} />
           </Suspense>
         </div>
       </div>
-
-      <FamilyMembersCard
-        unitId={familyUnit.id}
-        members={(familyMemberRows ?? []) as { id: string; email: string; display_name: string | null; role: "owner" | "member"; status: "invited" | "active" | "removed"; user_id: string | null }[]}
-        isOwner={familyUnit.owner_id === user.id}
-        initialSharingEnabled={Boolean(ownSharing?.enabled)}
-      />
 
       <GoalStatusStrip snapshots={familyGoals} scope="family" />
 
@@ -313,6 +303,7 @@ export default async function FamilyExpensesPage({
             <FamilyTotalPerPersonCard
               total={monthTotal}
               initialPeopleCount={preferredPeopleCount}
+              canEdit={familyAccess === "edit"}
             />
           </div>
           <ChartCard
@@ -329,6 +320,7 @@ export default async function FamilyExpensesPage({
             />
           </ChartCard>
           <FamilyExpenseTable
+            canEdit={familyAccess === "edit"}
             month={month}
             rows={displayRows}
             manualExpenses={monthExpenses}

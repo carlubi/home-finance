@@ -4,7 +4,7 @@ import { dateAfterDays, EXPIRY_MILESTONES, madridDate, reminderCopy, reminderId 
 
 export const maxDuration = 60;
 
-type Product = { id: string; owner_id: string; name: string; expiration_date: string };
+type Product = { id: string; owner_id: string; family_unit_id?: string | null; name: string; expiration_date: string };
 type ReminderData = { product_id: string; expiration_date: string; milestone_days: number; url: string; email_sent_at?: string; email_provider_id?: string };
 
 async function sendEmail(to: string, subject: string, body: string, idempotencyKey: string) {
@@ -40,13 +40,25 @@ export async function GET(request: Request) {
     const expirationDate = dateAfterDays(today, days);
     for (let offset = 0; ; offset += 500) {
       const { data: products, error } = await admin.from("stockalert_products")
-        .select("id,owner_id,name,expiration_date")
+        .select("id,owner_id,family_unit_id,name,expiration_date")
         .eq("status", "active")
         .eq("expiration_date", expirationDate)
         .order("id")
         .range(offset, offset + 499);
       if (error) throw error;
       for (const product of (products ?? []) as Product[]) {
+        if (product.family_unit_id) {
+          const { data: membership, error: membershipError } = await admin.from("family_unit_members")
+            .select("id,role").eq("unit_id", product.family_unit_id).eq("user_id", product.owner_id).eq("status", "active").maybeSingle();
+          if (membershipError) throw membershipError;
+          if (!membership) continue;
+          if (membership.role !== "owner") {
+            const { data: permission, error: permissionError } = await admin.from("family_section_permissions")
+              .select("access").eq("member_id", membership.id).eq("section", "pantry").maybeSingle();
+            if (permissionError) throw permissionError;
+            if (permission?.access === "none" || !permission) continue;
+          }
+        }
         const id = reminderId(product.id, product.expiration_date, days);
         const copy = reminderCopy(product.name, product.expiration_date, days);
         const initialData: ReminderData = {

@@ -6,7 +6,8 @@ import { isFamilyExpenseCategory } from "@/lib/family";
 import { monthStart, parseMoneyInput } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/config";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { cookies } from "next/headers";
 import { readRecurringEntryKind, readRecurringFrequency, readRecurringMonths } from "@/lib/recurring";
 
 async function requireUser() {
@@ -29,8 +30,13 @@ export async function inviteFamilyMember(unitId: string, emailRaw: string) {
   if (familyUnit.id !== unitId || familyUnit.owner_id !== user.id) return { error: "Solo el propietario puede invitar." };
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Email no válido." };
-  const { data: member, error } = await supabase.from("family_unit_members")
-    .insert({ unit_id: unitId, email, role: "member", status: "invited" }).select("invite_token").single();
+  const { data: removed } = await supabase.from("family_unit_members").select("id")
+    .eq("unit_id", unitId).eq("email", email).eq("status", "removed").maybeSingle();
+  const { data: member, error } = removed
+    ? await supabase.from("family_unit_members").update({ status: "invited", user_id: null, invite_token: crypto.randomUUID() })
+        .eq("id", removed.id).eq("unit_id", unitId).select("invite_token").single()
+    : await supabase.from("family_unit_members")
+        .insert({ unit_id: unitId, email, role: "member", status: "invited" }).select("invite_token").single();
   if (error || !member) return { error: error?.code === "23505" ? "Esa persona ya está en la unidad familiar." : "No se pudo crear la invitación." };
   const inviteUrl = `${getSiteUrl()}/invitacion/${member.invite_token}`;
   let emailSent = false;
@@ -39,6 +45,7 @@ export async function inviteFamilyMember(unitId: string, emailRaw: string) {
     emailSent = !(await admin.auth.admin.inviteUserByEmail(email, { redirectTo: inviteUrl })).error;
   } catch { /* El enlace copiable sigue siendo válido. */ }
   revalidatePath("/familia");
+  revalidatePath("/familia/gestion-miembros");
   return { ok: true, inviteUrl, emailSent };
 }
 
@@ -46,21 +53,24 @@ export async function removeFamilyMember(unitId: string, memberId: string) {
   const { supabase, user, familyUnit } = await requireFamilyUnit();
   if (!user || !familyUnit) return { error: "Sesión caducada." };
   if (familyUnit.id !== unitId || familyUnit.owner_id !== user.id) return { error: "Solo el propietario puede eliminar miembros." };
-  const { error } = await supabase.from("family_unit_members").delete().eq("id", memberId).eq("unit_id", unitId).neq("role", "owner");
+  const { error } = await supabase.from("family_unit_members").update({ status: "removed" })
+    .eq("id", memberId).eq("unit_id", unitId).neq("role", "owner");
   if (error) return { error: "No se pudo eliminar el miembro." };
   revalidatePath("/familia");
+  revalidatePath("/familia/gestion-miembros");
   return { ok: true };
 }
 
 export async function setPersonalSharing(enabled: boolean) {
   const { supabase, user, familyUnit } = await requireFamilyUnit();
   if (!user || !familyUnit) return { error: "Sesión caducada." };
+  if ((await getFamilyAccess(supabase, user.id, familyUnit)).overview !== "edit") return { error: "No tienes permiso para editar la visión global." };
   const { error } = await supabase.from("family_personal_sharing").upsert({
     user_id: user.id,
     family_unit_id: familyUnit.id,
     enabled,
     updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id" });
+  }, { onConflict: "user_id,family_unit_id" });
   if (error) return { error: "No se pudo cambiar la visibilidad de tus finanzas personales." };
   revalidatePath("/");
   revalidatePath("/global");
@@ -74,11 +84,15 @@ export async function acceptFamilyInvitation(token: string) {
   const admin = createAdminClient();
   const { data: member } = await admin.from("family_unit_members").select("id, unit_id, status, email").eq("invite_token", token).maybeSingle();
   if (!member) return { error: "Invitación no encontrada." };
-  if (member.status === "active") return { ok: true };
   if (user.email?.toLowerCase() !== member.email.toLowerCase()) return { error: "Usa el email al que se envió la invitación." };
+  if (member.status === "active") {
+    (await cookies()).set("selected_family_unit", member.unit_id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+    return { ok: true };
+  }
   const { data: profile } = await admin.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
   const { error } = await admin.from("family_unit_members").update({ user_id: user.id, display_name: profile?.full_name ?? null, status: "active", joined_at: new Date().toISOString() }).eq("id", member.id);
   if (error) return { error: "No se pudo aceptar la invitación." };
+  (await cookies()).set("selected_family_unit", member.unit_id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
   revalidatePath("/familia");
   return { ok: true };
 }

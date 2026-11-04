@@ -50,6 +50,7 @@ export function FamilyExpenseTable({
   recurringExpenses,
   peopleCount,
   categories,
+  canEdit = true,
 }: {
   month: string;
   rows: FamilyDisplayExpense[];
@@ -57,6 +58,7 @@ export function FamilyExpenseTable({
   recurringExpenses: FamilyRecurringExpense[];
   peopleCount: number;
   categories: FamilyExpenseCategoryOption[];
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -137,6 +139,15 @@ export function FamilyExpenseTable({
     if (result.error) toast.error(result.error);
     else { toast.success("Gasto recurrente eliminado de este mes."); router.refresh(); }
   }
+
+  if (!canEdit) return <Card>
+    <CardHeader><CardTitle className="text-base">Gastos de {formatMonth(month)}</CardTitle><p className="text-[13px] text-text-secondary">Solo lectura</p></CardHeader>
+    <CardContent>{rows.length === 0 ? <p className="py-8 text-center text-[13px] text-text-secondary">No hay gastos familiares este mes.</p> : <div className="divide-y divide-border-primary">{rows.map((row) => <div key={row.id} className="flex items-center gap-3 py-3">
+      <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: familyCategoryColor(row.category, categories.find((category) => category.name === row.category)?.color) }} />
+      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-text-primary">{row.name}</p><p className="truncate text-xs text-text-secondary">{row.category} · {row.source === "recurring" ? recurringFrequencyLabels[row.frequency ?? "monthly"] : formatDate(row.occurred_at)}</p></div>
+      <span className="shrink-0 text-sm font-medium tabular-nums text-text-primary">{row.entry_kind === "income" ? "+" : ""}{formatMoney(Number(row.amount))}</span>
+    </div>)}</div>}</CardContent>
+  </Card>;
 
   return (
     <Card>

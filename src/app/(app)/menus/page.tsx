@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getOrCreateFamilyUnit } from "@/lib/family-unit";
+import { getFamilyAccess, getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { MenusView, type MenuMeal, type MenuRecipe } from "./menus-view";
 
 export const metadata = { title: "Menús" };
@@ -19,6 +19,8 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
   const supabase = await createClient();
   const familyUnit = await getOrCreateFamilyUnit(supabase, user);
   if (!familyUnit) redirect("/login");
+  const familyAccess = (await getFamilyAccess(supabase, user.id, familyUnit)).menus;
+  if (familyAccess === "none") redirect("/familia/gestion-miembros");
   const [{ data: recipes, error: recipesError }, { data: meals, error: mealsError }] = await Promise.all([
     supabase.from("menu_recipes").select("id,name,ingredients,instructions,source_url").eq("family_unit_id", familyUnit.id).order("name"),
     supabase.from("menu_meals").select("id,meal_date,meal_type,title,notes,recipe_id,source_url")
@@ -26,6 +28,6 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
       .order("meal_date").order("created_at"),
   ]);
 
-  return <MenusView key={month} month={month} recipes={(recipes ?? []) as MenuRecipe[]} meals={(meals ?? []) as MenuMeal[]}
+  return <MenusView key={month} month={month} canEdit={familyAccess === "edit"} recipes={(recipes ?? []) as MenuRecipe[]} meals={(meals ?? []) as MenuMeal[]}
     loadError={recipesError?.message ?? mealsError?.message ?? null} />;
 }

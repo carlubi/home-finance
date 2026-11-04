@@ -17,9 +17,11 @@ import {
 export function FamilyTotalPerPersonCard({
   total,
   initialPeopleCount,
+  canEdit = true,
 }: {
   total: number;
   initialPeopleCount: number;
+  canEdit?: boolean;
 }) {
   const [peopleCount, setPeopleCount] = useState(initialPeopleCount);
   const [pending, startTransition] = useTransition();
@@ -40,7 +42,7 @@ export function FamilyTotalPerPersonCard({
 
   return (
     <Card className="relative">
-      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+      {canEdit && <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Dividir entre</span>
         <Select
           value={String(peopleCount)}
@@ -62,7 +64,7 @@ export function FamilyTotalPerPersonCard({
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </div>}
       <CardContent className="flex min-w-0 items-start gap-3 pt-0">
         <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
           <Users className="size-4.5" />

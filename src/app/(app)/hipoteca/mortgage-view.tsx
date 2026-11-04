@@ -30,7 +30,7 @@ function InfoCard({ label, value, detail, tone = "default" }: { label: string; v
   );
 }
 
-export function MortgageView({ mortgage, recordedPayments }: { mortgage: MortgageTerms; recordedPayments: MortgagePayment[] }) {
+export function MortgageView({ mortgage, recordedPayments, canEdit = true }: { mortgage: MortgageTerms; recordedPayments: MortgagePayment[]; canEdit?: boolean }) {
   const totals = recordedTotals(mortgage, recordedPayments);
   const percentPaid = totals.capital / mortgage.principal * 100;
   const fixedStage = mortgage.rateKind === "fixed" || (mortgage.rateKind === "mixed" && new Date().toISOString().slice(0, 10) <= mortgage.fixedUntil);
@@ -59,7 +59,7 @@ export function MortgageView({ mortgage, recordedPayments }: { mortgage: Mortgag
             <h1 className="text-2xl font-medium text-text-primary">Tu hipoteca</h1>
             <p className="mt-1 max-w-2xl text-sm text-text-secondary">Seguimiento del capital, los intereses y las cuotas según los datos registrados hasta el {formatDate(mortgage.lastRecordedOn)}.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2"><FinancialPrivacyButton /><MortgageConfiguration mortgage={mortgage} /></div>
+          <div className="flex flex-wrap items-center gap-2"><FinancialPrivacyButton />{canEdit ? <MortgageConfiguration mortgage={mortgage} /> : <span className="text-[13px] text-text-secondary">Solo lectura</span>}</div>
         </div>
         <dl className="grid overflow-hidden rounded-lg border border-border-primary bg-bg-secondary text-sm sm:grid-cols-3 sm:divide-x sm:divide-border-primary max-sm:divide-y max-sm:divide-border-primary">
           <div className="px-4 py-3"><dt className="text-xs text-text-tertiary">Precio de compra</dt><dd className="mt-0.5 text-base font-medium tabular-nums">{formatMoney(mortgage.purchasePrice)}</dd></div>
@@ -98,10 +98,10 @@ export function MortgageView({ mortgage, recordedPayments }: { mortgage: Mortgag
           <div className="mt-6 space-y-4">
             <div className="flex items-center justify-between gap-3"><span>{mortgage.firstBorrower}</span><strong className="text-lg font-medium tabular-nums">{formatMoney(shareFirst)}</strong></div>
             {mortgage.secondBorrower && <><div className="flex items-center justify-between gap-3"><span>{mortgage.secondBorrower}</span><strong className="text-lg font-medium tabular-nums">{formatMoney(shareSecond)}</strong></div>
-            <label htmlFor="first-share" className="block pt-2 text-sm font-medium">Porcentaje de {mortgage.firstBorrower}: {firstSharePercent} %</label>
+            {canEdit && <><label htmlFor="first-share" className="block pt-2 text-sm font-medium">Porcentaje de {mortgage.firstBorrower}: {firstSharePercent} %</label>
             <input id="first-share" type="range" min="0" max="100" step="1" value={firstSharePercent} onChange={(event) => setFirstSharePercent(Number(event.target.value))} className="w-full accent-accent" />
             <div className="flex justify-between text-xs text-muted-foreground"><span>0 %</span><span>100 %</span></div>
-            <button type="button" disabled={pending || firstSharePercent === mortgage.firstSharePercent} onClick={() => startTransition(async () => { const result = await saveMortgageShare(firstSharePercent); if (result.error) toast.error(result.error); else { toast.success("Reparto guardado para la unidad familiar"); router.refresh(); } })} className="min-h-8 rounded-lg bg-accent px-3 text-sm font-medium text-white transition-fast outline-none hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11">{pending ? "Guardando…" : "Guardar reparto"}</button></>}
+            <button type="button" disabled={pending || firstSharePercent === mortgage.firstSharePercent} onClick={() => startTransition(async () => { const result = await saveMortgageShare(firstSharePercent); if (result.error) toast.error(result.error); else { toast.success("Reparto guardado para la unidad familiar"); router.refresh(); } })} className="min-h-8 rounded-lg bg-accent px-3 text-sm font-medium text-white transition-fast outline-none hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11">{pending ? "Guardando…" : "Guardar reparto"}</button></>}</>}
           </div>
           <p className="mt-5 text-xs text-muted-foreground">El reparto guardado se verá en las cuentas de esta unidad familiar.</p>
         </div>
