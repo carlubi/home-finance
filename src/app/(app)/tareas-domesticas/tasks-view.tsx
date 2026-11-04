@@ -97,10 +97,32 @@ export function DomesticTasksView({ week, today, currentUserId, members, tasks, 
     });
   }
 
+  function taskCard(task: DomesticTask, date: string, day: string, weekday: number, mobile: boolean) {
+    const checked = checks.has(`${task.id}:${date}`);
+    const checkboxId = `task-${task.id}-${date}-${mobile ? "mobile" : "desktop"}`;
+    return <div key={task.id} className={cn("rounded-md border border-border-primary bg-bg-secondary", mobile ? "p-3" : "p-2")}>
+      <div className="flex items-start gap-3">
+        <Checkbox id={checkboxId} checked={checked} disabled={!canEdit || date > today || busy}
+          className={mobile ? "mt-0.5 size-5" : undefined}
+          aria-label={t(`${checked ? "Desmarcar" : "Marcar como hecha"} ${task.title} del ${day}`)}
+          onCheckedChange={(value) => toggle(task, date, value === true)} />
+        <label htmlFor={checkboxId} className={cn("min-w-0 flex-1", canEdit && date <= today && "cursor-pointer")}><span className={cn("block break-words leading-snug text-text-primary", mobile ? "text-sm" : "text-[13px]", checked && "text-text-tertiary line-through")}>{task.title}</span><span className="mt-1 block truncate text-xs text-text-tertiary">{memberName(task.assignee_member_id)}</span></label>
+        {mobile && canEdit && <div className="flex shrink-0 items-center">
+          <Button variant="ghost" size="icon" className="size-11" aria-label={t(`Editar ${task.title}`)} onClick={() => setDraft({ id: task.id, title: task.title, schedule: task.scheduled_date ? "once" : "weekly", scheduledDate: task.scheduled_date ?? date, weekday: task.weekday ?? weekday, memberId: editableMemberIds.includes(task.assignee_member_id) ? task.assignee_member_id : eligibleMembers[0]?.id ?? "" })}><Pencil className="size-4" /></Button>
+          <Button variant="ghost" size="icon" className="size-11" aria-label={t(`Eliminar ${task.title}`)} onClick={() => setTaskToDelete(task)}><Trash2 className="size-4" /></Button>
+        </div>}
+      </div>
+      {!mobile && canEdit && <div className="mt-1 flex justify-end gap-0.5">
+        <Button variant="ghost" size="icon-sm" aria-label={t(`Editar ${task.title}`)} onClick={() => setDraft({ id: task.id, title: task.title, schedule: task.scheduled_date ? "once" : "weekly", scheduledDate: task.scheduled_date ?? date, weekday: task.weekday ?? weekday, memberId: editableMemberIds.includes(task.assignee_member_id) ? task.assignee_member_id : eligibleMembers[0]?.id ?? "" })}><Pencil /></Button>
+        <Button variant="ghost" size="icon-sm" aria-label={t(`Eliminar ${task.title}`)} onClick={() => setTaskToDelete(task)}><Trash2 /></Button>
+      </div>}
+    </div>;
+  }
+
   return <div className="space-y-6">
     <PageHeader eyebrow="Familia · Organización" title="Tareas Domésticas"
       description="Organiza quién hace cada tarea y cuándo se hace."
-      actions={canEdit ? <Button onClick={() => setDraft({ title: "", schedule: "once", scheduledDate: today >= week && today <= dateAfterDays(week, 6) ? today : week, weekday: weekdayOf(today), memberId: eligibleMembers.find((m) => m.user_id === currentUserId)?.id ?? eligibleMembers[0]?.id ?? "" })} disabled={eligibleMembers.length === 0}><Plus /> Nueva tarea</Button> : <span className="text-[13px] text-text-secondary">Solo lectura</span>} />
+      actions={canEdit ? <Button className="h-11 md:h-8" onClick={() => setDraft({ title: "", schedule: "once", scheduledDate: today >= week && today <= dateAfterDays(week, 6) ? today : week, weekday: weekdayOf(today), memberId: eligibleMembers.find((m) => m.user_id === currentUserId)?.id ?? eligibleMembers[0]?.id ?? "" })} disabled={eligibleMembers.length === 0}><Plus /> Nueva tarea</Button> : <span className="text-[13px] text-text-secondary">Solo lectura</span>} />
 
     {loadError && <p role="alert" className="rounded-lg border border-red/30 bg-red/10 p-3 text-sm text-red">No se pudieron cargar las tareas: {loadError}</p>}
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-primary pb-4">
@@ -109,14 +131,28 @@ export function DomesticTasksView({ week, today, currentUserId, members, tasks, 
         <p className="mt-0.5 text-[13px] text-text-secondary">{doneCount} de {total} tareas completadas</p>
       </div>
       <div className="flex items-center gap-1">
-        <Button nativeButton={false} variant="ghost" size="icon" render={<Link href={`/tareas-domesticas?semana=${dateAfterDays(week, -7)}`} aria-label="Semana anterior" />}><ChevronLeft /></Button>
-        <Button nativeButton={false} variant="outline" size="sm" render={<Link href="/tareas-domesticas" />}>Esta semana</Button>
-        <Button nativeButton={false} variant="ghost" size="icon" render={<Link href={`/tareas-domesticas?semana=${dateAfterDays(week, 7)}`} aria-label="Semana siguiente" />}><ChevronRight /></Button>
+        <Button nativeButton={false} variant="ghost" size="icon" className="size-11 md:size-8" render={<Link href={`/tareas-domesticas?semana=${dateAfterDays(week, -7)}`} aria-label="Semana anterior" />}><ChevronLeft /></Button>
+        <Button nativeButton={false} variant="outline" size="sm" className="h-11 md:h-7" render={<Link href="/tareas-domesticas" />}>Esta semana</Button>
+        <Button nativeButton={false} variant="ghost" size="icon" className="size-11 md:size-8" render={<Link href={`/tareas-domesticas?semana=${dateAfterDays(week, 7)}`} aria-label="Semana siguiente" />}><ChevronRight /></Button>
       </div>
     </div>
 
     {weekTasks.length === 0 && !loadError && <p className="text-[13px] text-text-secondary">No hay tareas esta semana. Programa una tarea para un día concreto o repítela cada semana.</p>}
-    <Card className="gap-0 overflow-x-auto py-0">
+    <div className="space-y-3 md:hidden">
+      {WEEKDAYS.map((day, weekday) => {
+        const date = dueDateForWeek(week, weekday);
+        const dayTasks = weekTasks.filter((item) => item.dueDate === date);
+        if (dayTasks.length === 0) return null;
+        return <section key={day} aria-label={`${t(day)} ${readableDate(date, language)}`} className={cn("rounded-lg border border-border-primary bg-bg-secondary p-3", date === today && "border-accent/40 bg-bg-tertiary/50")}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-text-primary">{t(day)} <span className="font-normal text-text-secondary">· {readableDate(date, language)}</span></h2>
+            {date === today && <Badge variant="neutral">Hoy</Badge>}
+          </div>
+          <div className="space-y-2">{dayTasks.map(({ task }) => taskCard(task, date, day, weekday, true))}</div>
+        </section>;
+      })}
+    </div>
+    <Card className="hidden gap-0 overflow-x-auto py-0 md:block">
       <div className="grid min-w-[840px] grid-cols-7 divide-x divide-border-primary">
       {WEEKDAYS.map((day, weekday) => {
         const date = dueDateForWeek(week, weekday);
@@ -126,21 +162,7 @@ export function DomesticTasksView({ week, today, currentUserId, members, tasks, 
             <div><h2 className="text-[13px] font-medium text-text-primary">{t(day)}</h2><p className="text-xs text-text-tertiary">{readableDate(date, language)}</p></div>
             {date === today && <Badge variant="neutral">Hoy</Badge>}
           </div>
-          {dayTasks.length === 0 ? <p className="py-1 text-xs text-text-tertiary">Sin tareas</p> : <div className="space-y-2">{dayTasks.map(({ task }) => {
-            const checked = checks.has(`${task.id}:${date}`);
-            return <div key={task.id} className="rounded-md border border-border-primary bg-bg-secondary p-2">
-              <div className="flex items-start gap-2">
-              <Checkbox checked={checked} disabled={!canEdit || date > today || busy}
-                aria-label={t(`${checked ? "Desmarcar" : "Marcar como hecha"} ${task.title} del ${day}`)}
-                onCheckedChange={(value) => toggle(task, date, value === true)} />
-              <div className="min-w-0 flex-1"><p className={cn("break-words text-[13px] leading-snug text-text-primary", checked && "text-text-tertiary line-through")}>{task.title}</p><p className="mt-1 truncate text-xs text-text-tertiary">{memberName(task.assignee_member_id)}</p></div>
-              </div>
-              {canEdit && <div className="mt-1 flex justify-end gap-0.5">
-                <Button variant="ghost" size="icon-sm" aria-label={t(`Editar ${task.title}`)} onClick={() => setDraft({ id: task.id, title: task.title, schedule: task.scheduled_date ? "once" : "weekly", scheduledDate: task.scheduled_date ?? date, weekday: task.weekday ?? weekday, memberId: editableMemberIds.includes(task.assignee_member_id) ? task.assignee_member_id : eligibleMembers[0]?.id ?? "" })}><Pencil /></Button>
-                <Button variant="ghost" size="icon-sm" aria-label={t(`Eliminar ${task.title}`)} onClick={() => setTaskToDelete(task)}><Trash2 /></Button>
-              </div>}
-            </div>;
-          })}</div>}
+          {dayTasks.length === 0 ? <p className="py-1 text-xs text-text-tertiary">Sin tareas</p> : <div className="space-y-2">{dayTasks.map(({ task }) => taskCard(task, date, day, weekday, false))}</div>}
         </section>;
       })}
       </div>

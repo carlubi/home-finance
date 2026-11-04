@@ -19,7 +19,7 @@ export function MonthSwitcher({ month }: { month: string }) {
 
   return (
     <div className="flex items-center gap-1">
-      <Button variant="outline" size="icon" className="size-8" onClick={() => go(addMonths(month, -1))}>
+      <Button variant="outline" size="icon" className="size-11 md:size-8" aria-label="Mes anterior" onClick={() => go(addMonths(month, -1))}>
         <ChevronLeft className="size-4" />
       </Button>
       <span className="min-w-36 text-center text-sm font-medium">
@@ -28,7 +28,8 @@ export function MonthSwitcher({ month }: { month: string }) {
       <Button
         variant="outline"
         size="icon"
-        className="size-8"
+        className="size-11 md:size-8"
+        aria-label="Mes siguiente"
         disabled={month >= currentMonth}
         onClick={() => go(addMonths(month, 1))}
       >

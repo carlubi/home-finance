@@ -447,7 +447,7 @@ function MobileSheetLink({ item, pathname }: { item: NavItem; pathname: string }
       className={cn("flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-text-secondary transition-fast active:bg-bg-tertiary", active && "bg-bg-tertiary text-text-primary")} />
   }>
     <Icon className={cn("size-4 text-text-tertiary", active && "text-accent")} />
-    {item.label}
+      <span className="min-w-0 truncate">{item.label}</span>
   </SheetClose>;
 }
 
@@ -459,13 +459,17 @@ export function BottomNav() {
   const { family } = useNavigationDock();
   const visibleGroups = visibleFamilyGroups(family);
   const familyItems = visibleGroups[1].items;
-  const mobileItems: NavItem[] = [homeItem, groups[0].items[0], familyItems[0], familyItems[1] ?? groups[0].items[1]];
+  const familyExpenses = familyItems.find((item) => item.href === "/familia");
+  const familyTasks = familyItems.find((item) => item.href === "/tareas-domesticas");
+  const familyMenus = familyItems.find((item) => item.href === "/menus");
+  const mobileItems: NavItem[] = [homeItem, groups[0].items[0], familyExpenses, familyTasks ?? familyMenus ?? groups[0].items[1]]
+    .filter((item): item is NavItem => Boolean(item));
   const moreActive =
     !mobileItems.some((item) => isActive(pathname, item.href)) &&
     [...visibleGroups.flatMap((group) => group.items), settingsItem].some((item) => isActive(pathname, item.href));
 
   function toggleFamily(id: string) {
-    if (expandedFamilyId === id) { setExpandedFamilyId(null); return; }
+    if (expandedFamilyId === id || (expandedFamilyId === null && family?.unit.id === id)) { setExpandedFamilyId(""); return; }
     if (family?.unit.id === id) { setExpandedFamilyId(id); return; }
     startSwitch(async () => {
       try {
@@ -491,12 +495,12 @@ export function BottomNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-1.5 text-2xs font-medium text-text-tertiary transition-fast outline-none focus-visible:bg-bg-tertiary",
+              "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 text-2xs font-medium text-text-tertiary transition-fast outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
               active && "text-text-primary"
             )}
           >
             <Icon className={cn("size-5", active && "text-accent")} />
-            {item.mobileLabel ?? item.label}
+            <span className="max-w-full truncate">{item.mobileLabel ?? (item.href === "/tareas-domesticas" ? "Tareas" : item.label)}</span>
           </Link>
         );
       })}
@@ -506,7 +510,7 @@ export function BottomNav() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto min-h-14 flex-1 flex-col gap-1 rounded-none px-1 py-1.5 text-2xs text-text-tertiary hover:bg-transparent",
+                "h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 rounded-none px-1 py-1.5 text-2xs text-text-tertiary hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
                 moreActive && "text-text-primary"
               )}
             />
@@ -524,7 +528,7 @@ export function BottomNav() {
                 {group.id === "familia" && family ? family.units.map((unit) => {
                   const active = family.unit.id === unit.id;
                   const viewing = active && group.items.some((item) => isActive(pathname, item.href));
-                  const expanded = active && expandedFamilyId === unit.id;
+                  const expanded = active && (expandedFamilyId === null || expandedFamilyId === unit.id);
                   return <div key={unit.id}>
                     <button type="button" disabled={switching} aria-expanded={expanded} aria-controls={`mobile-family-nav-${unit.id}`}
                       onClick={() => toggleFamily(unit.id)}

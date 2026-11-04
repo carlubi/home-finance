@@ -51,7 +51,7 @@ export default async function AppLayout({
               <SidebarRevealButton />
               <CurrentSection />
             </div>
-            <div className="flex items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-0.5 [&_[data-slot=button]]:size-10 md:[&_[data-slot=button]]:size-8">
               <InstallAppButton />
               <NotificationsBell />
               <LanguageMenuButton />
