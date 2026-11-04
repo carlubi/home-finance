@@ -8,6 +8,8 @@ import type { Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/components/layout/language-provider";
+import { translateUiText, type AppLanguage } from "@/lib/language";
 import {
   Select,
   SelectContent,
@@ -18,7 +20,7 @@ import {
 
 type Row = Record<string, string | number | null>;
 
-async function download(rows: Row[], name: string, format: "csv" | "xlsx") {
+async function download(rows: Row[], name: string, format: "csv" | "xlsx", language: AppLanguage) {
   if (rows.length === 0) {
     toast.info("No hay datos con esos filtros.");
     return;
@@ -27,19 +29,21 @@ async function download(rows: Row[], name: string, format: "csv" | "xlsx") {
     import("xlsx"),
     import("file-saver"),
   ]);
-  const sheet = XLSX.utils.json_to_sheet(rows);
+  const translatedRows = rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [translateUiText(key, language), typeof value === "string" ? translateUiText(value, language) : value])));
+  const sheet = XLSX.utils.json_to_sheet(translatedRows);
   if (format === "csv") {
     const csv = XLSX.utils.sheet_to_csv(sheet);
     saveAs(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }), `${name}.csv`);
   } else {
     const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, "Datos");
+    XLSX.utils.book_append_sheet(book, sheet, language === "ca" ? "Dades" : "Datos");
     const out = XLSX.write(book, { bookType: "xlsx", type: "array" });
     saveAs(new Blob([out]), `${name}.xlsx`);
   }
 }
 
 export function ExportData({ categories }: { categories: Category[] }) {
+  const { language } = useLanguage();
   const [scope, setScope] = useState("personal");
   const [kind, setKind] = useState("both");
   const [period, setPeriod] = useState(""); // YYYY-MM, YYYY o vacío (todo)
@@ -103,7 +107,7 @@ export function ExportData({ categories }: { categories: Category[] }) {
             Categoría: "",
             Fecha: interest.month,
             Importe: Number(interest.amount),
-            Notas: `Estimación bruta sobre ${Number(interest.balance)} € al ${Number(interest.annual_rate_pct)} % anual`,
+            Notas: language === "ca" ? `Estimació bruta sobre ${Number(interest.balance)} € al ${Number(interest.annual_rate_pct)} % anual` : `Estimación bruta sobre ${Number(interest.balance)} € al ${Number(interest.annual_rate_pct)} % anual`,
           });
         }
       } else {
@@ -130,7 +134,7 @@ export function ExportData({ categories }: { categories: Category[] }) {
         }
       }
 
-      await download(rows, `movimientos${period ? "-" + period : ""}`, format);
+      await download(rows, `${language === "ca" ? "moviments" : "movimientos"}${period ? "-" + period : ""}`, format, language);
     } catch {
       toast.error("No se pudo exportar.");
     } finally {
@@ -154,7 +158,7 @@ export function ExportData({ categories }: { categories: Category[] }) {
         Ahorro: Number(m.savings),
         "% ahorro": m.savings_pct === null ? "" : Number(m.savings_pct),
       }));
-      await download(rows, "resumen-mensual", "xlsx");
+      await download(rows, language === "ca" ? "resum-mensual" : "resumen-mensual", "xlsx", language);
     } catch {
       toast.error("No se pudo exportar el resumen.");
     } finally {

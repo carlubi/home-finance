@@ -87,6 +87,7 @@ export default async function HomePage() {
 
   return <div className="mx-auto max-w-6xl space-y-8">
     <PageHeader
+      financialPrivacy
       eyebrow={<span className="capitalize">{dateLabel}</span>}
       title={firstName ? `Hola, ${firstName}` : "Tu resumen de hoy"}
       description="Lo más importante de tus finanzas y tu planificación, en un solo lugar."

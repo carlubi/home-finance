@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -27,6 +27,8 @@ import { addMonths, formatMonth, formatMonthRange, monthStart } from "@/lib/form
 import type { MonthlyReport, ReportGenerationUsage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/components/layout/language-provider";
+import { translateUiText, type AppLanguage } from "@/lib/language";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -37,22 +39,22 @@ import {
 } from "@/components/ui/select";
 
 /** Convierte el markdown del informe a un .docx sencillo */
-async function downloadWord(report: MonthlyReport) {
+async function downloadWord(report: MonthlyReport, language: AppLanguage) {
   const lines = report.content_md.split("\n");
   const paragraphs: Paragraph[] = [];
   for (const line of lines) {
     if (line.startsWith("# ")) {
       paragraphs.push(
-        new Paragraph({ text: line.slice(2), heading: HeadingLevel.TITLE })
+        new Paragraph({ text: translateUiText(line.slice(2), language), heading: HeadingLevel.TITLE })
       );
     } else if (line.startsWith("## ")) {
       paragraphs.push(
-        new Paragraph({ text: line.slice(3), heading: HeadingLevel.HEADING_1 })
+        new Paragraph({ text: translateUiText(line.slice(3), language), heading: HeadingLevel.HEADING_1 })
       );
     } else if (line.startsWith("- ")) {
-      paragraphs.push(new Paragraph({ text: line.slice(2), bullet: { level: 0 } }));
+      paragraphs.push(new Paragraph({ text: translateUiText(line.slice(2), language), bullet: { level: 0 } }));
     } else if (line.trim()) {
-      paragraphs.push(new Paragraph({ text: line.replace(/[*_]/g, "") }));
+      paragraphs.push(new Paragraph({ text: translateUiText(line.replace(/[*_]/g, ""), language) }));
     }
   }
   const doc = new Document({ sections: [{ children: paragraphs }] });
@@ -88,6 +90,7 @@ export function ReportsView({
   reportUsage: ReportGenerationUsage | null;
 }) {
   const router = useRouter();
+  const { language } = useLanguage();
   const [, startTransition] = useTransition();
   const [generating, setGenerating] = useState(false);
 
@@ -97,6 +100,37 @@ export function ReportsView({
   const [openReport, setOpenReport] = useState<MonthlyReport | null>(
     reports[0] ?? null
   );
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translationError, setTranslationError] = useState(false);
+  const openReportIsCatalan = openReport ? /^# Informe financer\b/m.test(openReport.content_md) : false;
+  const needsTranslation = Boolean(openReport && ((language === "ca") !== openReportIsCatalan));
+  const translationKey = openReport ? `${openReport.id}:${language}` : "";
+  const translatedContent = translations[translationKey];
+  const visibleReport = openReport && (!needsTranslation || translatedContent)
+    ? { ...openReport, content_md: needsTranslation ? translatedContent : openReport.content_md }
+    : null;
+
+  useEffect(() => {
+    if (!openReport || !needsTranslation || translatedContent) return;
+    let active = true;
+    const load = async () => {
+      setTranslationError(false);
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.functions.invoke("monthly-report", {
+          body: { action: "translate-report", report_id: openReport.id, kind: openReport.kind, language },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (typeof data?.content_md !== "string" || !data.content_md.trim()) throw new Error("Empty translation");
+        if (active) setTranslations((current) => ({ ...current, [translationKey]: data.content_md }));
+      } catch {
+        if (active) setTranslationError(true);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [openReport, needsTranslation, translatedContent, translationKey, language]);
 
   async function generate() {
     setGenerating(true);
@@ -106,6 +140,7 @@ export function ReportsView({
         body: {
           start_month: selectedStartMonth,
           end_month: selectedEndMonth,
+          language,
         },
       });
       if (error) throw error;
@@ -292,7 +327,8 @@ export function ReportsView({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => downloadReportPdf(openReport)}
+                onClick={() => visibleReport && downloadReportPdf(visibleReport, language)}
+                disabled={!visibleReport}
               >
                 <FileText className="size-4" />
                 PDF
@@ -300,7 +336,8 @@ export function ReportsView({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => downloadWord(openReport)}
+                onClick={() => visibleReport && downloadWord(visibleReport, language)}
+                disabled={!visibleReport}
               >
                 <FileDown className="size-4" />
                 Word
@@ -308,11 +345,17 @@ export function ReportsView({
             </div>
           </CardHeader>
           <CardContent>
-            <article className="prose-finance">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {openReport.content_md}
-              </ReactMarkdown>
-            </article>
+            {visibleReport ? (
+              <article className="prose-finance" data-no-translate>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{visibleReport.content_md}</ReactMarkdown>
+              </article>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {translationError
+                  ? language === "ca" ? "No s'ha pogut traduir l'informe. Torna-ho a provar més tard." : "No se pudo traducir el informe. Vuelve a intentarlo más tarde."
+                  : language === "ca" ? "S'està traduint l'informe…" : "Traduciendo el informe…"}
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : (

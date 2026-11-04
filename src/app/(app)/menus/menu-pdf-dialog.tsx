@@ -4,10 +4,14 @@ import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { downloadMenuPdf, monthWeeks, type MenuPdfMeal } from "@/lib/menu-pdf";
+import { MEAL_TYPES, type MealType } from "@/lib/meals";
+import { MealIcon } from "@/components/menus/meal-icon";
+import { downloadMenuPdf, monthWeeks, type MenuPdfLayout, type MenuPdfMeal } from "@/lib/menu-pdf";
+import { useLanguage } from "@/components/layout/language-provider";
 
 function todayKey() {
   const now = new Date();
@@ -16,23 +20,35 @@ function todayKey() {
 
 /** Exporta el menú a PDF: el mes completo o una semana concreta. */
 export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; monthTitle: string; meals: MenuPdfMeal[] }) {
-  const weeks = useMemo(() => monthWeeks(month), [month]);
+  const { language } = useLanguage();
+  const weeks = useMemo(() => monthWeeks(month, language), [month, language]);
   const currentWeek = weeks.find((week) => week.days.includes(todayKey()))?.id ?? weeks[0]?.id ?? "";
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<"month" | "week">("month");
+  const [layout, setLayout] = useState<MenuPdfLayout>("calendar");
+  const [mealTypes, setMealTypes] = useState<MealType[]>(MEAL_TYPES.map((type) => type.id));
   const [weekId, setWeekId] = useState(currentWeek);
   const [pending, setPending] = useState(false);
 
-  const countFor = (days: (string | null)[]) => meals.filter((meal) => days.includes(meal.meal_date)).length;
+  const includedMeals = meals.filter((meal) => mealTypes.includes(meal.meal_type as MealType));
+  const countFor = (days: (string | null)[]) => includedMeals.filter((meal) => days.includes(meal.meal_date)).length;
+
+  function toggleMealType(type: MealType) {
+    setMealTypes((current) => current.includes(type)
+      ? current.filter((selected) => selected !== type)
+      : [...current, type]);
+  }
 
   async function download() {
     setPending(true);
     try {
       await downloadMenuPdf({
         month,
-        monthTitle,
-        meals,
+        language,
+        meals: includedMeals,
         scope: scope === "month" ? { kind: "month" } : { kind: "week", weekId },
+        layout,
+        mealTypes,
       });
       setOpen(false);
     } catch {
@@ -47,7 +63,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
       <DialogTrigger render={<Button variant="outline" />}>
         <Download /> PDF
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Descargar menú en PDF</DialogTitle>
           <DialogDescription className="first-letter:uppercase">{monthTitle}. Elige qué quieres incluir.</DialogDescription>
@@ -58,7 +74,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
             <RadioGroupItem value="month" id="pdf-month" />
             <span className="grid flex-1">
               <span className="text-[13px] font-medium">Mes completo</span>
-              <span className="text-xs text-text-tertiary">{weeks.length} semanas · {meals.length} {meals.length === 1 ? "comida" : "comidas"}</span>
+              <span className="text-xs text-text-tertiary">{weeks.length} semanas · {includedMeals.length} {includedMeals.length === 1 ? "plato" : "platos"}</span>
             </span>
           </label>
           <label htmlFor="pdf-week" className={cn("flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 transition-fast hover:bg-bg-tertiary/60", scope === "week" ? "border-accent/40 bg-accent/5" : "border-border-primary")}>
@@ -69,6 +85,22 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
             </span>
           </label>
         </RadioGroup>
+
+        {scope === "month" && (
+          <section className="grid gap-2" aria-labelledby="pdf-layout-title">
+            <h3 id="pdf-layout-title" className="text-[13px] font-medium text-text-primary">Formato del mes</h3>
+            <RadioGroup value={layout} onValueChange={(value) => setLayout(value as MenuPdfLayout)} className="grid gap-2 sm:grid-cols-2">
+              <label htmlFor="pdf-calendar" className={cn("flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-3 transition-fast hover:bg-bg-tertiary/60", layout === "calendar" ? "border-accent/40 bg-accent/5" : "border-border-primary")}>
+                <RadioGroupItem value="calendar" id="pdf-calendar" className="mt-0.5" />
+                <span className="grid gap-0.5"><span className="text-[13px] font-medium text-text-primary">Calendario unido</span><span className="text-xs text-text-tertiary">Todo el mes en una vista.</span></span>
+              </label>
+              <label htmlFor="pdf-weeks" className={cn("flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-3 transition-fast hover:bg-bg-tertiary/60", layout === "weeks" ? "border-accent/40 bg-accent/5" : "border-border-primary")}>
+                <RadioGroupItem value="weeks" id="pdf-weeks" className="mt-0.5" />
+                <span className="grid gap-0.5"><span className="text-[13px] font-medium text-text-primary">Semana por semana</span><span className="text-xs text-text-tertiary">Cada semana empieza en una página nueva.</span></span>
+              </label>
+            </RadioGroup>
+          </section>
+        )}
 
         {scope === "week" && (
           <div role="radiogroup" aria-label="Semana" className="grid gap-px overflow-hidden rounded-md border border-border-primary">
@@ -99,9 +131,25 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
           </div>
         )}
 
+        <section className="grid gap-2" aria-labelledby="pdf-meal-types-title">
+          <div>
+            <h3 id="pdf-meal-types-title" className="text-[13px] font-medium text-text-primary">Tipos de comida</h3>
+            <p className="text-xs text-text-tertiary">Elige cuáles aparecerán en el PDF.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {MEAL_TYPES.map((type) => (
+              <label key={type.id} htmlFor={`pdf-type-${type.id}`} className="menu-meal-interactive flex cursor-pointer items-center gap-2 rounded-md border border-border-primary px-3 py-2 text-[13px] text-text-primary transition-fast hover:bg-bg-tertiary/60 focus-within:ring-2 focus-within:ring-accent">
+                <Checkbox id={`pdf-type-${type.id}`} checked={mealTypes.includes(type.id)} onCheckedChange={() => toggleMealType(type.id)} />
+                <MealIcon type={type.id} size="md" />{type.label}
+              </label>
+            ))}
+          </div>
+          {mealTypes.length === 0 && <p role="alert" className="text-xs text-red">Selecciona al menos un tipo de comida.</p>}
+        </section>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button onClick={download} disabled={pending}>
+          <Button onClick={download} disabled={pending || mealTypes.length === 0}>
             <Download /> {pending ? "Generando…" : "Descargar PDF"}
           </Button>
         </DialogFooter>

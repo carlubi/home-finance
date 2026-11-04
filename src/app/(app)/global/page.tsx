@@ -11,6 +11,7 @@ import { ChartCard } from "@/components/charts/chart-card";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { StatCard } from "@/components/dashboard/summary-cards";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 
 // Orden categórico fijo (dataviz): sin ciclar; a partir del 9.º, «Otros» en gris.
 const CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
@@ -68,7 +69,7 @@ export default async function GlobalPage() {
   ];
 
   return <div className="grid gap-5">
-    <div><p className="eyebrow">La misma vista para toda la unidad · {year}</p><h1 className="mt-1 text-2xl font-medium">Visión global familiar</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Suma los ingresos, gastos, aportaciones a inversión y ahorros personales compartidos desde enero hasta el mes actual de {year}.</p></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="eyebrow">La misma vista para toda la unidad · {year}</p><h1 className="mt-1 text-2xl font-medium">Visión global familiar</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Suma los ingresos, gastos, aportaciones a inversión y ahorros personales compartidos desde enero hasta el mes actual de {year}.</p></div><FinancialPrivacyButton /></div>
     {sharedMembers.length < activeMembers.length && <div className="rounded-lg border border-orange/20 bg-orange/10 p-3 text-sm text-orange">{sharedMembers.length} de {activeMembers.length} miembros comparten sus finanzas personales. Las cifras conjuntas no incluyen a quienes aún no las comparten.</div>}
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <StatCard label="Ingresos compartidos" value={formatMoney(totalIncome)} icon={Wallet} />

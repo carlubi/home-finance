@@ -52,9 +52,44 @@ interface Report {
   conclusion: string;
 }
 
-function toMarkdown(periodLabel: string, r: Report): string {
+function toMarkdown(periodLabel: string, r: Report, language: "es" | "ca"): string {
   const list = (items: string[]) =>
-    items.length ? items.map((i) => `- ${i}`).join("\n") : "_Nada destacable._";
+    items.length ? items.map((i) => `- ${i}`).join("\n") : language === "ca" ? "_Res destacable._" : "_Nada destacable._";
+  if (language === "ca") return `# Informe financer · ${periodLabel}
+
+## Resum executiu
+${r.resumen_ejecutivo}
+
+## Diagnòstic financer
+${r.diagnostico}
+
+## Pressupost planificat i despesa real
+${r.presupuesto_planificado}
+
+## Desviacions del pressupost
+${list(r.desviaciones_presupuesto)}
+
+## Despeses evitables
+${list(r.gastos_evitables)}
+
+## Despeses que semblen impulsives
+${list(r.gastos_impulsivos)}
+
+## Patrons detectats
+${list(r.patrones)}
+
+## Recomanacions pràctiques
+${list(r.recomendaciones)}
+
+## Pla d'acció per al mes vinent
+${list(r.plan_accion)}
+
+## Comparació amb l'informe anterior
+${r.comparacion_informe_anterior}
+
+## Conclusió
+${r.conclusion}
+`;
   return `# Informe financiero · ${periodLabel}
 
 ## Resumen ejecutivo
@@ -113,6 +148,33 @@ Deno.serve(async (req) => {
   const admin = adminClient();
 
   const payload = await req.json();
+  const language: "es" | "ca" = payload?.language === "ca" ? "ca" : "es";
+  if (payload?.action === "translate-report") {
+    const reportId = typeof payload.report_id === "string" ? payload.report_id : "";
+    if (!/^[0-9a-f-]{36}$/i.test(reportId) || !["month", "range"].includes(payload.kind)) {
+      return json({ error: "Informe no válido" }, 400);
+    }
+    const table = payload.kind === "range" ? "range_reports" : "monthly_reports";
+    const { data: saved, error } = await supabase.from(table)
+      .select("content_md").eq("id", reportId).eq("user_id", user.id).maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    if (!saved) return json({ error: "Informe no encontrado" }, 404);
+    const source = saved.content_md as string;
+    if (source.length > 30000) return json({ error: "Informe demasiado largo" }, 400);
+    const isCatalan = /^# Informe financer\b/m.test(source);
+    if ((language === "ca") === isCatalan) return json({ content_md: source });
+    const openai = new OpenAI({ apiKey: Deno.env.get("OPEN_AI_API_KEY")! });
+    const result = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: `Traduce íntegramente este informe financiero a ${language === "ca" ? "catalán" : "español"}. Conserva exactamente todas las cifras, importes, fechas, nombres propios y estructura Markdown. No añadas comentarios ni datos.` },
+        { role: "user", content: source },
+      ],
+    });
+    const translated = result.choices[0]?.message.content?.trim();
+    if (!translated) return json({ error: "No se pudo traducir el informe" }, 502);
+    return json({ content_md: translated });
+  }
   const month = typeof payload?.month === "string" ? payload.month : null;
   const startMonth =
     typeof payload?.start_month === "string" ? payload.start_month : month;
@@ -298,7 +360,7 @@ Deno.serve(async (req) => {
       messages: [
         {
           role: "system",
-          content: `Eres un asesor financiero personal cercano y práctico. Escribes en español, en segunda persona, con cifras concretas en euros.
+          content: `Eres un asesor financiero personal cercano y práctico. Escribes ${language === "ca" ? "íntegramente en catalán" : "en español"}, en segunda persona, con cifras concretas en euros.
 Analiza los datos del usuario y genera su informe mensual. Sé específico: cita nombres de gastos e importes reales de los datos. Evita generalidades.
 Ten en cuenta su objetivo financiero declarado, su presupuesto planificado, el resultado de cierre del presupuesto si existe, y compara con meses anteriores y con el informe anterior si existe.
 Cuando haya presupuesto planificado, compara cada mes con el gasto real y señala desviaciones por categoría o partida prevista.
@@ -329,7 +391,7 @@ No inventes datos que no estén en el contexto.`,
       startMonth === endMonth
         ? startMonth.slice(0, 7)
         : `${startMonth.slice(0, 7)} - ${endMonth.slice(0, 7)}`;
-    const markdown = toMarkdown(periodLabel, report);
+    const markdown = toMarkdown(periodLabel, report, language);
 
     const targetTable =
       startMonth === endMonth ? "monthly_reports" : "range_reports";

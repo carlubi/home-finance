@@ -30,6 +30,7 @@ import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { SharedPersonalPanel, type SharedPersonalMember } from "@/components/dashboard/shared-personal-panel";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -460,6 +461,7 @@ export default async function DashboardPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-medium">{formatMonth(month)}</h1>
         <div className="flex flex-wrap items-center gap-2">
+          <FinancialPrivacyButton />
           <Button
             nativeButton={false}
             render={

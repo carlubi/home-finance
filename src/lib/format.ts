@@ -1,3 +1,5 @@
+import type { AppLanguage } from "@/lib/language";
+
 const eur = new Intl.NumberFormat("es-ES", {
   style: "currency",
   currency: "EUR",
@@ -8,22 +10,22 @@ export function formatMoney(amount: number): string {
   return eur.format(amount);
 }
 
-export function formatMonth(month: string | Date): string {
+export function formatMonth(month: string | Date, language: AppLanguage = "es"): string {
   const d = typeof month === "string" ? new Date(month + "T00:00:00") : month;
-  const label = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  const label = d.toLocaleDateString(language === "ca" ? "ca-ES" : "es-ES", { month: "long", year: "numeric" });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export function formatMonthRange(start: string, end?: string | null): string {
+export function formatMonthRange(start: string, end?: string | null, language: AppLanguage = "es"): string {
   if (!end || end === start) {
-    return formatMonth(start);
+    return formatMonth(start, language);
   }
-  return `${formatMonth(start)} - ${formatMonth(end)}`;
+  return `${formatMonth(start, language)} - ${formatMonth(end, language)}`;
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date, language: AppLanguage = "es"): string {
   const d = typeof date === "string" ? new Date(date + "T00:00:00") : date;
-  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  return d.toLocaleDateString(language === "ca" ? "ca-ES" : "es-ES", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function parseMoneyInput(value: string): number | null {

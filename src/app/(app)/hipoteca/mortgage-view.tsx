@@ -8,6 +8,7 @@ import { formatDate, formatMoney, parseMoneyInput } from "@/lib/format";
 import { projectMortgage, recordedTotals, roundCents, type AmortizationMode, type MortgageTerms, type MortgagePayment } from "@/lib/mortgage";
 import { saveMortgageShare } from "./actions";
 import { MortgageConfiguration } from "./mortgage-configuration";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 
 function formatPercent(value: number) {
   return new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(value) + " %";
@@ -58,7 +59,7 @@ export function MortgageView({ mortgage, recordedPayments }: { mortgage: Mortgag
             <h1 className="text-2xl font-medium text-text-primary">Tu hipoteca</h1>
             <p className="mt-1 max-w-2xl text-sm text-text-secondary">Seguimiento del capital, los intereses y las cuotas según los datos registrados hasta el {formatDate(mortgage.lastRecordedOn)}.</p>
           </div>
-          <MortgageConfiguration mortgage={mortgage} />
+          <div className="flex flex-wrap items-center gap-2"><FinancialPrivacyButton /><MortgageConfiguration mortgage={mortgage} /></div>
         </div>
         <dl className="grid overflow-hidden rounded-lg border border-border-primary bg-bg-secondary text-sm sm:grid-cols-3 sm:divide-x sm:divide-border-primary max-sm:divide-y max-sm:divide-border-primary">
           <div className="px-4 py-3"><dt className="text-xs text-text-tertiary">Precio de compra</dt><dd className="mt-0.5 text-base font-medium tabular-nums">{formatMoney(mortgage.purchasePrice)}</dd></div>

@@ -4,6 +4,7 @@
 
 import type { jsPDF } from "jspdf";
 import { formatMonthRange } from "@/lib/format";
+import { translateUiText, type AppLanguage } from "@/lib/language";
 import {
   PDF_COLORS,
   drawBrandFooters,
@@ -21,7 +22,7 @@ interface ReportLike {
 }
 
 /** Maquetación del markdown del informe (títulos ##, viñetas -, párrafos). */
-function renderBody(doc: jsPDF, fonts: PdfFonts, markdown: string, startY: number) {
+function renderBody(doc: jsPDF, fonts: PdfFonts, markdown: string, startY: number, language: AppLanguage) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;
@@ -51,7 +52,7 @@ function renderBody(doc: jsPDF, fonts: PdfFonts, markdown: string, startY: numbe
       doc.setFont(fonts.family, fonts.semibold);
       doc.setFontSize(12.5);
       doc.setTextColor(...PDF_COLORS.text);
-      doc.text(clean(line.slice(3)), MARGIN + 11, y);
+      doc.text(translateUiText(clean(line.slice(3)), language), MARGIN + 11, y);
       y += 18;
       continue;
     }
@@ -60,7 +61,7 @@ function renderBody(doc: jsPDF, fonts: PdfFonts, markdown: string, startY: numbe
       doc.setFont(fonts.family, "normal");
       doc.setFontSize(10.5);
       doc.setTextColor(...PDF_COLORS.text);
-      const wrapped = doc.splitTextToSize(clean(line.slice(2)), contentW - 16);
+      const wrapped = doc.splitTextToSize(translateUiText(clean(line.slice(2)), language), contentW - 16);
       ensureSpace(wrapped.length * 15 + 4);
       doc.setFillColor(...PDF_COLORS.textTertiary);
       doc.circle(MARGIN + 4, y - 3.4, 1.5, "F");
@@ -72,7 +73,7 @@ function renderBody(doc: jsPDF, fonts: PdfFonts, markdown: string, startY: numbe
     doc.setFont(fonts.family, "normal");
     doc.setFontSize(10.5);
     doc.setTextColor(...PDF_COLORS.text);
-    const wrapped = doc.splitTextToSize(clean(line), contentW);
+    const wrapped = doc.splitTextToSize(translateUiText(clean(line), language), contentW);
     ensureSpace(wrapped.length * 15 + 6);
     doc.text(wrapped, MARGIN, y);
     y += wrapped.length * 15 + 7;
@@ -80,21 +81,21 @@ function renderBody(doc: jsPDF, fonts: PdfFonts, markdown: string, startY: numbe
 }
 
 /** Genera el documento (separado de la descarga para poder probarlo en Node). */
-export function buildReportPdf(doc: jsPDF, report: ReportLike, logo: string | null, fonts: PdfFonts) {
-  const subtitle = formatMonthRange(report.month, report.end_month);
-  const startY = drawBrandHeader(doc, fonts, { title: "Informe financiero", subtitle, logo, margin: MARGIN });
-  renderBody(doc, fonts, report.content_md, startY + 4);
+export function buildReportPdf(doc: jsPDF, report: ReportLike, logo: string | null, fonts: PdfFonts, language: AppLanguage = "es") {
+  const subtitle = formatMonthRange(report.month, report.end_month, language);
+  const startY = drawBrandHeader(doc, fonts, { title: language === "ca" ? "Informe financer" : "Informe financiero", subtitle, logo, margin: MARGIN });
+  renderBody(doc, fonts, report.content_md, startY + 4, language);
   drawBrandFooters(doc, fonts, `Informe · ${subtitle}`, MARGIN);
   return doc;
 }
 
 /** Descarga el informe como PDF con la identidad de la app. */
-export async function downloadReportPdf(report: ReportLike) {
+export async function downloadReportPdf(report: ReportLike, language: AppLanguage = "es") {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const { fonts, logo } = await loadBrandAssets(doc);
 
-  buildReportPdf(doc, report, logo, fonts);
+  buildReportPdf(doc, report, logo, fonts, language);
 
   const suffix =
     report.end_month && report.end_month !== report.month

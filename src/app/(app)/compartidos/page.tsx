@@ -6,6 +6,7 @@ import { claimPendingInvitations } from "@/lib/invitations";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateGroupForm } from "./create-group-form";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 
 export const metadata = { title: "Gastos compartidos" };
 
@@ -31,7 +32,7 @@ export default async function CompartidosPage() {
 
   return (
     <div className="grid max-w-2xl gap-4">
-      <h1 className="text-2xl font-medium">Gastos compartidos</h1>
+      <div className="flex items-center justify-between gap-3"><h1 className="text-2xl font-medium">Gastos compartidos</h1><FinancialPrivacyButton /></div>
 
       {joinedGroups.length > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-green/20 bg-green/10 p-3 text-sm">

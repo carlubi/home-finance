@@ -77,6 +77,22 @@ export async function saveMeal(input: { id?: string; mealDate: string; mealType:
   return { ok: true };
 }
 
+export async function moveMeal(id: string, mealDate: string) {
+  const { supabase, user, familyUnit } = await context();
+  if (!user || !familyUnit) return { error: "Sesión caducada." };
+  if (!validDate(mealDate)) return { error: "El día de destino no es válido." };
+  const { data, error } = await supabase.from("menu_meals")
+    .update({ meal_date: mealDate })
+    .eq("id", id)
+    .eq("family_unit_id", familyUnit.id)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { error: error?.message ?? "No se pudo mover la comida." };
+  revalidatePath("/menus");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 export async function deleteMeal(id: string) {
   const { supabase, user, familyUnit } = await context();
   if (!user || !familyUnit) return { error: "Sesión caducada." };

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 
 /**
  * Cabecera de página estándar: misma jerarquía y mismo sitio para las
@@ -14,6 +15,7 @@ export function PageHeader({
   actions,
   className,
   children,
+  financialPrivacy = false,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
@@ -21,6 +23,7 @@ export function PageHeader({
   actions?: React.ReactNode;
   className?: string;
   children?: React.ReactNode;
+  financialPrivacy?: boolean;
 }) {
   return (
     <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
@@ -32,7 +35,7 @@ export function PageHeader({
         )}
         {children}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {(actions || financialPrivacy) && <div className="flex flex-wrap items-center gap-2">{financialPrivacy && <FinancialPrivacyButton />}{actions}</div>}
     </header>
   );
 }

@@ -33,6 +33,7 @@ import { CategoryDonut } from "@/components/charts/category-donut";
 import { FamilyTotalPerPersonCard } from "@/components/family/family-total-per-person-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { getGoalSnapshots } from "@/lib/goal-data";
 import { GoalStatusStrip } from "@/components/goals/goal-status";
@@ -263,6 +264,7 @@ export default async function FamilyExpensesPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <FinancialPrivacyButton />
           <Button
             nativeButton={false}
             render={

@@ -23,7 +23,7 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 const textOriginals = new WeakMap<Text, string>();
 const attrOriginals = new WeakMap<Element, Map<string, string>>();
-const translatedAttrs = ["placeholder", "title", "aria-label"] as const;
+const translatedAttrs = ["placeholder", "title", "aria-label", "alt", "aria-description"] as const;
 
 function preserveSpacing(original: string, translated: string) {
   const leading = original.match(/^\s*/)?.[0] ?? "";
@@ -69,7 +69,8 @@ function getAttrOriginals(element: Element) {
 function translateElementAttributes(element: Element, language: AppLanguage) {
   if (element.closest("[data-no-translate]")) return;
   const originals = getAttrOriginals(element);
-  for (const attr of translatedAttrs) {
+  const attrs = element.matches('meta[name="description"]') ? [...translatedAttrs, "content"] : translatedAttrs;
+  for (const attr of attrs) {
     const value = element.getAttribute(attr);
     if (!value) continue;
     const previousOriginal = originals.get(attr);
@@ -126,6 +127,7 @@ export function LanguageProvider({
     const startTranslation = () => {
       if (cancelled) return;
       translationStarted.current = true;
+      translateTree(document.head, language);
       translateTree(document.body, language);
       observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
@@ -148,6 +150,7 @@ export function LanguageProvider({
         attributes: true,
         attributeFilter: [...translatedAttrs],
       });
+      observer.observe(document.head, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["content"] });
     };
 
     const scheduleAfterHydration = () => {

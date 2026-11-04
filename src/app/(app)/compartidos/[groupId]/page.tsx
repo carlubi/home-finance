@@ -13,6 +13,7 @@ import type {
 } from "@/lib/types";
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { GroupView } from "./group-view";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 
 export const metadata = { title: "Gastos compartidos" };
 
@@ -134,9 +135,7 @@ export default async function GroupPage({
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-medium">{groupRes.data.name}</h1>
-        <Suspense>
-          <MonthSwitcher month={month} />
-        </Suspense>
+        <div className="flex flex-wrap items-center gap-2"><FinancialPrivacyButton /><Suspense><MonthSwitcher month={month} /></Suspense></div>
       </div>
       <GroupView
         group={groupRes.data}

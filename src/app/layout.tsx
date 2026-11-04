@@ -67,6 +67,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem("home-brain:hide-financial-values")==="true"&&/^\\/(?:$|(?:gastos-personales|presupuestos|familia|hipoteca|global|compartidos)(?:\\/|$))/.test(location.pathname)){document.documentElement.dataset.financialPrivacy="hidden";document.documentElement.dataset.financialPrivacyPending="true"}}catch{}` }} />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <LanguageProvider initialLanguage={language}>
             <PwaRegistration />

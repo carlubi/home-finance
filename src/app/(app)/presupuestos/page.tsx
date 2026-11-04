@@ -20,6 +20,7 @@ import { BudgetsView } from "./budgets-view";
 import { getOrCreateFamilyUnit } from "@/lib/family-unit";
 import { getGoalSnapshots } from "@/lib/goal-data";
 import { GoalsSection } from "@/components/goals/goals-section";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 
 export const metadata = { title: "Presupuestos mensuales" };
 
@@ -103,6 +104,10 @@ export default async function PresupuestosPage({
 
   return (
     <div className="grid gap-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h1 className="text-2xl font-medium">Presupuestos y objetivos</h1>
+      <FinancialPrivacyButton />
+    </div>
     <GoalsSection snapshots={[...personalGoals, ...familyGoals]} />
     <BudgetsView
       key={selected.month}

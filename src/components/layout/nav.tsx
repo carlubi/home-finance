@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,12 +11,16 @@ import {
   HousePlus,
   LayoutDashboard,
   Menu,
+  PanelLeftOpen,
+  Pin,
+  PinOff,
   PiggyBank,
   Package,
   Receipt,
   Settings,
   Users,
   Wallet,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -87,13 +91,68 @@ function isActive(pathname: string, href: string) {
 }
 
 const COLLAPSED_KEY = "nav-collapsed-groups";
+const DOCKED_COOKIE = "sidebar_docked";
 
-function SidebarLink({ item, pathname }: { item: NavItem; pathname: string }) {
+type NavigationDockState = {
+  docked: boolean;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  setDocked: (docked: boolean) => void;
+};
+
+const NavigationDockContext = createContext<NavigationDockState | null>(null);
+
+export function NavigationDockProvider({ children, initialDocked }: { children: React.ReactNode; initialDocked: boolean }) {
+  const [docked, setDockedState] = useState(initialDocked);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 767px)");
+    const closeOnMobile = () => { if (mobile.matches) setOpen(false); };
+    mobile.addEventListener("change", closeOnMobile);
+    return () => mobile.removeEventListener("change", closeOnMobile);
+  }, []);
+
+  function setDocked(next: boolean) {
+    setDockedState(next);
+    setOpen(false);
+    document.cookie = `${DOCKED_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+  }
+
+  const value = { docked, open, setOpen, setDocked };
+  return <NavigationDockContext.Provider value={value}>{children}</NavigationDockContext.Provider>;
+}
+
+function useNavigationDock() {
+  const value = useContext(NavigationDockContext);
+  if (!value) throw new Error("NavigationDockProvider is missing");
+  return value;
+}
+
+export function SidebarRevealButton() {
+  const { docked, setOpen } = useNavigationDock();
+  if (docked) return null;
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      className="hidden md:inline-flex"
+      title="Mostrar barra lateral"
+      aria-label="Mostrar barra lateral"
+      onClick={() => setOpen(true)}
+    >
+      <PanelLeftOpen className="size-4" />
+    </Button>
+  );
+}
+
+function SidebarLink({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
   const { href, label, icon: Icon } = item;
   const active = isActive(pathname, href);
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
         "group flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium tracking-[-0.078px] text-text-secondary transition-fast outline-none hover:bg-bg-tertiary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent",
@@ -116,11 +175,13 @@ function SidebarGroup({
   pathname,
   collapsed,
   onToggle,
+  onNavigate,
 }: {
   group: NavGroup;
   pathname: string;
   collapsed: boolean;
   onToggle: () => void;
+  onNavigate?: () => void;
 }) {
   const containsActive = group.items.some((item) => isActive(pathname, item.href));
   const open = !collapsed || containsActive;
@@ -141,7 +202,7 @@ function SidebarGroup({
           )}
         />
       </button>
-      {open && group.items.map((item) => <SidebarLink key={item.href} item={item} pathname={pathname} />)}
+      {open && group.items.map((item) => <SidebarLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />)}
     </div>
   );
 }
@@ -149,6 +210,7 @@ function SidebarGroup({
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<string[]>([]);
+  const { docked, open, setOpen, setDocked } = useNavigationDock();
 
   useEffect(() => {
     try {
@@ -168,15 +230,32 @@ export function Sidebar() {
     });
   }
 
-  return (
-    <aside className="hidden w-60 shrink-0 border-r border-border-primary bg-bg-primary md:flex md:flex-col">
-      <div className="flex h-12 items-center px-4">
-        <Link href="/" className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent">
+  const navigation = (
+    <>
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4">
+        <Link href="/" onClick={() => setOpen(false)} className="min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent">
           <BrandLogo size="sm" />
         </Link>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-text-tertiary"
+            title={docked ? "Desacoplar barra lateral" : "Acoplar barra lateral"}
+            aria-label={docked ? "Desacoplar barra lateral" : "Acoplar barra lateral"}
+            onClick={() => setDocked(!docked)}
+          >
+            {docked ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+          </Button>
+          {!docked && (
+            <Button variant="ghost" size="icon-sm" className="text-text-tertiary" title="Cerrar barra lateral" aria-label="Cerrar barra lateral" onClick={() => setOpen(false)}>
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
       </div>
-      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pb-2">
-        <SidebarLink item={homeItem} pathname={pathname} />
+      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pt-4 pb-2">
+        <SidebarLink item={homeItem} pathname={pathname} onNavigate={() => setOpen(false)} />
         {groups.map((group) => (
           <SidebarGroup
             key={group.id}
@@ -184,13 +263,32 @@ export function Sidebar() {
             pathname={pathname}
             collapsed={collapsed.includes(group.id)}
             onToggle={() => toggle(group.id)}
+            onNavigate={() => setOpen(false)}
           />
         ))}
         <div className="mt-auto">
-          <SidebarLink item={settingsItem} pathname={pathname} />
+          <SidebarLink item={settingsItem} pathname={pathname} onNavigate={() => setOpen(false)} />
         </div>
       </nav>
-    </aside>
+    </>
+  );
+
+  if (docked) {
+    return <aside className="hidden w-60 shrink-0 border-r border-border-primary bg-bg-primary md:flex md:flex-col">{navigation}</aside>;
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent
+        side="left"
+        showCloseButton={false}
+        overlayClassName="bg-black/15 supports-backdrop-filter:backdrop-blur-none"
+        className="hidden gap-0 bg-bg-primary p-0 md:flex data-[side=left]:w-60 data-[side=left]:sm:max-w-60"
+      >
+        <SheetTitle className="sr-only">Navegación principal</SheetTitle>
+        {navigation}
+      </SheetContent>
+    </Sheet>
   );
 }
 

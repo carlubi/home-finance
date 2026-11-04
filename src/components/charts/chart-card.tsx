@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Download } from "lucide-react";
 import { exportChartAsPng } from "@/lib/export-png";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/components/layout/language-provider";
 import {
   Card,
   CardContent,
@@ -26,6 +27,7 @@ export function ChartCard({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const { language } = useLanguage();
 
   return (
     <Card>
@@ -45,6 +47,7 @@ export function ChartCard({
             exportChartAsPng(ref.current, fileName, {
               title: exportSubtitle ? `${title} · ${exportSubtitle}` : title,
               subtitle: description,
+              language,
             })
           }
         >

@@ -1,6 +1,9 @@
+import { translateUiText, type AppLanguage } from "@/lib/language";
+
 type ExportOptions = {
   title?: string;
   subtitle?: string;
+  language?: AppLanguage;
 };
 
 type LegendItem = {
@@ -40,7 +43,7 @@ function resolveSvgStyles(original: SVGElement, clone: SVGElement) {
   });
 }
 
-function collectLegendItems(container: HTMLElement): LegendItem[] {
+function collectLegendItems(container: HTMLElement, language: AppLanguage): LegendItem[] {
   const items = Array.from(container.querySelectorAll("ul > li"));
   return items.map((item) => {
     const label = item.querySelector(".truncate")?.textContent?.trim() ?? "";
@@ -49,16 +52,21 @@ function collectLegendItems(container: HTMLElement): LegendItem[] {
     const percent = textNodes.at(-1)?.textContent?.trim();
     const swatch = item.querySelector("span[style*='background-color']");
     const color = swatch ? window.getComputedStyle(swatch).backgroundColor : undefined;
-    return { label, value, percent, color };
+    return { label: translateUiText(label, language), value, percent, color };
   });
 }
 
-function getChartSvg(container: HTMLElement) {
+function getChartSvg(container: HTMLElement, language: AppLanguage) {
   const svg = container.querySelector("svg");
   if (!svg) return null;
 
   const clone = svg.cloneNode(true) as SVGElement;
   resolveSvgStyles(svg, clone);
+  clone.querySelectorAll("text, tspan").forEach((element) => {
+    for (const node of element.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent) node.textContent = translateUiText(node.textContent.trim(), language);
+    }
+  });
 
   const width =
     Number.parseFloat(svg.getAttribute("width") ?? "") ||
@@ -84,7 +92,8 @@ function getChartSvg(container: HTMLElement) {
 function buildExportSvg(
   title: string,
   subtitle: string | undefined,
-  content: HTMLElement
+  content: HTMLElement,
+  language: AppLanguage
 ) {
   const paddingX = 32;
   const paddingTop = 32;
@@ -93,7 +102,7 @@ function buildExportSvg(
 
   const bodyWidth = Math.ceil(content.getBoundingClientRect().width);
   const bodyHeight = Math.ceil(content.getBoundingClientRect().height);
-  const chartSvg = getChartSvg(content);
+  const chartSvg = getChartSvg(content, language);
   const svgWidth = Math.ceil(
     Number.parseFloat(chartSvg?.getAttribute("width") ?? "") ||
       chartSvg?.getBoundingClientRect().width ||
@@ -106,7 +115,7 @@ function buildExportSvg(
       content.querySelector("svg")?.getBoundingClientRect().height ||
       bodyHeight
   );
-  const legendItems = collectLegendItems(content);
+  const legendItems = collectLegendItems(content, language);
   const hasLegend = legendItems.length > 0;
   const legendX = paddingX + svgWidth + bodyGap;
   const legendWidth = Math.max(
@@ -177,11 +186,20 @@ export async function exportChartAsPng(
   fileName: string,
   options: ExportOptions = {}
 ) {
-  const title = options.title ?? fileName;
-  const subtitle = options.subtitle?.trim() || undefined;
+  const language = options.language ?? "es";
+  const localizedFileName = language === "ca"
+    ? fileName.replace(/reparto|medio|ingresos|gastos|familiares|finanzas|evolucion|ahorro|previsto|presupuesto|inversiones|miembros|grupo|historico/g, (part) => ({
+        reparto: "repartiment", medio: "mitja", ingresos: "ingressos", gastos: "despeses",
+        familiares: "familiars", finanzas: "finances", evolucion: "evolucio", ahorro: "estalvi",
+        previsto: "previst", presupuesto: "pressupost", inversiones: "inversions",
+        miembros: "membres", grupo: "grup", historico: "historic",
+      } as Record<string, string>)[part])
+    : fileName;
+  const title = translateUiText(options.title ?? fileName, language);
+  const subtitle = options.subtitle?.trim() ? translateUiText(options.subtitle.trim(), language) : undefined;
   if (container.getBoundingClientRect().width === 0) return;
 
-  const svg = buildExportSvg(title, subtitle, container);
+  const svg = buildExportSvg(title, subtitle, container, language);
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
@@ -209,12 +227,12 @@ export async function exportChartAsPng(
     ctx.drawImage(img, 0, 0);
 
     const link = document.createElement("a");
-    link.download = `${fileName}.png`;
+    link.download = `${localizedFileName}.png`;
     try {
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch {
-      link.download = `${fileName}.svg`;
+      link.download = `${localizedFileName}.svg`;
       link.href = url;
       link.click();
     }

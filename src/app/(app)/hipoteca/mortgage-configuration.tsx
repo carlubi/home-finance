@@ -10,6 +10,7 @@ import { MortgageFields } from "@/components/mortgage/mortgage-fields";
 import { draftFromMortgage, emptyMortgageDraft } from "@/lib/mortgage-config";
 import type { MortgageTerms } from "@/lib/mortgage";
 import { saveMortgageConfiguration } from "./actions";
+import { FinancialPrivacyButton } from "@/components/layout/financial-privacy";
 
 export function MortgageConfiguration({ mortgage }: { mortgage: MortgageTerms | null }) {
   const [open, setOpen] = useState(false);
@@ -30,7 +31,7 @@ export function MortgageConfiguration({ mortgage }: { mortgage: MortgageTerms | 
 
   return <>
     {mortgage ? button : <section className="rounded-lg border bg-card p-6 sm:p-8">
-      <h1 className="text-2xl font-medium">Tu hipoteca</h1>
+      <div className="flex items-center justify-between gap-3"><h1 className="text-2xl font-medium">Tu hipoteca</h1><FinancialPrivacyButton /></div>
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Si tienes una hipoteca, añade sus datos para consultar el saldo, las cuotas y las simulaciones. Puedes hacerlo más adelante.</p>
       <div className="mt-5">{button}</div>
     </section>}

@@ -2,6 +2,20 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* El modo de privacidad se restaura antes de mostrar los importes al recargar. */
+html[data-financial-privacy-pending="true"] main:not([data-financial-privacy-ready="true"]) {
+  visibility: hidden;
+}
+
+html[data-financial-privacy="hidden"] .financial-privacy-value,
+html[data-financial-privacy="hidden"] main .recharts-wrapper,
+html[data-financial-privacy="hidden"] main [role="img"][aria-label*="€"],
+html[data-financial-privacy="hidden"] main [role="progressbar"] {
+  filter: blur(10px);
+  user-select: none;
+  pointer-events: none;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -480,12 +494,42 @@
   60% { transform: translateY(0) scale(0.97) rotate(4deg); }
 }
 
+@keyframes menu-meal-acknowledge {
+  0%, 100% { transform: none; }
+  48% { transform: translateY(-1px) scale(1.08); }
+}
+
 .emoji {
   display: inline-block;
   transform-origin: 50% 70%;
 }
 
+.menu-meal-icon {
+  transform-origin: center;
+}
+
+.menus-page button:not(:disabled):not([data-meal-draggable]) {
+  cursor: pointer;
+}
+
+.menus-page button[data-meal-draggable][draggable="true"] {
+  cursor: grab;
+}
+
+.menus-page button[data-meal-draggable][draggable="true"]:active,
+.menus-page button[data-meal-draggable][data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.menus-page button[data-meal-draggable][draggable="false"] {
+  cursor: progress;
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .menu-meal-interactive:is(:hover, :focus-visible, :focus-within) .menu-meal-icon {
+    animation: menu-meal-acknowledge 300ms var(--ease-out) both;
+  }
+
   :where(a, button, summary, label, [role="button"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="tab"], [role="switch"], [data-slot="badge"]):is(:hover, :focus-visible)
     svg.lucide:where(:not(.animate-spin, .lucide-chevron-down, .lucide-chevron-up, .lucide-chevrons-up-down, .lucide-loader-circle, .lucide-loader)) {
     animation: icon-pop 420ms var(--ease-spring) both;

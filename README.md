@@ -40,8 +40,6 @@ NEXT_PUBLIC_SITE_URL=…           # URL pública para enlaces de auth/invitaci�
 Requiere iniciar sesión en el CLI de Supabase una vez:
 
 ```bash
-npx supabase login
-npx supabase link --project-ref dsnvugbgpmzhwpivydir
 
 # 1. Aplicar el esquema (tablas, RLS, vistas, buckets, seeds)
 npx supabase db push

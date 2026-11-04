@@ -1,3 +1,5 @@
+import { caExtra } from "@/lib/ca-extra";
+
 export type AppLanguage = "es" | "ca";
 
 export const LANGUAGE_COOKIE = "app_language";
@@ -32,6 +34,13 @@ const monthNames: Record<string, string> = {
   oct: "oct",
   nov: "nov",
   dic: "des",
+  enero: "gener", febrero: "febrer", marzo: "març", abril: "abril",
+  mayo: "maig", junio: "juny", julio: "juliol", agosto: "agost",
+  septiembre: "setembre", octubre: "octubre", noviembre: "novembre", diciembre: "desembre",
+  lunes: "dilluns", martes: "dimarts", miércoles: "dimecres", jueves: "dijous",
+  viernes: "divendres", sábado: "dissabte", domingo: "diumenge",
+  Lunes: "Dilluns", Martes: "Dimarts", Miércoles: "Dimecres", Jueves: "Dijous",
+  Viernes: "Divendres", Sábado: "Dissabte", Domingo: "Diumenge",
 };
 
 const caDictionary: Record<string, string> = {
@@ -295,7 +304,7 @@ export function normalizeLanguage(value: string | undefined | null): AppLanguage
 
 function translateMonths(value: string) {
   return value.replace(
-    /\b(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre|ene|feb|mar|abr|may|jun|jul|ago|sept|oct|nov|dic)\b/g,
+    /\b(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo|lunes|martes|miércoles|jueves|viernes|sábado|domingo|ene|feb|mar|abr|may|jun|jul|ago|sept|oct|nov|dic)\b/g,
     (match) => monthNames[match] ?? match
   );
 }
@@ -309,6 +318,13 @@ function translatePatterns(value: string) {
     [/^Gastos \((\d+)\)$/, "Despeses ($1)"],
     [/^Ingresos \((\d+)\)$/, "Ingressos ($1)"],
     [/^Partidas de (.+)\.$/, "Partides de $1."],
+    [/^Caducó hace (\d+) día$/, "Va caducar fa $1 dia"],
+    [/^Caducó hace (\d+) días$/, "Va caducar fa $1 dies"],
+    [/^Caduca en (\d+) días$/, "Caduca d'aquí a $1 dies"],
+    [/^De enero a (.+)\.$/, "De gener a $1."],
+    [/^Estimación bruta sobre (.+) al (.+)% anual$/, "Estimació bruta sobre $1 al $2% anual"],
+    [/^Intereses (.+)$/, "Interessos $1"],
+    [/^Aportado a inversión en (\d{4})$/, "Aportat a inversions el $1"],
     [/^(.+) de (\d{4})$/, "$1 de $2"],
   ];
 
@@ -321,7 +337,12 @@ function translatePatterns(value: string) {
 
 export function translateUiText(value: string, language: AppLanguage) {
   if (language === "es") return value;
-  const exact = caDictionary[value];
+  const exact = caExtra[value] ?? caDictionary[value];
   if (exact) return exact;
+  if (value.includes(" · ")) {
+    const parts = value.split(" · ");
+    const translated = parts.map((part) => caExtra[part] ?? caDictionary[part] ?? translateMonths(translatePatterns(part)));
+    if (translated.some((part, index) => part !== parts[index])) return translated.join(" · ");
+  }
   return translateMonths(translatePatterns(value));
 }

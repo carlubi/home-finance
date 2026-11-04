@@ -47,7 +47,7 @@ export function GoalsSection({ snapshots }: { snapshots: GoalSnapshot[] }) {
 
   return <section className="rounded-[1.5rem] border bg-card p-5 shadow-sm sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="eyebrow flex items-center gap-1.5"><Target className="size-3.5" /> Tus metas</p><h1 className="mt-2 text-2xl font-medium">Crear un objetivo</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Decide cuánto quieres reunir, qué porcentaje ahorrar o cuánto puedes gastar al mes. Verás un check o una cruz en la sección personal o familiar según el resultado.</p></div>
+      <div><p className="eyebrow flex items-center gap-1.5"><Target className="size-3.5" /> Tus metas</p><h2 className="mt-2 text-2xl font-medium">Crear un objetivo</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Decide cuánto quieres reunir, qué porcentaje ahorrar o cuánto puedes gastar al mes. Verás un check o una cruz en la sección personal o familiar según el resultado.</p></div>
       <Button onClick={() => setOpen(true)}><Plus className="size-4" /> Nuevo objetivo</Button>
     </div>
     {snapshots.length ? <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{snapshots.map(({ goal, result }) => {

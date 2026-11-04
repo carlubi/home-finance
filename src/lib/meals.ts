@@ -2,11 +2,13 @@
  * Tipos de comida del planificador de menús, en el orden en que deben
  * aparecer siempre: desayuno → comida → merienda → cena.
  */
+import type { AppLanguage } from "@/lib/language";
+
 export const MEAL_TYPES = [
-  { id: "breakfast", label: "Desayuno", plural: "Desayunos", short: "D" },
-  { id: "lunch", label: "Comida", plural: "Comidas", short: "C" },
-  { id: "snack", label: "Merienda", plural: "Meriendas", short: "M" },
-  { id: "dinner", label: "Cena", plural: "Cenas", short: "Ce" },
+  { id: "breakfast", label: "Desayuno", plural: "Desayunos", caLabel: "Esmorzar", caPlural: "Esmorzars" },
+  { id: "lunch", label: "Comida", plural: "Comidas", caLabel: "Dinar", caPlural: "Dinars" },
+  { id: "snack", label: "Merienda", plural: "Meriendas", caLabel: "Berenar", caPlural: "Berenars" },
+  { id: "dinner", label: "Cena", plural: "Cenas", caLabel: "Sopar", caPlural: "Sopars" },
 ] as const;
 
 export type MealType = (typeof MEAL_TYPES)[number]["id"];
@@ -17,8 +19,14 @@ export function isMealType(value: string): value is MealType {
   return (MEAL_TYPE_IDS as string[]).includes(value);
 }
 
-export function mealLabel(value: string) {
-  return MEAL_TYPES.find((type) => type.id === value)?.label ?? "Comida";
+export function mealLabel(value: string, language: AppLanguage = "es") {
+  const type = MEAL_TYPES.find((item) => item.id === value);
+  return language === "ca" ? type?.caLabel ?? "Dinar" : type?.label ?? "Comida";
+}
+
+export function mealPlural(value: string, language: AppLanguage = "es") {
+  const type = MEAL_TYPES.find((item) => item.id === value);
+  return language === "ca" ? type?.caPlural ?? "Dinars" : type?.plural ?? "Comidas";
 }
 
 const order = new Map<string, number>(MEAL_TYPES.map((type, index) => [type.id, index]));
