@@ -17,6 +17,14 @@ App web para organizar las finanzas personales y familiares, los gastos comparti
 - Informe financiero mensual generado por IA (descargable en PDF y Word)
 - Exportación de movimientos y resúmenes a CSV/Excel
 
+## Instalación en el escritorio
+
+Abre la app publicada por HTTPS en Chrome, Edge o Safari en Mac y pulsa
+**Instalar app** en la parte superior. Si el navegador ofrece instalación directa,
+confírmala. En caso contrario, el botón muestra cómo añadirla desde el menú del
+navegador. La app instalada se abre en su propia ventana y usa la misma cuenta y
+los mismos datos que la web; requiere conexión para consultar y guardar datos.
+
 ## Puesta en marcha
 
 ```bash
