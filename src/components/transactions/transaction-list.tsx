@@ -151,12 +151,12 @@ export function TransactionList({
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* Selección múltiple */}
         {selectableItems.length > 0 ? (
           selected.size > 0 ? (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <span className="text-sm font-medium">
                 {selected.size} seleccionado{selected.size === 1 ? "" : "s"}
               </span>
@@ -252,16 +252,17 @@ export function TransactionList({
           {emptyLabel}
         </p>
       ) : (
-        <ul className="divide-y rounded-md border">
+        <ul className="min-w-0 divide-y rounded-md border">
           {items.map((tx) => (
             <li
               key={tx.id}
               className={
-                "flex items-center gap-3 p-3 " +
+                "grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 p-3 sm:flex sm:gap-3 " +
                 (selected.has(tx.id) ? "bg-accent/5" : "")
               }
             >
               <Checkbox
+                className="col-start-1 row-span-2 row-start-1"
                 checked={!tx.readOnlyReason && selected.has(tx.id)}
                 disabled={Boolean(tx.readOnlyReason)}
                 onCheckedChange={() => toggleOne(tx.id)}
@@ -272,17 +273,17 @@ export function TransactionList({
                 }
               />
               <span
-                className="size-2.5 shrink-0 rounded-full"
+                className="hidden size-2.5 shrink-0 rounded-full sm:block"
                 style={{ backgroundColor: tx.categories?.color ?? "#94a3b8" }}
               />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
+              <div className="col-start-2 row-start-1 min-w-0 sm:flex-1">
+                <p className="break-words text-sm font-medium sm:truncate">
                   {tx.name}
                   {"attachment_path" in tx && tx.attachment_path && (
                     <Paperclip className="ml-1 inline size-3 text-muted-foreground" />
                   )}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="break-words text-xs text-muted-foreground sm:truncate">
                   {formatDate(tx.occurred_at)}
                   {tx.categories?.name ? ` · ${tx.categories.name}` : ""}
                   {tx.readOnlyReason && tx.notes ? ` · ${tx.notes}` : ""}
@@ -303,7 +304,7 @@ export function TransactionList({
               )}
               <span
                 className={
-                  "text-sm font-semibold tabular-nums " +
+                  "col-start-2 row-start-2 min-w-0 text-sm font-semibold tabular-nums " +
                   (kind === "income" ? "text-green" : "")
                 }
               >
@@ -312,7 +313,7 @@ export function TransactionList({
               </span>
               {tx.recurringExpense ? (
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8 cursor-pointer" aria-label={`Editar ${tx.name}`}><MoreVertical className="size-4" /></Button>} />
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="col-start-3 row-span-2 row-start-1 size-11 cursor-pointer sm:size-8" aria-label={`Editar ${tx.name}`}><MoreVertical className="size-4" /></Button>} />
                   <DropdownMenuContent align="end" className="w-64">
                     <DropdownMenuItem onClick={() => setEditingRecurring(tx.recurringExpense ?? null)}><Pencil />Editar recurrente</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setEditing(tx); setDialogOpen(true); }}><Pencil />Editar este gasto</DropdownMenuItem>
@@ -321,7 +322,7 @@ export function TransactionList({
                 </DropdownMenu>
               ) : ("auto_salary" in tx && tx.auto_salary) ? (
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8 cursor-pointer" aria-label={`Editar ${tx.name}`}><MoreVertical className="size-4" /></Button>} />
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="col-start-3 row-span-2 row-start-1 size-11 cursor-pointer sm:size-8" aria-label={`Editar ${tx.name}`}><MoreVertical className="size-4" /></Button>} />
                   <DropdownMenuContent align="end" className="w-64">
                     <DropdownMenuItem onClick={() => setEditingSalary(tx as Income)}><Pencil />Editar recurrente</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setEditing(tx); setDialogOpen(true); }}><Pencil />Editar este ingreso</DropdownMenuItem>
@@ -332,7 +333,7 @@ export function TransactionList({
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button variant="ghost" size="icon" className="size-8 cursor-pointer">
+                      <Button variant="ghost" size="icon" className="col-start-3 row-span-2 row-start-1 size-11 cursor-pointer sm:size-8" aria-label={`Opciones de ${tx.name}`}>
                         <MoreVertical className="size-4" />
                       </Button>
                     }

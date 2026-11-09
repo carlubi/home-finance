@@ -134,7 +134,7 @@ export function TransactionDialog({
               placeholder={isExpense ? "Compra supermercado" : "Nómina"}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="amount">Importe (€)</Label>
               <div className="relative"><Input id="amount" name="amount" type="number" min="0.01" step="0.01" required className="pr-7" placeholder="0,00" defaultValue={initial?.amount ?? ""} /><span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">€</span></div>
@@ -157,7 +157,7 @@ export function TransactionDialog({
               defaultValue={initial?.category_id ?? undefined}
               items={categories.map((c) => ({ value: c.id, label: c.name }))}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full min-w-0">
                 <SelectValue placeholder="Selecciona una categoría" />
               </SelectTrigger>
               <SelectContent>

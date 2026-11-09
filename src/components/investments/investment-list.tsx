@@ -12,7 +12,6 @@ import {
   skipInvestmentForMonth,
 } from "@/app/(app)/ajustes/actions";
 import { formatMoney } from "@/lib/format";
-import { recurringFrequencyLabels } from "@/lib/recurring";
 import type { Category, Investment } from "@/lib/types";
 import {
   AlertDialog,
@@ -139,7 +138,7 @@ export function InvestmentList({
     : null;
 
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <div className="flex justify-end">
         <Button size="sm" variant="outline" onClick={openNew}>
           <Plus className="size-4" />
@@ -152,20 +151,20 @@ export function InvestmentList({
           No hay inversiones registradas este mes.
         </p>
       ) : (
-        <ul className="divide-y rounded-md border">
+        <ul className="min-w-0 divide-y rounded-md border">
           {investments.map((investment) => {
             const oneOff = isOneOff(investment);
             const displayAmount = Number(
               oneOff ? investment.one_off_amount : investment.monthly_amount
             );
             return (
-              <li key={investment.id} className="flex items-center gap-3 p-3">
-                <span className="grid size-7 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
+              <li key={investment.id} className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 p-3 sm:flex sm:gap-3">
+                <span className="col-start-1 row-span-2 row-start-1 grid size-7 shrink-0 place-items-center rounded-md border border-border-primary bg-bg-tertiary text-text-secondary">
                   {oneOff ? <Plus className="size-4" /> : <Repeat className="size-4" />}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{investment.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                <div className="col-start-2 row-start-1 min-w-0 sm:flex-1">
+                  <p className="break-words text-sm font-medium sm:truncate">{investment.name}</p>
+                  <p className="break-words text-xs text-muted-foreground sm:truncate">
                     {oneOff ? "Puntual este mes" : "Recurrente mensual"}
                     {investment.expected_annual_return_pct != null
                       ? ` · ${Number(investment.expected_annual_return_pct).toFixed(1)}% esperado`
@@ -178,13 +177,13 @@ export function InvestmentList({
                 >
                   {oneOff ? "Puntual" : "Recurrente"}
                 </Badge>
-                <span className="text-sm font-semibold tabular-nums">
+                <span className="col-start-2 row-start-2 min-w-0 text-sm font-semibold tabular-nums">
                   −{formatMoney(displayAmount)}
                 </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button variant="ghost" size="icon" className="size-8">
+                      <Button variant="ghost" size="icon" className="col-start-3 row-span-2 row-start-1 size-11 sm:size-8" aria-label={`Opciones de ${investment.name}`}>
                         <MoreVertical className="size-4" />
                       </Button>
                     }
@@ -239,7 +238,7 @@ export function InvestmentList({
               />
             </div>
 
-            <div className={editScope === "month" ? "grid grid-cols-2 gap-3" : "grid gap-2"}>
+            <div className={editScope === "month" ? "grid gap-3 sm:grid-cols-2" : "grid gap-2"}>
               <div className="grid gap-2"><Label htmlFor="investment-amount">Importe invertido</Label><div className="relative"><Input id="investment-amount" name={editingOneOff ? "one_off_amount" : "monthly_amount"} inputMode="decimal" required className="pr-7" defaultValue={amount ?? ""} placeholder="Ej. 300,00" /><span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">€</span></div></div>
               {editScope === "month" && <div className="grid gap-2"><Label htmlFor="investment-date">Fecha real</Label><Input id="investment-date" name="effective_month" type="date" required defaultValue={month} /></div>}
             </div>
@@ -254,7 +253,7 @@ export function InvestmentList({
             <div className="grid gap-2">
               <Label>Tipo de inversión</Label>
               <Select name="investment_type" defaultValue={editing?.investment_type ?? undefined} items={INVESTMENT_TYPES}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
+                <SelectTrigger className="w-full min-w-0"><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
                 <SelectContent>{INVESTMENT_TYPES.map((type) => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -262,7 +261,7 @@ export function InvestmentList({
             <div className="grid gap-2">
               <Label>Categoría</Label>
               <Select name="category_id" defaultValue={editing?.category_id ?? "none"} items={[{ value: "none", label: "Sin categoría" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full min-w-0"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="none">Sin categoría</SelectItem>{categories.map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
