@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { MEAL_TYPES, type MealType } from "@/lib/meals";
 import { MealIcon } from "@/components/menus/meal-icon";
 import { downloadMenuPdf, monthWeeks, type MenuPdfLayout, type MenuPdfMeal } from "@/lib/menu-pdf";
+import { downloadMenuPng } from "@/lib/menu-png";
 import { useLanguage } from "@/components/layout/language-provider";
 
 function todayKey() {
@@ -18,7 +19,7 @@ function todayKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-/** Exporta el menú a PDF: el mes completo o una semana concreta. */
+/** Exporta el menú a PDF o PNG con las mismas selecciones. */
 export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; monthTitle: string; meals: MenuPdfMeal[] }) {
   const { language } = useLanguage();
   const weeks = useMemo(() => monthWeeks(month, language), [month, language]);
@@ -26,6 +27,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<"month" | "week">("month");
   const [layout, setLayout] = useState<MenuPdfLayout>("calendar");
+  const [format, setFormat] = useState<"pdf" | "png">("pdf");
   const [mealTypes, setMealTypes] = useState<MealType[]>(MEAL_TYPES.map((type) => type.id));
   const [weekId, setWeekId] = useState(currentWeek);
   const [pending, setPending] = useState(false);
@@ -42,7 +44,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
   async function download() {
     setPending(true);
     try {
-      await downloadMenuPdf({
+      await (format === "pdf" ? downloadMenuPdf : downloadMenuPng)({
         month,
         language,
         meals: includedMeals,
@@ -52,7 +54,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
       });
       setOpen(false);
     } catch {
-      toast.error("No se pudo generar el PDF. Inténtalo de nuevo.");
+      toast.error(`No se pudo generar el ${format.toUpperCase()}. Inténtalo de nuevo.`);
     } finally {
       setPending(false);
     }
@@ -61,13 +63,21 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" />}>
-        <Download /> PDF
+        <Download /> Exportar
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Descargar menú en PDF</DialogTitle>
+          <DialogTitle>Exportar menú</DialogTitle>
           <DialogDescription className="first-letter:uppercase">{monthTitle}. Elige qué quieres incluir.</DialogDescription>
         </DialogHeader>
+
+        <section className="grid gap-2" aria-labelledby="export-format-title">
+          <h3 id="export-format-title" className="text-[13px] font-medium text-text-primary">Tipo de archivo</h3>
+          <RadioGroup value={format} onValueChange={(value) => setFormat(value as "pdf" | "png")} className="grid grid-cols-2 gap-2">
+            <label htmlFor="menu-format-pdf" className={cn("flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2.5 text-[13px] transition-fast hover:bg-bg-tertiary/60", format === "pdf" ? "border-accent/40 bg-accent/5" : "border-border-primary")}><RadioGroupItem id="menu-format-pdf" value="pdf" />PDF</label>
+            <label htmlFor="menu-format-png" className={cn("flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2.5 text-[13px] transition-fast hover:bg-bg-tertiary/60", format === "png" ? "border-accent/40 bg-accent/5" : "border-border-primary")}><RadioGroupItem id="menu-format-png" value="png" />PNG</label>
+          </RadioGroup>
+        </section>
 
         <RadioGroup value={scope} onValueChange={(value) => setScope(value as "month" | "week")} className="gap-1">
           <label htmlFor="pdf-month" className={cn("flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 transition-fast hover:bg-bg-tertiary/60", scope === "month" ? "border-accent/40 bg-accent/5" : "border-border-primary")}>
@@ -96,7 +106,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
               </label>
               <label htmlFor="pdf-weeks" className={cn("flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-3 transition-fast hover:bg-bg-tertiary/60", layout === "weeks" ? "border-accent/40 bg-accent/5" : "border-border-primary")}>
                 <RadioGroupItem value="weeks" id="pdf-weeks" className="mt-0.5" />
-                <span className="grid gap-0.5"><span className="text-[13px] font-medium text-text-primary">Semana por semana</span><span className="text-xs text-text-tertiary">Cada semana empieza en una página nueva.</span></span>
+                <span className="grid gap-0.5"><span className="text-[13px] font-medium text-text-primary">Semana por semana</span><span className="text-xs text-text-tertiary">{format === "pdf" ? "Cada semana empieza en una página nueva." : "Semanas ordenadas en una imagen vertical."}</span></span>
               </label>
             </RadioGroup>
           </section>
@@ -134,7 +144,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
         <section className="grid gap-2" aria-labelledby="pdf-meal-types-title">
           <div>
             <h3 id="pdf-meal-types-title" className="text-[13px] font-medium text-text-primary">Tipos de comida</h3>
-            <p className="text-xs text-text-tertiary">Elige cuáles aparecerán en el PDF.</p>
+            <p className="text-xs text-text-tertiary">Elige cuáles aparecerán en el archivo.</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {MEAL_TYPES.map((type) => (
@@ -150,7 +160,7 @@ export function MenuPdfDialog({ month, monthTitle, meals }: { month: string; mon
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
           <Button onClick={download} disabled={pending || mealTypes.length === 0}>
-            <Download /> {pending ? "Generando…" : "Descargar PDF"}
+            <Download /> {pending ? "Generando…" : `Descargar ${format.toUpperCase()}`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Clock3, BookOpen, ExternalLink, Pencil, Plus, Search, Trash2, UtensilsCrossed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input, inputClassName } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/page-header";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ import { deleteMeal, deleteRecipe, duplicateMeal, moveMeal, saveMeal, saveRecipe
 
 export type MenuRecipe = { id: string; name: string; ingredients: string | null; instructions: string | null; source_url: string | null };
 export type MenuMeal = { id: string; meal_date: string; meal_type: MealType; title: string; notes: string | null; recipe_id: string | null; source_url: string | null };
+type MealDraft = { id?: string; mealDate: string; mealType: MealType; title: string; recipeId: string; notes: string; sourceUrl: string };
 
 const types = MEAL_TYPES;
 const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -59,7 +61,12 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, index) => dateKey(year, monthNumber, index + 1)), [daysInMonth, year, monthNumber]);
   const [selectedDay, setSelectedDay] = useState(todayKey.startsWith(month) ? todayKey : days[0]);
   const [selectedDayOpen, setSelectedDayOpen] = useState(false);
-  const [mealDraft, setMealDraft] = useState<{ id?: string; mealDate: string; mealType: MealType; title: string; recipeId: string; notes: string; sourceUrl: string } | null>(null);
+  const [mealDraft, setMealDraft] = useState<MealDraft | null>(null);
+  const [originalMealDraft, setOriginalMealDraft] = useState<MealDraft | null>(null);
+  const [mealLeaveOpen, setMealLeaveOpen] = useState(false);
+  const [mealDeleteOpen, setMealDeleteOpen] = useState(false);
+  const [duplicateAfterLeave, setDuplicateAfterLeave] = useState(false);
+  const mealFormRef = useRef<HTMLFormElement>(null);
   const [recipeDraft, setRecipeDraft] = useState<{ id?: string; name: string; ingredients: string; instructions: string; sourceUrl: string } | null>(null);
   const [copyDraft, setCopyDraft] = useState<{ meal: MenuMeal; date: string; type: MealType } | null>(null);
   const [search, setSearch] = useState("");
@@ -80,6 +87,21 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
   const selectedMeals = byDay.get(selectedDay) ?? [];
   const filteredRecipes = recipes.filter((recipe) => recipe.name.toLocaleLowerCase("es").includes(search.toLocaleLowerCase("es")));
   const selectedMealUrl = normalizeRecipeUrl(mealDraft?.sourceUrl ?? "");
+  const mealChanged = !!mealDraft && !!originalMealDraft && Object.keys(originalMealDraft).some((key) => mealDraft[key as keyof MealDraft] !== originalMealDraft[key as keyof MealDraft]);
+
+  function closeMeal() {
+    if (pending) return;
+    setDuplicateAfterLeave(false);
+    if (mealChanged) setMealLeaveOpen(true);
+    else setMealDraft(null);
+  }
+
+  function openCopyFromDraft(draft: MealDraft) {
+    const meal = meals.find((item) => item.id === draft.id);
+    if (!meal) return;
+    setMealDraft(null);
+    setCopyDraft({ meal: { ...meal, title: draft.title, meal_date: draft.mealDate, meal_type: draft.mealType }, date: draft.mealDate, type: draft.mealType });
+  }
 
   function run(operation: () => Promise<{ error?: string; ok?: boolean }>, success: string, close?: () => void) {
     startTransition(async () => {
@@ -99,7 +121,9 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
     setSelectedDayOpen(false);
     setSelectedDay(day);
     const linkedRecipe = recipes.find((recipe) => recipe.id === meal?.recipe_id);
-    setMealDraft({ id: meal?.id, mealDate: day, mealType: meal?.meal_type ?? type, title: meal?.title ?? "", recipeId: meal?.recipe_id ?? "", notes: meal?.notes ?? "", sourceUrl: meal?.source_url ?? linkedRecipe?.source_url ?? "" });
+    const draft = { id: meal?.id, mealDate: day, mealType: meal?.meal_type ?? type, title: meal?.title ?? "", recipeId: meal?.recipe_id ?? "", notes: meal?.notes ?? "", sourceUrl: meal?.source_url ?? linkedRecipe?.source_url ?? "" };
+    setMealDraft(draft);
+    setOriginalMealDraft(draft);
   }
 
   function dropMeal(day: string, id: string, restoreFocus = false) {
@@ -290,20 +314,31 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
       </DialogContent>
     </Dialog>
 
-    <Dialog open={!!mealDraft} onOpenChange={(open) => !open && setMealDraft(null)}>
+    <Dialog open={!!mealDraft} onOpenChange={(open) => !open && closeMeal()}>
       <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{mealDraft?.id ? "Editar comida" : "Añadir comida"}</DialogTitle><DialogDescription>Elige el día, el momento y una receta guardada o escribe un plato nuevo.</DialogDescription></DialogHeader>
-        {mealDraft && <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); run(() => saveMeal(mealDraft), mealDraft.id ? "Comida actualizada." : "Comida añadida.", () => setMealDraft(null)); }}>
+        {mealDraft?.id && <Button type="button" variant="ghost" size="icon-sm" aria-label="Eliminar comida" title="Eliminar comida" disabled={pending} className="absolute right-12 top-3 text-red hover:bg-red/10 hover:text-red" onClick={() => setMealDeleteOpen(true)}><Trash2 /></Button>}
+        {mealDraft && <form ref={mealFormRef} className="grid gap-4" onSubmit={(event) => { event.preventDefault(); run(() => saveMeal(mealDraft), mealDraft.id ? "Comida actualizada." : "Comida añadida.", () => { setMealLeaveOpen(false); if (duplicateAfterLeave) openCopyFromDraft(mealDraft); else setMealDraft(null); setDuplicateAfterLeave(false); }); }}>
           <div className="grid grid-cols-2 gap-3"><div className="grid gap-1.5"><Label htmlFor="meal-date">Fecha</Label><Input id="meal-date" type="date" required value={mealDraft.mealDate} onChange={(event) => setMealDraft({ ...mealDraft, mealDate: event.target.value })} /></div><div className="grid gap-1.5"><Label htmlFor="meal-type">Comida</Label><div className="menu-meal-interactive relative"><span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"><MealIcon type={mealDraft.mealType} /></span><select id="meal-type" className={cn(inputClassName, "h-11 pl-9 md:h-8")} value={mealDraft.mealType} onChange={(event) => setMealDraft({ ...mealDraft, mealType: event.target.value as MealType })}>{types.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}</select></div></div></div>
           <div className="grid gap-1.5"><Label htmlFor="meal-recipe">Usar receta guardada</Label><select id="meal-recipe" className={cn(inputClassName, "h-11 md:h-8")} value={mealDraft.recipeId} onChange={(event) => { const recipe = recipes.find((item) => item.id === event.target.value); setMealDraft({ ...mealDraft, recipeId: event.target.value, title: recipe?.name ?? mealDraft.title, sourceUrl: recipe ? recipe.source_url ?? "" : mealDraft.sourceUrl }); }}><option value="">Plato sin receta</option>{recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.name}</option>)}</select></div>
           <div className="grid gap-1.5"><Label htmlFor="meal-title">Plato</Label><Input id="meal-title" required maxLength={120} placeholder="Ej. Pasta con verduras" value={mealDraft.title} onChange={(event) => setMealDraft({ ...mealDraft, title: event.target.value })} /></div>
           <div className="grid gap-1.5"><Label htmlFor="meal-source-url">Enlace a la receta (opcional)</Label><Input id="meal-source-url" type="url" inputMode="url" maxLength={2048} placeholder="https://ejemplo.com/receta" value={mealDraft.sourceUrl} onChange={(event) => setMealDraft({ ...mealDraft, sourceUrl: event.target.value })} /></div>
           {selectedMealUrl && <a href={selectedMealUrl} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-primary hover:underline rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"><ExternalLink className="size-4" /> Abrir receta en internet</a>}
           <div className="grid gap-1.5"><Label htmlFor="meal-notes">Notas opcionales</Label><Textarea id="meal-notes" maxLength={2000} placeholder="Preparar con antelación, ingredientes pendientes…" value={mealDraft.notes} onChange={(event) => setMealDraft({ ...mealDraft, notes: event.target.value })} /></div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-border-primary pt-3"><Button disabled={pending} type="submit">{pending ? "Guardando…" : "Guardar comida"}</Button>{mealDraft.id && <><Button type="button" variant="outline" disabled={pending} onClick={() => { const meal = meals.find((item) => item.id === mealDraft.id); if (meal) { setMealDraft(null); setCopyDraft({ meal, date: meal.meal_date, type: meal.meal_type }); } }}><ClipboardCopy /> Duplicar</Button><Button type="button" variant="destructive" disabled={pending} className="ml-auto" onClick={() => { if (confirm("¿Eliminar esta comida del calendario?")) run(() => deleteMeal(mealDraft.id!), "Comida eliminada.", () => setMealDraft(null)); }}><Trash2 /> Eliminar</Button></>}</div>
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border-primary pt-3">{mealDraft.id && <Button type="button" variant="outline" disabled={pending} onClick={() => { if (mealChanged) { setDuplicateAfterLeave(true); setMealLeaveOpen(true); } else openCopyFromDraft(mealDraft); }}><ClipboardCopy /> Duplicar</Button>}<Button disabled={pending} type="submit">{pending ? "Guardando…" : "Guardar"}</Button></div>
           {mealDraft.id && <p className="flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="size-3" /> Cambia la fecha y guarda para mover esta comida a otro día.</p>}
         </form>}
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={mealDeleteOpen} onOpenChange={setMealDeleteOpen}><AlertDialogContent>
+      <AlertDialogHeader><AlertDialogTitle>¿Eliminar esta comida?</AlertDialogTitle><AlertDialogDescription>Se quitará «{mealDraft?.title}» del calendario. Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
+      <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={pending} onClick={() => { if (mealDraft?.id) run(() => deleteMeal(mealDraft.id!), "Comida eliminada.", () => { setMealDeleteOpen(false); setMealDraft(null); }); }}>Eliminar</AlertDialogAction></AlertDialogFooter>
+    </AlertDialogContent></AlertDialog>
+
+    <AlertDialog open={mealLeaveOpen} onOpenChange={(open) => { if (!pending) { setMealLeaveOpen(open); if (!open) setDuplicateAfterLeave(false); } }}><AlertDialogContent>
+      <AlertDialogHeader><AlertDialogTitle>¿Guardar los cambios?</AlertDialogTitle><AlertDialogDescription>Has modificado esta comida. Guarda los cambios antes de salir o descártalos.</AlertDialogDescription></AlertDialogHeader>
+      <AlertDialogFooter><AlertDialogCancel onClick={() => setDuplicateAfterLeave(false)}>Seguir editando</AlertDialogCancel><Button variant="outline" disabled={pending} onClick={() => { setMealLeaveOpen(false); if (duplicateAfterLeave && originalMealDraft) openCopyFromDraft(originalMealDraft); else setMealDraft(null); setDuplicateAfterLeave(false); }}>Descartar</Button><Button disabled={pending} onClick={() => { mealFormRef.current?.requestSubmit(); }}>{pending ? "Guardando…" : "Guardar cambios"}</Button></AlertDialogFooter>
+    </AlertDialogContent></AlertDialog>
 
     <Dialog open={!!copyDraft} onOpenChange={(open) => !open && setCopyDraft(null)}><DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Duplicar comida</DialogTitle><DialogDescription>Se creará una copia de «{copyDraft?.meal.title}» en el día que elijas.</DialogDescription></DialogHeader>
       {copyDraft && <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); run(() => duplicateMeal(copyDraft.meal.id, copyDraft.date, copyDraft.type), "Comida duplicada.", () => setCopyDraft(null)); }}><div className="grid gap-1.5"><Label htmlFor="copy-date">Fecha</Label><Input id="copy-date" type="date" required value={copyDraft.date} onChange={(event) => setCopyDraft({ ...copyDraft, date: event.target.value })} /></div><div className="grid gap-1.5"><Label htmlFor="copy-type">Comida</Label><div className="menu-meal-interactive relative"><span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"><MealIcon type={copyDraft.type} /></span><select id="copy-type" className={cn(inputClassName, "h-11 pl-9 md:h-8")} value={copyDraft.type} onChange={(event) => setCopyDraft({ ...copyDraft, type: event.target.value as MealType })}>{types.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}</select></div></div><Button type="submit" disabled={pending}>Crear copia</Button></form>}

@@ -82,15 +82,35 @@ export function registerInter(
 /** Carga logo y fuentes en paralelo. */
 export async function loadBrandAssets(doc: jsPDF) {
   const [logo, regular, medium, semibold] = await Promise.all([
-    fetchAsBase64("/brand/icon-lilac.png"),
+    loadDarkBrandIcon(),
     fetchAsBase64("/fonts/inter-regular.ttf"),
     fetchAsBase64("/fonts/inter-medium.ttf"),
     fetchAsBase64("/fonts/inter-semibold.ttf"),
   ]);
   return {
     fonts: registerInter(doc, regular, medium, semibold),
-    logo: logo ? `data:image/png;base64,${logo}` : null,
+    logo,
   };
+}
+
+/** Convierte el SVG de marca a PNG para que jsPDF pueda incrustarlo. */
+export async function loadDarkBrandIcon(): Promise<string> {
+  const response = await fetch("/brand/icon-dark.svg");
+  if (!response.ok) throw new Error("No se pudo cargar el icono de marca.");
+  const svg = await response.text();
+  const image = new Image();
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("No se pudo abrir el icono de marca."));
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No se pudo preparar el icono de marca.");
+  context.drawImage(image, 0, 0, 128, 128);
+  return canvas.toDataURL("image/png");
 }
 
 /**

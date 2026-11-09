@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getAppProfile, getCurrentUser } from "@/lib/auth";
 import { BottomNav, CurrentSection, NavigationDockProvider, Sidebar, SidebarRevealButton } from "@/components/layout/nav";
-import { InstallAppButton } from "@/components/layout/install-app-button";
 import { NotificationsPermissionPrompt } from "@/components/layout/notifications-permission";
 import { UserMenu } from "@/components/layout/user-menu";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
@@ -52,7 +51,6 @@ export default async function AppLayout({
               <CurrentSection />
             </div>
             <div className="flex shrink-0 items-center gap-0.5 [&_[data-slot=button]]:size-10 md:[&_[data-slot=button]]:size-8">
-              <InstallAppButton />
               <NotificationsBell />
               <LanguageMenuButton />
               <UserMenu
