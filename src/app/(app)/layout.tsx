@@ -59,7 +59,7 @@ export default async function AppLayout({
               />
             </div>
           </header>
-          <main className="min-h-0 flex-1 overflow-y-auto px-4 pt-6 pb-24 md:px-8 md:pt-8 md:pb-10">
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 pt-6 pb-[calc(6.5rem_+_env(safe-area-inset-bottom))] max-md:overflow-x-hidden md:px-8 md:pt-8 md:pb-10">
             <FinancialPrivacyProvider>{children}</FinancialPrivacyProvider>
           </main>
         </div>

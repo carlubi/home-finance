@@ -103,7 +103,7 @@ export default async function PresupuestosPage({
     })[0];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid min-w-0 gap-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-2xl font-medium">Presupuestos y objetivos</h1>
       <FinancialPrivacyButton />

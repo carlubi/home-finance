@@ -458,10 +458,10 @@ export default async function DashboardPage({
   const investmentCategories = data.categories.filter((c) => c.kind === "investment");
 
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-medium">{formatMonth(month)}</h1>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <FinancialPrivacyButton />
           <Button
             nativeButton={false}
@@ -496,7 +496,7 @@ export default async function DashboardPage({
 
       <GoalStatusStrip snapshots={personalGoals} scope="personal" />
       <Tabs defaultValue="monthly" className="grid gap-4">
-        <TabsList className="w-fit">
+        <TabsList className="w-full sm:w-fit">
           <TabsTrigger value="monthly">Vista mensual</TabsTrigger>
           <TabsTrigger value="global">Visión global</TabsTrigger>
         </TabsList>
@@ -560,8 +560,8 @@ export default async function DashboardPage({
               const over = b.spent > b.monthly_limit;
               return (
                 <div key={b.id} className="grid gap-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>{b.categories?.name ?? "Categoría"}</span>
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 text-sm">
+                    <span className="min-w-0 break-words">{b.categories?.name ?? "Categoría"}</span>
                     <span
                       className={
                         over
@@ -582,7 +582,7 @@ export default async function DashboardPage({
       )}
 
           <Tabs defaultValue="gastos">
-            <TabsList>
+            <TabsList className="w-full sm:w-fit">
               <TabsTrigger value="gastos">Gastos ({visibleExpenses.length})</TabsTrigger>
               <TabsTrigger value="ingresos">Ingresos ({visibleIncome.length})</TabsTrigger>
               <TabsTrigger value="inversion">

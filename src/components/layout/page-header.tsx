@@ -26,7 +26,7 @@ export function PageHeader({
   financialPrivacy?: boolean;
 }) {
   return (
-    <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
+    <header className={cn("flex min-w-0 flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
       <div className="min-w-0">
         {eyebrow && <p className="eyebrow mb-1">{eyebrow}</p>}
         <h1 className="text-2xl font-medium text-text-primary">{title}</h1>
@@ -35,7 +35,7 @@ export function PageHeader({
         )}
         {children}
       </div>
-      {(actions || financialPrivacy) && <div className="flex flex-wrap items-center gap-2">{financialPrivacy && <FinancialPrivacyButton />}{actions}</div>}
+      {(actions || financialPrivacy) && <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">{financialPrivacy && <FinancialPrivacyButton />}{actions}</div>}
     </header>
   );
 }

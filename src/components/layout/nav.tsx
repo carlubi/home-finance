@@ -484,7 +484,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Principal"
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border-primary bg-bg-primary/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border-primary bg-bg-primary/90 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] backdrop-blur-md md:hidden"
     >
       {mobileItems.map((item) => {
         const active = isActive(pathname, item.href);
@@ -495,11 +495,11 @@ export function BottomNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 text-2xs font-medium text-text-tertiary transition-fast outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
+              "flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium text-text-tertiary transition-fast outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
               active && "text-text-primary"
             )}
           >
-            <Icon className={cn("size-5", active && "text-accent")} />
+            <Icon className={cn("size-6", active && "text-accent")} />
             <span className="max-w-full truncate">{item.mobileLabel ?? (item.href === "/tareas-domesticas" ? "Tareas" : item.label)}</span>
           </Link>
         );
@@ -510,13 +510,13 @@ export function BottomNav() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 rounded-none px-1 py-1.5 text-2xs text-text-tertiary hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
+                "h-auto min-h-16 min-w-0 flex-1 flex-col gap-1 rounded-none px-1 py-2 text-xs text-text-tertiary hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
                 moreActive && "text-text-primary"
               )}
             />
           }
         >
-          <Menu className={cn("size-5", moreActive && "text-accent")} />
+          <Menu className={cn("size-6", moreActive && "text-accent")} />
           Más
         </SheetTrigger>
         <SheetContent side="bottom" className="max-h-[85svh] overflow-y-auto rounded-t-lg px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">

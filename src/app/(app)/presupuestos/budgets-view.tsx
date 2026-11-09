@@ -521,8 +521,16 @@ export function BudgetsView({
       ? views[selectedIndex + 1]?.month
       : null;
 
+  function removeBudgetItem(id: string) {
+    startTransition(async () => {
+      const result = await deleteMonthlyBudgetItem(id);
+      if (result.error) toast.error(result.error);
+      else router.refresh();
+    });
+  }
+
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid min-w-0 gap-1">
           <h2 className="text-2xl font-medium">
@@ -534,7 +542,7 @@ export function BudgetsView({
               : "Meses previstos, gastos reales y cierre."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -563,10 +571,7 @@ export function BudgetsView({
 
       {!showYearOverview && (
         <>
-          <section
-            className="grid gap-3 overflow-x-auto"
-            style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(18rem, 1fr)" }}
-          >
+          <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
             <Card>
               <CardHeader>
                 <div>
@@ -700,7 +705,7 @@ export function BudgetsView({
               className="grid gap-3"
             >
               <input type="hidden" name="month" value={selected.month} />
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
                 {(["under", "met", "over"] as MonthlyBudgetOutcome[]).map((value) => {
                   const meta = outcomeMeta[value];
                   const Icon = meta.icon;
@@ -710,7 +715,7 @@ export function BudgetsView({
                       type="button"
                       onClick={() => setOutcome(value)}
                       className={cn(
-                        "grid h-20 place-items-center gap-1 rounded-lg border p-2 text-center text-xs font-medium transition-fast",
+                        "flex min-h-14 items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs font-medium transition-fast min-[360px]:grid min-[360px]:h-20 min-[360px]:place-items-center min-[360px]:gap-1",
                         outcome === value
                           ? meta.className
                           : "bg-background hover:bg-muted"
@@ -736,10 +741,7 @@ export function BudgetsView({
             </Card>
           </section>
 
-          <section
-            className="grid gap-4 overflow-x-auto"
-            style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(18rem, 1fr)" }}
-          >
+          <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
             <Card>
           <CardHeader>
             <CardTitle>Gastos previstos</CardTitle>
@@ -773,7 +775,7 @@ export function BudgetsView({
                   required
                 />
               </div>
-              <div className="grid gap-1.5">
+              <div className="grid min-w-0 gap-1.5">
                 <Label>Categoría</Label>
                 <Select
                   name="category_id"
@@ -782,7 +784,7 @@ export function BudgetsView({
                     label: category.name,
                   }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full min-w-0">
                     <SelectValue placeholder="Categoría" />
                   </SelectTrigger>
                   <SelectContent>
@@ -813,7 +815,25 @@ export function BudgetsView({
             </form>
 
             {lines.length > 0 ? (
-              <Table>
+              <>
+              <div className="grid gap-2 sm:hidden">
+                {lines.map((item) => (
+                  <div key={item.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-lg border border-border-primary bg-bg-tertiary/40 p-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium text-text-primary">{item.name}</p>
+                      <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-secondary">
+                        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: item.categories?.color ?? "var(--viz-muted)" }} />
+                        <span className="min-w-0 break-words">{item.categories?.name ?? "Sin categoría"}</span>
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-sm font-semibold tabular-nums text-text-primary">{formatMoney(Number(item.planned_amount))}</span>
+                      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Eliminar ${item.name}`} disabled={pending} onClick={() => removeBudgetItem(item.id)}><Trash2 className="size-4" /></Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden min-w-0 sm:block"><Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Partida</TableHead>
@@ -846,13 +866,9 @@ export function BudgetsView({
                           type="button"
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() =>
-                            startTransition(async () => {
-                              const result = await deleteMonthlyBudgetItem(item.id);
-                              if (result.error) toast.error(result.error);
-                              else router.refresh();
-                            })
-                          }
+                          aria-label={`Eliminar ${item.name}`}
+                          disabled={pending}
+                          onClick={() => removeBudgetItem(item.id)}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -860,7 +876,8 @@ export function BudgetsView({
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </Table></div>
+              </>
             ) : (
               <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
                 Todavía no hay gastos previstos para este mes.
@@ -886,17 +903,17 @@ export function BudgetsView({
                   key={view.month}
                   href={`/presupuestos?mes=${monthParam(view.month)}`}
                   className={cn(
-                    "grid gap-2 rounded-lg border p-3 transition-fast hover:bg-muted/60",
+                    "grid min-w-0 gap-2 rounded-lg border p-3 transition-fast hover:bg-muted/60",
                     active && "border-accent/40 bg-accent/5"
                   )}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{formatMonth(view.month)}</span>
-                    <span className={cn("size-2.5 rounded-full", meta.dot)} />
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="min-w-0 break-words font-medium">{formatMonth(view.month)}</span>
+                    <span className={cn("size-2.5 shrink-0 rounded-full", meta.dot)} />
                   </div>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <TrendingUp className="size-3.5" />
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                    <span className="inline-flex min-w-0 items-center gap-1">
+                      <TrendingUp className="size-3.5 shrink-0" />
                       {formatMoney(view.plannedTotal)}
                     </span>
                     {view.plan?.outcome ? (
