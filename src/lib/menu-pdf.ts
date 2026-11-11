@@ -4,6 +4,7 @@ import type { jsPDF } from "jspdf";
 import { MEAL_TYPES, mealLabel, mealPlural, sortMeals, type MealType } from "@/lib/meals";
 import { MEAL_ICON_PATHS } from "@/lib/meal-icon-paths";
 import { formatMonth } from "@/lib/format";
+import { normalizeRecipeUrl } from "@/lib/menu-recipes";
 import type { AppLanguage } from "@/lib/language";
 import {
   PDF_COLORS,
@@ -13,7 +14,7 @@ import {
   type PdfFonts,
 } from "@/lib/pdf-brand";
 
-export type MenuPdfMeal = { meal_date: string; meal_type: string; title: string };
+export type MenuPdfMeal = { meal_date: string; meal_type: string; title: string; source_url?: string | null };
 export type MenuWeek = { id: string; label: string; days: (string | null)[] };
 export type MenuPdfScope = { kind: "month" } | { kind: "week"; weekId: string };
 export type MenuPdfLayout = "calendar" | "weeks";
@@ -55,6 +56,53 @@ function drawMealIcon(doc: jsPDF, type: MealType, x: number, y: number, size: nu
     // En pruebas sin DOM, el nombre completo sigue identificando cada comida.
     doc.setFillColor(...PDF_COLORS.textSecondary);
     doc.circle(x + size / 2, y + size / 2, size / 4, "F");
+  }
+}
+
+function linkMeal(doc: jsPDF, meal: MenuPdfMeal, x: number, y: number, width: number, height: number) {
+  const url = normalizeRecipeUrl(meal.source_url ?? "");
+  if (url) doc.link(x, y, width, height, { url });
+}
+
+export function linkedMenuMeals(meals: MenuPdfMeal[], mealTypes: MealType[], days: (string | null)[]) {
+  const allowed = new Set(days.filter((day): day is string => !!day));
+  return sortMeals(meals.filter((meal) => allowed.has(meal.meal_date) && mealTypes.includes(meal.meal_type as MealType) && normalizeRecipeUrl(meal.source_url ?? "")))
+    .sort((a, b) => a.meal_date.localeCompare(b.meal_date) || MEAL_TYPES.findIndex((type) => type.id === a.meal_type) - MEAL_TYPES.findIndex((type) => type.id === b.meal_type));
+}
+
+function appendLinks(doc: jsPDF, fonts: PdfFonts, meals: MenuPdfMeal[], mealTypes: MealType[], days: (string | null)[], language: AppLanguage) {
+  const links = linkedMenuMeals(meals, mealTypes, days);
+  if (!links.length) return;
+  const margin = 36;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  let y = pageH;
+  const addPage = () => {
+    doc.addPage();
+    y = drawBrandHeader(doc, fonts, { title: language === "ca" ? "Enllaços de receptes" : "Enlaces de recetas", subtitle: language === "ca" ? "Annex del menú" : "Anexo del menú", logo: null, margin });
+  };
+  for (const meal of links) {
+    const url = normalizeRecipeUrl(meal.source_url ?? "")!;
+    doc.setFont(fonts.family, fonts.medium);
+    doc.setFontSize(9);
+    const heading = `${meal.meal_date} · ${mealLabel(meal.meal_type, language)} · ${meal.title}`;
+    const headingLines = doc.splitTextToSize(heading, pageW - margin * 2) as string[];
+    doc.setFont(fonts.family, "normal");
+    doc.setFontSize(8);
+    const urlLines = doc.splitTextToSize(url, pageW - margin * 2) as string[];
+    const blockH = headingLines.length * 12 + urlLines.length * 11 + 10;
+    if (y + blockH > pageH - margin) addPage();
+    doc.setFont(fonts.family, fonts.medium);
+    doc.setFontSize(9);
+    doc.setTextColor(...PDF_COLORS.text);
+    headingLines.forEach((line, index) => doc.text(line, margin, y + index * 12));
+    y += headingLines.length * 12;
+    doc.setFont(fonts.family, "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...PDF_COLORS.accent);
+    urlLines.forEach((line, index) => doc.text(line, margin, y + index * 11));
+    linkMeal(doc, meal, margin, y - 8, pageW - margin * 2, urlLines.length * 11);
+    y += urlLines.length * 11 + 10;
   }
 }
 
@@ -211,6 +259,8 @@ function drawWeek(
           doc.line(cx + cellPad, sepY, cx + dayW - cellPad, sepY);
         }
         doc.setTextColor(...PDF_COLORS.text);
+        const meal = (meals.get(week.days[i]!) ?? []).filter((item) => item.meal_type === row.type.id)[e];
+        if (meal) linkMeal(doc, meal, cx + cellPad, ty - fontSize, dayW - cellPad * 2, lines.length * lineH);
         lines.forEach((line) => {
           doc.text(line, cx + cellPad, ty);
           ty += lineH;
@@ -308,6 +358,7 @@ function drawWeekAsList(
         doc.setFont(fonts.family, "normal");
         doc.setTextColor(...PDF_COLORS.text);
         lines.forEach((line, lineIndex) => doc.text(line, margin + 100, y + lineIndex * 12));
+        linkMeal(doc, meal, margin + 100, y - 10, width - 105, lines.length * 12);
         y += lines.length * 12 + 6;
       }
     }
@@ -348,6 +399,7 @@ export function buildMenuPdf(
     }
   });
 
+  appendLinks(doc, fonts, meals, mealTypes, weeks.flatMap((week) => week.days), language);
   drawBrandFooters(doc, fonts, footer, margin);
   return doc;
 }
@@ -420,6 +472,7 @@ export function buildMonthCalendarPdf(
         doc.setFontSize(7.6);
         doc.setTextColor(...PDF_COLORS.text);
         lines.forEach((line, lineIndex) => doc.text(line, x + 24, entryY + lineIndex * 8.8));
+        linkMeal(doc, meal, x + 24, entryY - 8, dayW - 32, lines.length * 8.8);
         entryY += entryH;
       }
     });
@@ -477,12 +530,14 @@ export function buildMonthCalendarPdf(
         doc.setFont(fonts.family, "normal");
         doc.setTextColor(...PDF_COLORS.text);
         lines.forEach((line, lineIndex) => doc.text(line, margin + 100, y + lineIndex * 13));
+        linkMeal(doc, meal, margin + 100, y - 10, width - 110, lines.length * 13);
         y += lines.length * 13 + 7;
       }
       y += 15;
     }
   }
 
+  appendLinks(doc, fonts, meals, mealTypes, weeks.flatMap((week) => week.days), language);
   drawBrandFooters(doc, fonts, `Menú · ${capitalized}`, margin);
   return doc;
 }

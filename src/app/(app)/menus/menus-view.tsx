@@ -18,6 +18,7 @@ import { MEAL_TYPES, sortMeals, type MealType } from "@/lib/meals";
 import { formatDate } from "@/lib/format";
 import { useLanguage } from "@/components/layout/language-provider";
 import { MealIcon } from "@/components/menus/meal-icon";
+import { monthWeeks } from "@/lib/menu-pdf";
 import { MenuPdfDialog } from "./menu-pdf-dialog";
 import { deleteMeal, deleteRecipe, duplicateMeal, moveMeal, saveMeal, saveRecipe } from "./actions";
 
@@ -61,6 +62,11 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, index) => dateKey(year, monthNumber, index + 1)), [daysInMonth, year, monthNumber]);
   const [selectedDay, setSelectedDay] = useState(todayKey.startsWith(month) ? todayKey : days[0]);
   const [selectedDayOpen, setSelectedDayOpen] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<MenuMeal | null>(null);
+  const [view, setView] = useState<"month" | "week">("month");
+  const weeks = useMemo(() => monthWeeks(month, language), [month, language]);
+  const selectedWeekIndex = Math.max(0, weeks.findIndex((week) => week.days.includes(selectedDay)));
+  const selectedWeek = weeks[selectedWeekIndex];
   const [mealDraft, setMealDraft] = useState<MealDraft | null>(null);
   const [originalMealDraft, setOriginalMealDraft] = useState<MealDraft | null>(null);
   const [mealLeaveOpen, setMealLeaveOpen] = useState(false);
@@ -85,6 +91,8 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
     return map;
   }, [displayedMeals]);
   const selectedMeals = byDay.get(selectedDay) ?? [];
+  const selectedRecipe = recipes.find((recipe) => recipe.id === selectedMeal?.recipe_id);
+  const selectedDetailUrl = normalizeRecipeUrl(selectedMeal?.source_url ?? "") ?? normalizeRecipeUrl(selectedRecipe?.source_url ?? "");
   const filteredRecipes = recipes.filter((recipe) => recipe.name.toLocaleLowerCase("es").includes(search.toLocaleLowerCase("es")));
   const selectedMealUrl = normalizeRecipeUrl(mealDraft?.sourceUrl ?? "");
   const mealChanged = !!mealDraft && !!originalMealDraft && Object.keys(originalMealDraft).some((key) => mealDraft[key as keyof MealDraft] !== originalMealDraft[key as keyof MealDraft]);
@@ -210,7 +218,7 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
     const keyboardHint = canDrag
       ? language === "ca" ? "Prem Espai per moure-la amb les fletxes o Intro per editar-la." : "Pulsa Espacio para moverla con las flechas o Intro para editarla."
       : titleHint;
-    return <button key={meal.id} type="button" disabled={!canEdit} data-meal-id={meal.id} data-meal-draggable={canDrag ? "" : undefined} data-dragging={draggedMealId === meal.id} draggable={canDrag && !movingMealId && !pending} aria-pressed={canDrag ? keyboardMove?.id === meal.id : undefined} onClick={() => { if (keyboardMove?.id !== meal.id) openMeal(meal.meal_date, meal.meal_type, meal); }}
+    return <button key={meal.id} type="button" data-meal-id={meal.id} data-meal-draggable={canDrag ? "" : undefined} data-dragging={draggedMealId === meal.id} draggable={canDrag && !movingMealId && !pending} aria-pressed={canDrag ? keyboardMove?.id === meal.id : undefined} onClick={() => { if (keyboardMove?.id !== meal.id) { setSelectedDayOpen(false); setSelectedMeal(meal); } }}
       onKeyDown={canDrag ? (event) => handleMealKeyDown(event, meal) : undefined}
       onBlur={() => { if (keyboardMove?.id === meal.id) { setKeyboardMove(null); setDropDay(null); } }}
       onDragStart={(event) => { event.dataTransfer.setData("application/x-home-brain-meal", meal.id); event.dataTransfer.effectAllowed = "move"; setKeyboardMove(null); setDraggedMealId(meal.id); }}
@@ -226,9 +234,9 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
   return <div className="menus-page mx-auto max-w-[1600px] space-y-5 [&_a]:cursor-pointer">
     <PageHeader
       title="Menús"
-      description="Organiza desayunos, comidas y cenas. Guarda tus recetas favoritas y reutilízalas cuando quieras."
+      description="Organiza desayunos, comidas, meriendas y cenas. Guarda tus recetas favoritas y reutilízalas cuando quieras."
       actions={<>
-        <MenuPdfDialog month={month} monthTitle={monthTitle} meals={displayedMeals} />
+        <MenuPdfDialog month={month} monthTitle={monthTitle} meals={displayedMeals.map((meal) => ({ ...meal, source_url: normalizeRecipeUrl(meal.source_url ?? "") ?? recipes.find((recipe) => recipe.id === meal.recipe_id)?.source_url }))} />
         <Button variant="outline" aria-pressed={showRecipes} onClick={() => setShowRecipes((value) => !value)}><BookOpen /> Recetario <span className="rounded-full bg-bg-quaternary px-1.5 text-xs text-text-secondary tabular-nums">{recipes.length}</span></Button>
         {canEdit ? <Button onClick={() => openMeal(selectedDay)}><Plus /> Añadir comida</Button> : <span className="text-[13px] text-text-secondary">Solo lectura</span>}
       </>}
@@ -244,6 +252,9 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
             <h2 className="text-base font-medium capitalize">{monthTitle}</h2>
           </div>
           <div className="flex items-center gap-1">
+            <div className="mr-2 flex rounded-md border border-border-primary bg-bg-tertiary p-0.5" aria-label="Vista del menú">
+              {(["month", "week"] as const).map((option) => <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)} className={cn("min-h-10 rounded px-3 text-xs font-medium transition-all duration-200 motion-reduce:transition-none", view === option ? "bg-bg-secondary text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary")}>{option === "month" ? "Mes" : "Semana"}</button>)}
+            </div>
             <Button variant="ghost" size="icon" aria-label="Mes anterior" render={<Link href={`/menus?mes=${shiftMonth(month, -1)}`} />}><ChevronLeft /></Button>
             <Button variant="outline" size="sm" render={<Link href="/menus" />}>Hoy</Button>
             <Button variant="ghost" size="icon" aria-label="Mes siguiente" render={<Link href={`/menus?mes=${shiftMonth(month, 1)}`} />}><ChevronRight /></Button>
@@ -259,7 +270,10 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
           </div>
         )}
 
-        <div className="grid grid-cols-7 border-b border-border-primary text-center text-xs font-medium text-text-tertiary">
+        {view === "week" && <div className="flex items-center justify-between gap-2 border-b border-border-primary px-4 py-2"><Button variant="ghost" size="icon" disabled={selectedWeekIndex === 0} aria-label="Semana anterior" onClick={() => setSelectedDay(weeks[selectedWeekIndex - 1]?.days.find((day): day is string => !!day) ?? selectedDay)}><ChevronLeft /></Button><span className="text-center text-sm font-medium">Semana {selectedWeekIndex + 1} · {selectedWeek.label}</span><Button variant="ghost" size="icon" disabled={selectedWeekIndex === weeks.length - 1} aria-label="Semana siguiente" onClick={() => setSelectedDay(weeks[selectedWeekIndex + 1]?.days.find((day): day is string => !!day) ?? selectedDay)}><ChevronRight /></Button></div>}
+        {view === "week" && <div className="grid grid-cols-7 gap-1 overflow-x-auto p-2 sm:gap-2 sm:p-4">{selectedWeek.days.map((day, index) => <button key={day ?? `empty-${index}`} type="button" disabled={!day} onClick={() => { if (day) { setSelectedDay(day); setSelectedDayOpen(true); } }} className={cn("flex min-h-16 min-w-11 flex-col items-center justify-center rounded-md border border-border-primary text-xs transition-all duration-200 hover:bg-bg-tertiary active:scale-95 motion-reduce:transition-none sm:min-h-24", day === selectedDay && "border-accent bg-accent/10 text-text-primary", !day && "opacity-30")}><span className="text-text-tertiary">{weekdays[index]}</span><span className="text-lg font-semibold">{day ? Number(day.slice(-2)) : "·"}</span>{day && <span className="text-2xs text-text-tertiary">{(byDay.get(day) ?? []).length} platos</span>}</button>)}</div>}
+        {view === "week" && <div className="space-y-3 border-t border-border-primary p-4"><div className="flex items-center justify-between"><h3 className="capitalize font-medium">{dayLabel(selectedDay)}</h3>{canEdit && <Button size="sm" onClick={() => openMeal(selectedDay)}><Plus /> Añadir</Button>}</div>{types.map((type) => { const entries = selectedMeals.filter((meal) => meal.meal_type === type.id); return <div key={type.id} className="space-y-1"><p className="flex items-center gap-1.5 text-xs font-medium text-text-secondary"><MealIcon type={type.id} />{type.label}</p>{entries.length ? entries.map((meal) => mealBadge(meal, false)) : <p className="pl-5 text-xs text-text-tertiary">Sin planificar</p>}</div>; })}</div>}
+        {view === "month" && <><div className="grid grid-cols-7 border-b border-border-primary text-center text-xs font-medium text-text-tertiary">
           {weekdays.map((day) => <div className="py-2" key={day}>{day}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-px bg-border-primary">
@@ -268,7 +282,7 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
             const dayMeals = byDay.get(day) ?? [];
             const active = selectedDay === day;
             return <div key={day} onDragOver={(event) => { if (!draggedMealId) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropDay(day); }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropDay(null); }} onDrop={(event) => { event.preventDefault(); dropMeal(day, event.dataTransfer.getData("application/x-home-brain-meal") || draggedMealId || ""); }} className={cn("group/day relative min-h-14 bg-bg-secondary p-1 transition-fast hover:bg-bg-tertiary/60 md:min-h-32 md:p-1.5", active && "bg-bg-tertiary/80", dropDay === day && "bg-accent/10 ring-2 ring-inset ring-accent")}>
-              <button type="button" onClick={() => { if (canEdit) openMeal(day); else { setSelectedDay(day); setSelectedDayOpen(true); } }} aria-label={`${canEdit ? "Añadir comida el" : "Ver comidas del"} ${dayLabel(day)}`} className="absolute inset-0 z-0 size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" />
+              <button type="button" onClick={() => { setSelectedDay(day); setSelectedDayOpen(true); }} aria-label={`Ver comidas del ${dayLabel(day)}`} className="absolute inset-0 z-0 size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent" />
               {canEdit && <button type="button" onClick={() => openMeal(day)} aria-label={`Añadir comida el ${dayLabel(day)}`} title="Añadir comida" className="absolute right-1 top-1 z-20 flex size-6 items-center justify-center rounded-md text-text-tertiary opacity-100 transition-fast hover:bg-bg-quaternary hover:text-text-primary focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent md:opacity-0 md:group-hover/day:opacity-100"><Plus className="size-3.5" aria-hidden="true" /></button>}
               <span className={cn("pointer-events-none relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-medium text-text-secondary tabular-nums", day === todayKey && "bg-accent text-white", active && day !== todayKey && "text-text-primary ring-1 ring-border-secondary")}>
                 {Number(day.slice(-2))}
@@ -278,7 +292,7 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
               {dayMeals.length > 0 && <button type="button" onClick={() => { setSelectedDay(day); setSelectedDayOpen(true); }} aria-label={`Ver comidas del ${dayLabel(day)}`} className="menu-meal-interactive relative z-10 mt-1 flex min-h-5 w-full items-center justify-center gap-0.5 md:hidden">{types.map((type) => dayMeals.some((meal) => meal.meal_type === type.id) && <MealIcon key={type.id} type={type.id} />)}</button>}
             </div>;
           })}
-        </div>
+        </div></>}
       </section>
 
       {showRecipes && <aside className="h-fit rounded-lg border border-border-primary bg-bg-secondary p-4 linear-shadow-sm xl:sticky xl:top-3">
@@ -310,9 +324,12 @@ export function MenusView({ month, recipes, meals, loadError, canEdit = true }: 
             const entries = selectedMeals.filter((meal) => meal.meal_type === type.id);
             return entries.length ? <div key={type.id} className="space-y-1"><p className="menu-meal-interactive flex items-center gap-1.5 text-xs font-medium text-text-secondary"><MealIcon type={type.id} />{type.label}</p>{entries.map((meal) => mealBadge(meal, false))}</div> : null;
           })}
+          {canEdit && <Button className="w-full" onClick={() => openMeal(selectedDay)}><Plus /> Añadir comida</Button>}
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!selectedMeal} onOpenChange={(open) => !open && setSelectedMeal(null)}><DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md"><DialogHeader><DialogTitle className="flex items-center gap-2"><MealIcon type={selectedMeal?.meal_type ?? "lunch"} />{selectedMeal?.title}</DialogTitle><DialogDescription className="capitalize">{selectedMeal ? `${dayLabel(selectedMeal.meal_date)} · ${types.find((type) => type.id === selectedMeal.meal_type)?.label}` : ""}</DialogDescription></DialogHeader>{selectedMeal && <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none">{selectedRecipe && <div className="space-y-3 rounded-md border border-border-primary bg-bg-tertiary p-3"><p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Receta · {selectedRecipe.name}</p>{selectedRecipe.ingredients && <div><p className="text-xs font-medium">Ingredientes</p><p className="whitespace-pre-wrap text-sm text-text-secondary">{selectedRecipe.ingredients}</p></div>}{selectedRecipe.instructions && <div><p className="text-xs font-medium">Preparación</p><p className="whitespace-pre-wrap text-sm text-text-secondary">{selectedRecipe.instructions}</p></div>}</div>}{selectedMeal.notes && <div><p className="text-xs font-medium">Notas</p><p className="whitespace-pre-wrap text-sm text-text-secondary">{selectedMeal.notes}</p></div>}{selectedDetailUrl && <Button variant="outline" className="w-full" render={<a href={selectedDetailUrl} target="_blank" rel="noopener noreferrer" />}><ExternalLink /> Abrir enlace de la receta</Button>}{canEdit && <div className="flex gap-2 border-t border-border-primary pt-3"><Button className="flex-1 transition-transform duration-200 active:scale-95 motion-reduce:transition-none" onClick={() => { const meal = selectedMeal; setSelectedMeal(null); openMeal(meal.meal_date, meal.meal_type, meal); }}><Pencil /> Editar</Button><Button variant="destructive" size="icon" aria-label="Eliminar comida" title="Eliminar comida" className="transition-transform duration-200 hover:rotate-[-8deg] active:scale-90 motion-reduce:transition-none" onClick={() => { const meal = selectedMeal; setSelectedMeal(null); openMeal(meal.meal_date, meal.meal_type, meal); setMealDeleteOpen(true); }}><Trash2 /></Button></div>}</div>}</DialogContent></Dialog>
 
     <Dialog open={!!mealDraft} onOpenChange={(open) => !open && closeMeal()}>
       <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{mealDraft?.id ? "Editar comida" : "Añadir comida"}</DialogTitle><DialogDescription>Elige el día, el momento y una receta guardada o escribe un plato nuevo.</DialogDescription></DialogHeader>

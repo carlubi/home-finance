@@ -1,6 +1,7 @@
 import { formatMonth } from "@/lib/format";
 import type { AppLanguage } from "@/lib/language";
-import { MEAL_TYPES, mealLabel, type MealType } from "@/lib/meals";
+import { MEAL_TYPES, mealLabel, sortMeals, type MealType } from "@/lib/meals";
+import { normalizeRecipeUrl } from "@/lib/menu-recipes";
 import { loadDarkBrandIcon } from "@/lib/pdf-brand";
 import { monthWeeks, type MenuPdfLayout, type MenuPdfMeal, type MenuPdfScope } from "@/lib/menu-pdf";
 
@@ -16,6 +17,16 @@ function fitLines(ctx: CanvasRenderingContext2D, value: string, width: number) {
   const lines: string[] = [];
   let line = "";
   for (const word of words) {
+    if (ctx.measureText(word).width > width) {
+      if (line) { lines.push(line); line = ""; }
+      let part = "";
+      for (const character of word) {
+        if (ctx.measureText(part + character).width > width && part) { lines.push(part); part = ""; }
+        part += character;
+      }
+      line = part;
+      continue;
+    }
     const next = line ? `${line} ${word}` : word;
     if (ctx.measureText(next).width > width && line) { lines.push(line); line = word; }
     else line = next;
@@ -41,10 +52,15 @@ export async function downloadMenuPng({ month, scope, meals, layout, mealTypes, 
   const measure = canvas.getContext("2d");
   if (!measure) throw new Error("No se pudo generar la imagen.");
   measure.font = "14px Inter, sans-serif";
-  const filtered = meals.filter((meal) => mealTypes.includes(meal.meal_type as MealType));
+  const filtered = sortMeals(meals.filter((meal) => mealTypes.includes(meal.meal_type as MealType)));
+  const visibleDays = new Set(weeks.flatMap((week) => week.days.filter((day): day is string => !!day)));
+  const links = filtered.filter((meal) => visibleDays.has(meal.meal_date) && normalizeRecipeUrl(meal.source_url ?? ""))
+    .sort((a, b) => a.meal_date.localeCompare(b.meal_date) || MEAL_TYPES.findIndex((type) => type.id === a.meal_type) - MEAL_TYPES.findIndex((type) => type.id === b.meal_type));
+  measure.font = "14px Inter, sans-serif";
+  const annexHeight = links.length ? 75 + links.reduce((sum, meal) => sum + 30 + fitLines(measure, normalizeRecipeUrl(meal.source_url ?? "")!, width - margin * 2).length * 19, 0) : 0;
   const dayHeight = (day: string) => 75 + filtered.filter((meal) => meal.meal_date === day).reduce((sum, meal) => sum + 27 + fitLines(measure, meal.title, cellWidth - 30).length * 18, 0);
   const rowHeights = weeks.map((week) => Math.max(calendar ? 210 : 280, ...week.days.filter((day): day is string => !!day).map(dayHeight)) + (calendar ? 0 : 36));
-  const height = top + rowHeights.reduce((sum, rowHeight) => sum + rowHeight + gap, 0) + 90;
+  const height = top + rowHeights.reduce((sum, rowHeight) => sum + rowHeight + gap, 0) + annexHeight + 90;
   const scale = 2;
   canvas.width = width * scale;
   canvas.height = height * scale;
@@ -105,6 +121,23 @@ export async function downloadMenuPng({ month, scope, meals, layout, mealTypes, 
     });
     y += rowHeight + gap;
   });
+  if (links.length) {
+    y += 25;
+    ctx.fillStyle = "#18181b";
+    ctx.font = "600 23px Inter, sans-serif";
+    ctx.fillText(language === "ca" ? "Enllaços de receptes" : "Enlaces de recetas", margin, y);
+    y += 30;
+    for (const meal of links) {
+      ctx.fillStyle = "#27272a";
+      ctx.font = "600 14px Inter, sans-serif";
+      ctx.fillText(`${meal.meal_date} · ${mealLabel(meal.meal_type, language)} · ${meal.title}`, margin, y);
+      y += 19;
+      ctx.fillStyle = "#4f46a5";
+      ctx.font = "14px Inter, sans-serif";
+      for (const line of fitLines(ctx, normalizeRecipeUrl(meal.source_url ?? "")!, width - margin * 2)) { ctx.fillText(line, margin, y); y += 19; }
+      y += 11;
+    }
+  }
   ctx.fillStyle = "#a1a1aa";
   ctx.font = "13px Inter, sans-serif";
   ctx.fillText(`Home Brain · ${monthTitle}`, margin, height - 35);

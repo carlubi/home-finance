@@ -4,7 +4,7 @@ import { jsPDF } from "jspdf";
 import { MEAL_ICON_PATHS } from "./meal-icon-paths";
 import { MEAL_TYPES } from "./meals";
 import { PDF_COLORS } from "./pdf-brand";
-import { buildMenuPdf, buildMonthCalendarPdf, monthWeeks, type MenuPdfMeal } from "./menu-pdf";
+import { buildMenuPdf, buildMonthCalendarPdf, linkedMenuMeals, monthWeeks, type MenuPdfMeal } from "./menu-pdf";
 
 const fonts = { family: "helvetica", medium: "bold", semibold: "bold" };
 const month = "2026-08";
@@ -23,6 +23,25 @@ function saveQaPdf(doc: jsPDF, name: string) {
 }
 
 describe("PDF de menús", () => {
+  it("ordena las comidas y añade enlaces clicables al plato y al anexo", () => {
+    const day = "2026-08-03";
+    const linked: MenuPdfMeal[] = [
+      { meal_date: day, meal_type: "dinner", title: "Cena", source_url: "https://example.com/cena" },
+      { meal_date: day, meal_type: "snack", title: "Merienda", source_url: "https://example.com/merienda" },
+      { meal_date: day, meal_type: "breakfast", title: "Desayuno", source_url: "https://example.com/desayuno" },
+      { meal_date: day, meal_type: "lunch", title: "Comida", source_url: "https://example.com/comida" },
+    ];
+    expect(linkedMenuMeals(linked, ["dinner", "snack", "lunch", "breakfast"], [day]).map((meal) => meal.meal_type))
+      .toEqual(["breakfast", "lunch", "snack", "dinner"]);
+    const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+    const links = vi.spyOn(doc, "link");
+    const text = vi.spyOn(doc, "text");
+    buildMenuPdf(doc, fonts, null, { title: "Menú", subtitle: "Semana", footer: "Menú", weeks: [weeks[1]], meals: linked, mealTypes: ["dinner", "snack", "lunch", "breakfast"] });
+    expect(doc.getNumberOfPages()).toBe(2);
+    for (const meal of linked) expect(links.mock.calls.filter((args) => args[4]?.url === meal.source_url)).toHaveLength(2);
+    const headings = text.mock.calls.map(([value]) => value).filter((value) => typeof value === "string" && value.startsWith(`${day} · `));
+    expect(headings).toEqual([`${day} · Desayuno · Desayuno`, `${day} · Comida · Comida`, `${day} · Merienda · Merienda`, `${day} · Cena · Cena`]);
+  });
   it("escribe en catalán los días, las comidas y las cabeceras de ambos formatos", () => {
     const calendar = new jsPDF({ unit: "pt", format: "a3", orientation: "landscape" });
     const calendarText = vi.spyOn(calendar, "text");
